@@ -34,6 +34,7 @@ enum class SettingsRow : uint8_t {
     REPLAY_INTRO,
     SHOW_OFF,
     SHADES_COLOR,
+    GLASSES,         // Simpson restyle: removable shades layer, ON/OFF (default ON)
     POTSY_SIZE,
     OUTFIT,
     PET,
@@ -89,6 +90,7 @@ enum class SettingsRow : uint8_t {
     CHARGE_MODE,     // the CYD boards: radios and screen off so a battery charges faster
     LAST_RUN,        // the CYD boards: how long the previous boot ran, on the SYSTEM page
     PRIVACY,         // PRIVACY MODE: addresses and names masked on screen, on the SYSTEM page
+    LANGUAGE,        // SYSTEM page: UI language, EN/RU (PotSquad default RU)
     EXT_SCREEN,      // the Cardputer ADV only: a second panel on the EXT header
     DET_STYLE,       // on the APPEARANCE page: XP or CLASSIC detection counters
     CLOCK_FORMAT,    // on the DESK MODE page: 12-hour or 24-hour time

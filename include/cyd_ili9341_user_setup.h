@@ -59,6 +59,12 @@
 // NOTE: editing this file does not rebuild the library -- delete
 // .pio/build/<env>/lib*/TFT_eSPI first, or the board runs the old config.
 #define LOAD_FONT2
+// PotSquad: the GFX free-font renderer, for the Russian face (RuCyr8 in
+// include/ru_font.h, drawn via Theme::printRU). Types only (gfxfont.h)
+// plus the renderer -- no bundled font data, ~1 KB of our own glyphs.
+// The font-1 path with no free font set is byte-identical with or without
+// this, so EN rendering does not move a pixel.
+#define LOAD_GFXFF
 
 // ILI9341 is normal (non-inverted) polarity, RGB order -- the two
 // lines that actually differ from cyd_user_setup.h's ST7789 config.

@@ -38,6 +38,12 @@
 // The same fonts every other CYD build loads, and no more.
 #define LOAD_GLCD
 #define LOAD_FONT2
+// PotSquad: the GFX free-font renderer, for the Russian face (RuCyr8 in
+// include/ru_font.h, drawn via Theme::printRU). Types only (gfxfont.h)
+// plus the renderer -- no bundled font data, ~1 KB of our own glyphs.
+// The font-1 path with no free font set is byte-identical with or without
+// this, so EN rendering does not move a pixel.
+#define LOAD_GFXFF
 #define LOAD_FONT4
 #define SMOOTH_FONT
 

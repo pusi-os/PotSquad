@@ -145,5 +145,20 @@ int main() {
         ck("titles of 13 characters Bangers can draw", title);
     }
 
+    suite("Every page has its Russian twin");
+    {
+        bool ru = true;
+        for (uint8_t i = 0; i < DeviceInfo::kDeviceCount; i++) {
+            const Device& dv = DeviceInfo::kDevices[i];
+            if (!dv.textRU || !dv.textRU[0]) {
+                printf("    %s has no Russian text\n", dv.title); ru = false; continue;
+            }
+            if (strlen(dv.textRU) > 320) {
+                printf("    %s RU over 320 bytes\n", dv.title); ru = false;
+            }
+        }
+        ck("every device has Russian text under 320 bytes", ru);
+    }
+
     return report();
 }

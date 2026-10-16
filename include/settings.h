@@ -425,6 +425,15 @@ namespace Settings {
     bool        updateCheck();
     void        toggleUpdateCheck();
 
+    // LANGUAGE: UI language. 0 EN, 1 RU (the PotSquad default: a fresh
+    // board speaks Russian until switched). Persisted under NVS key
+    // ("lang"); the strings dictionary reads this. Cycles on the SYSTEM
+    // page, settable over serial with LANG RU|EN.
+    uint8_t     lang();
+    const char* langName();
+    void        cycleLang();
+    void        setLang(uint8_t v);
+
     // TIME ZONE: an index into Clock's zone table, applied at load and on
     // every change. UTC until somebody picks one; timeZoneChosen() says
     // whether anybody has, so Potsy can ask once.
@@ -558,6 +567,10 @@ namespace Settings {
     // is remembered because somebody who hates it hates it every time.
     bool        phoneQwerty();
     void        togglePhoneQwerty();
+    // Russian variant of the QWERTY board (qwerty.cpp). Default follows
+    // Settings::lang(), so a fresh RU board speaks ЙЦУКЕН unless switched off.
+    bool        phoneQwertyRu();
+    void        togglePhoneQwertyRu();
     // Encrypted messages between PotsSquads that share a phrase. Off until
     // asked for. Reading one needs DETECT; sending one needs TRANSMIT, and so
     // sits behind the same consent gate.

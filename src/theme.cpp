@@ -6,6 +6,9 @@
 #include "lil_guy.h"
 #include "detection.h"
 #include "bangers_font.h"
+#include "type_names.h"
+#include "ru_font.h"
+#include "ru_text.h"
 #include "potsy.h"
 #include "settings.h"
 #include "security.h"
@@ -10393,6 +10396,115 @@ void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
     if (s_large && s_infoPage + 1 < s_infoPages) snprintf(lbl, sizeof lbl, "[ MORE %u/%u ]", s_infoPage + 1, s_infoPages);
     else                                         snprintf(lbl, sizeof lbl, "[ GOT IT ]");
     drawButton(t, btnX, btnY, btnW, btnH, lbl, false, 2);
+}
+
+// ---- Russian text (PotSquad) -----------------------------------------------
+// Ink extent of one Cyrillic glyph at the current text size: advances the
+// pen and reports the furthest ink pixel. Liberation's caps overhang their
+// advance, so summing advances alone puts right-aligned text under the
+// panel edge -- measure the ink instead, the way the renderer draws it.
+static void ruInk(TFT_eSPI& t, uint16_t cp, int& pen, int& right) {
+    const uint8_t sz = t.textsize ? t.textsize : 1;
+    if (cp >= 0x20 && cp < 0x7F) { pen += 6 * sz; right = pen; return; }
+    if (RuText::isCyrillic(cp)) {
+        const uint16_t i = cp - RuCyr8.first;
+        const uint8_t adv = pgm_read_byte(&RuCyr8.glyph[i].xAdvance);
+        if (adv) {
+            const int8_t xo = (int8_t)pgm_read_byte(&RuCyr8.glyph[i].xOffset);
+            const uint8_t gw = pgm_read_byte(&RuCyr8.glyph[i].width);
+            const int edge = pen + (adv > (int)(xo + gw) ? adv : (xo + gw)) * sz;
+            if (edge > right) right = edge;
+            pen += adv * sz;
+            return;
+        }
+    }
+    pen += 6 * sz; right = pen;
+}
+
+const char* tr(const char* en, const char* ru) {
+    return (Settings::lang() == 1) ? ru : en;
+}
+
+static const int RU_YSHIFT = 6;
+static void drawRuGlyph(TFT_eSPI& t, int x, int y, uint16_t cp) {
+    const uint16_t i = cp - RuCyr8.first;
+    const uint8_t sz = t.textsize ? t.textsize : 1;
+    const uint8_t gw = pgm_read_byte(&RuCyr8.glyph[i].width);
+    const uint8_t gh = pgm_read_byte(&RuCyr8.glyph[i].height);
+    const int8_t xo = (int8_t)pgm_read_byte(&RuCyr8.glyph[i].xOffset);
+    const int8_t yo = (int8_t)pgm_read_byte(&RuCyr8.glyph[i].yOffset);
+    const uint8_t* bm = RuCyr8Bitmaps + RuCyr8.glyph[i].bitmapOffset;
+    const uint16_t fg = t.textcolor;
+    uint32_t bit = 0;
+    for (uint8_t yy = 0; yy < gh; yy++) {
+        for (uint8_t xx = 0; xx < gw; xx++, bit++) {
+            if (!((pgm_read_byte(&bm[bit >> 3]) >> (7 - (bit & 7))) & 1)) continue;
+            const int px = x + (xo + xx) * sz, py = y + (yo + RU_YSHIFT + yy) * sz;
+            if (sz == 1) t.drawPixel(px, py, fg);
+            else         t.fillRect(px, py, sz, sz, fg);
+        }
+    }
+}
+
+void printRU(TFT_eSPI& t, const char* s) {
+    const char* p = s;
+    while (p && *p) {
+        const uint16_t cp = RuText::next(&p);
+        if (cp == '\n' || cp == '\r' || cp == '\t') {
+            t.write((uint8_t)cp);
+        } else if (cp >= 0x20 && cp < 0x7F) {
+            t.write((uint8_t)cp);
+        } else if (RuText::isCyrillic(cp)) {
+            const uint16_t i = cp - RuCyr8.first;
+            if (pgm_read_byte(&RuCyr8.glyph[i].xAdvance)) {
+                drawRuGlyph(t, t.getCursorX(), t.getCursorY(), cp);
+                const uint8_t sz = t.textsize ? t.textsize : 1;
+                t.setCursor(t.getCursorX() + (int16_t)pgm_read_byte(&RuCyr8.glyph[i].xAdvance) * sz,
+                            t.getCursorY());
+            } else {
+                t.write('?');
+            }
+        } else {
+            t.write('?');
+        }
+    }
+}
+
+int textWidthRU(TFT_eSPI& t, const char* s) {
+    int pen = 0, right = 0;
+    const char* p = s;
+    while (p && *p) ruInk(t, RuText::next(&p), pen, right);
+    return right;
+}
+
+uint8_t wrapTextRU(TFT_eSPI& t, const char* text, int maxW,
+                   char lines[][48], uint8_t maxLines) {
+    char buf[320];
+    strncpy(buf, text, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = 0;
+
+    uint8_t n = 0;
+    char lineBuf[48] = "";
+    char* word = strtok(buf, " ");
+    while (word) {
+        char trial[48];
+        if (lineBuf[0]) snprintf(trial, sizeof(trial), "%s %s", lineBuf, word);
+        else            snprintf(trial, sizeof(trial), "%s", word);
+        bool tooWide = lineBuf[0] &&
+                       (textWidthRU(t, trial) > maxW || strlen(trial) >= sizeof(lineBuf) - 1);
+        if (tooWide) {
+            if (n >= maxLines - 1) break;
+            strncpy(lines[n], lineBuf, sizeof(lines[n]) - 1); lines[n][sizeof(lines[n]) - 1] = 0; n++;
+            strncpy(lineBuf, word, sizeof(lineBuf) - 1); lineBuf[sizeof(lineBuf) - 1] = 0;
+        } else {
+            strncpy(lineBuf, trial, sizeof(lineBuf) - 1); lineBuf[sizeof(lineBuf) - 1] = 0;
+        }
+        word = strtok(nullptr, " ");
+    }
+    if (lineBuf[0] && n < maxLines) {
+        strncpy(lines[n], lineBuf, sizeof(lines[n]) - 1); lines[n][sizeof(lines[n]) - 1] = 0; n++;
+    }
+    return n;
 }
 
 }  // namespace Theme

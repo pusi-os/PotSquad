@@ -706,6 +706,14 @@ void pollSerial() {
         }
 #endif
 #endif
+        if (strncasecmp(line, "LANG", 4) == 0) {
+            const char* arg = line + 4;
+            while (*arg == ' ') arg++;
+            if (strcasecmp(arg, "RU") == 0)      { Settings::setLang(1); }
+            else if (strcasecmp(arg, "EN") == 0) { Settings::setLang(0); }
+            Serial.printf("[lang] %s\n", Settings::langName());
+            continue;
+        }
         if (strncasecmp(line, "ZONE ", 5) == 0) {
             // ZONE US EASTERN, or ZONE 4: the flasher sends the name it
             // worked out from the browser's own zone.

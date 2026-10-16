@@ -22,6 +22,7 @@ static bool        s_meshDetect   = false;
 static bool        s_meshTransmit = false;
 static bool        s_meshConsent  = false;
 static bool        s_phoneQwerty  = false;
+static bool        s_phoneQwertyRu = false;
 static bool        s_messagesOn   = false;
 static bool        s_meshHeadsUp  = true;
 static bool        s_msgTutor     = false;
@@ -206,6 +207,7 @@ static uint8_t s_lightBright = 4;    // of 7
 static bool    s_remoteUpdate = false;
 static bool    s_phraseShown  = true;
 static bool    s_updateCheck  = true;
+static uint8_t s_lang         = 1;   // 0 EN, 1 RU (PotSquad default). SYSTEM page LANGUAGE row.
 static uint8_t s_timeZone     = 10;   // UTC in Clock's table
 static bool    s_tzChosen     = false;
 static const char* const LIGHT_IDLE_NAMES[]  = { "OFF", "BREATHE", "SOLID" };
@@ -628,10 +630,15 @@ void load() {
     s_remoteUpdate = s_prefs.getBool("rmtUpd", true);
     s_phraseShown  = s_prefs.getBool("phrShow", true);
     s_updateCheck  = s_prefs.getBool("updChk", true);
+    s_lang         = s_prefs.getUChar("lang", 1);
+    if (s_lang > 1) s_lang = 1;
     s_timeZone     = s_prefs.getUChar("tz", 10);
     s_tzChosen     = s_prefs.getBool("tzSet", false);
     if (s_timeZone >= Clock::zoneCount()) s_timeZone = 10;
     Clock::applyZone(s_timeZone);
+#if POTS_MESH
+    s_phoneQwertyRu = s_prefs.getBool("qwertyru", s_lang == 1);
+#endif
     if (s_lightIdle > 2)                 s_lightIdle = 1;
     if (s_lightColor >= LIGHT_COLOR_N)   s_lightColor = 0;
     if (s_lightBright < 1 || s_lightBright > 7) s_lightBright = 4;
@@ -888,6 +895,15 @@ bool phraseShown()          { return s_phraseShown; }
 void togglePhraseShown()    { s_phraseShown = !s_phraseShown; s_prefs.putBool("phrShow", s_phraseShown); }
 bool updateCheck()          { return s_updateCheck; }
 void toggleUpdateCheck()    { s_updateCheck = !s_updateCheck; s_prefs.putBool("updChk", s_updateCheck); }
+uint8_t     lang()          { return s_lang; }
+const char* langName()      { return s_lang ? "RU" : "EN"; }
+void        cycleLang()     { s_lang = (uint8_t)((s_lang + 1) % 2); s_prefs.putUChar("lang", s_lang); }
+void        setLang(uint8_t v) {
+    if (v > 1) return;
+    if (s_lang == v) return;
+    s_lang = v;
+    s_prefs.putUChar("lang", s_lang);
+}
 uint8_t     timeZone()      { return s_timeZone; }
 const char* timeZoneName()  { return Clock::zoneName(s_timeZone); }
 bool        timeZoneChosen(){ return s_tzChosen; }
@@ -1075,6 +1091,14 @@ bool phoneQwerty() { return s_phoneQwerty; }
 void togglePhoneQwerty() {
     s_phoneQwerty = !s_phoneQwerty;
     s_prefs.putBool("qwerty", s_phoneQwerty);
+}
+// The QWERTY board's alphabet: ЙЦУКЕН or QWERTY. The toggle sits beside BACK
+// in the payphone's bottom row and names the OTHER alphabet, like the
+// keypad/QWERTY switch beside it.
+bool phoneQwertyRu() { return s_phoneQwertyRu; }
+void togglePhoneQwertyRu() {
+    s_phoneQwertyRu = !s_phoneQwertyRu;
+    s_prefs.putBool("qwertyru", s_phoneQwertyRu);
 }
 bool messagesOn() { return s_messagesOn; }
 void toggleMessages() {

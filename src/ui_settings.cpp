@@ -135,7 +135,7 @@ static const SettingsRow APPEARANCE_ROWS[] = {
     // change, and they were a scroll away on the main list. AURA only
     // appears once it has been earned; see buildDisplayList().
     SettingsRow::POTSY_SIZE, SettingsRow::OUTFIT, SettingsRow::PET,
-    SettingsRow::SHADES_COLOR, SettingsRow::BANTER, SettingsRow::AURA,
+    SettingsRow::SHADES_COLOR, SettingsRow::GLASSES, SettingsRow::BANTER, SettingsRow::AURA,
     // Then how the SCREEN looks.
     SettingsRow::THEME, SettingsRow::BACKGROUND, SettingsRow::BACKGROUND_LOCK, SettingsRow::DET_STYLE,
     SettingsRow::BRIGHTNESS,
@@ -201,7 +201,7 @@ static const SettingsRow SYSTEM_ROWS[] = {
 #endif
     SettingsRow::CALIBRATE, SettingsRow::CHECK_COLORS,
     SettingsRow::DIAGNOSTICS, SettingsRow::UPDATE_FIRMWARE, SettingsRow::UPDATE_CHECK, SettingsRow::WIFI_NETWORKS,
-    SettingsRow::RESET_STATS,
+    SettingsRow::LANGUAGE, SettingsRow::RESET_STATS,
 };
 static const uint8_t SYSTEM_ROWS_N = sizeof(SYSTEM_ROWS) / sizeof(SYSTEM_ROWS[0]);
 
@@ -304,6 +304,7 @@ static RowGroupId groupFor(SettingsRow r) {
         case SettingsRow::ROTATION_LOCK:
         case SettingsRow::STATUS_LIGHT:
         case SettingsRow::SHADES_COLOR:
+        case SettingsRow::GLASSES:
         case SettingsRow::AURA:
         // SIZE, OUTFIT and PET moved onto the APPEARANCE page with the rest of
         // how he looks. They answer APPEARANCE rather than POTSY so the page
@@ -1381,6 +1382,9 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
         case SettingsRow::UPDATE_CHECK:
             label = "UPDATE CHECK"; value = Settings::updateCheck() ? "AT BOOT" : "OFF";
             break;
+        case SettingsRow::LANGUAGE:
+            label = Theme::tr("LANGUAGE", "ЯЗЫК"); value = Settings::langName();
+            break;
         case SettingsRow::WIFI_NETWORKS:
             label = "WIFI NETWORKS";
             if (OtaWifi::savedCount()) { snprintf(valBuf, valBufN, "%u SAVED >", (unsigned)OtaWifi::savedCount()); value = valBuf; }
@@ -1400,6 +1404,9 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             break;
         case SettingsRow::SHADES_COLOR:
             label = "SHADES COLOR"; value = Potsy::shadesColorName();
+            break;
+        case SettingsRow::GLASSES:
+            label = Theme::tr("GLASSES", "ОЧКИ"); value = Potsy::glassesOn() ? Theme::tr("ON", "ВКЛ") : Theme::tr("OFF", "ВЫКЛ");
             break;
         // "SIZE" rather than "POTSY SIZE": this row is already under the
         // POTSY heading, and the longer label plus "MEDIUM" overruns a

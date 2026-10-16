@@ -174,6 +174,12 @@ namespace Potsy {
     void        cycleNickname();
     const char* shadesColorName();
     void        cycleShadesColor();
+    // Removable glasses: the shades are a separate sprite layer drawn over
+    // the base face (Simpson big eyes underneath). Persisted; default ON so
+    // the classic look survives the restyle. Settings > GLASSES flips it.
+    bool        glassesOn();
+    void        toggleGlasses();
+    void        setGlasses(bool on);
 
     // Outfits: NONE (no costume), RACCOON and UNICORN are free/always
     // unlocked; the rest unlock progressively with lifetime detection

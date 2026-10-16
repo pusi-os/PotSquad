@@ -16,7 +16,11 @@
 // only -- it rides in the advert, and letters are what every decoder accepts.
 //
 // And for anybody who hates multi-tap regardless, a QWERTY board: one button
-// away, and remembered once chosen. It is drawn by this same screen rather
+// away, and remembered once chosen. It speaks two alphabets -- QWERTY and
+// ЙЦУКЕН, switched by a button beside BACK that names the other one, just
+// like the keypad/QWERTY switch itself. The Russian board types Latin
+// transliteration (the air alphabet is Latin and the readout face is too),
+// its keys labelled in Cyrillic. It is drawn by this same screen rather
 // than a screen of its own because the text being typed lives here, and
 // switching layouts mid-word keeps what you have typed -- which is the entire
 // point of a bailout. Its geometry, hit test and touch filter are pure
@@ -98,10 +102,14 @@ uint8_t     s_forgotTaps  = 0;
 uint32_t    s_forgotAt    = 0;
 bool        s_pinForgotHit = false;
 const uint32_t FORGOT_ARM_MS = 5000;
-uint8_t  s_max    = Potsy::CUSTOM_NAME_MAX;
+uint16_t s_max    = Potsy::CUSTOM_NAME_MAX;
+// When non-zero, the ceiling is a CHARACTER count rather than a byte count:
+// transliterated Russian stays byte-counted (Latin air alphabet), so this
+// stays zero on PotSquad; kept for parity with the BroWatch donor.
+uint16_t s_maxChars = 0;
 bool     s_msgOk  = false;      // a message ended on OK, not BACK
 
-char     s_buf[MeshMsg::TEXT_MAX + 1];
+char     s_buf[256];
 // Filled by the draw, read by the hit test, so the two cannot disagree about
 // where the button is -- the same reason every other row list here computes
 // its geometry once.
@@ -157,7 +165,19 @@ void saveAndClose() {
     }
     s_done = true;
 }
-void deleteLast() { commitPending(); if (s_len) s_buf[--s_len] = '\0'; Potsy::noteBackspace(); }
+void deleteLast() {
+    commitPending();
+    if (!s_len) return;
+    s_len--;                                       // off the last byte
+    while (s_len && ((uint8_t)s_buf[s_len] & 0xC0) == 0x80) s_len--;  // and its continuations
+    s_buf[s_len] = '\0';
+}
+// How many characters a UTF-8 buffer holds: lead bytes, not continuation ones.
+static uint16_t u8len(const char* s) {
+    uint16_t n = 0;
+    for (; s && *s; s++) if (((uint8_t)*s & 0xC0) != 0x80) n++;
+    return n;
+}
 // The name board's SHUFFLE: whatever was typed goes, and the curated name
 // steps to the next one. OK from here keeps it -- an empty board means
 // "the curated one", which is what the readout shows.
@@ -165,7 +185,17 @@ void shuffleName() { commitPending(); s_len = 0; s_buf[0] = '\0'; Potsy::cycleNi
 void appendChar(char c) {
     Potsy::noteTyped();
     commitPending();
-    if (s_len < s_max) { s_buf[s_len++] = c; s_buf[s_len] = '\0'; }
+    if (s_maxChars) { if (u8len(s_buf) < s_maxChars && s_len < s_max) { s_buf[s_len++] = c; s_buf[s_len] = '\0'; } }
+    else if (s_len < s_max) { s_buf[s_len++] = c; s_buf[s_len] = '\0'; }
+}
+// A Russian key appends its whole transliteration ("SHCH" is four letters).
+// The buffer counts bytes, so a long tail can fill it mid-key: the rest is
+// dropped, the same way a full buffer drops one more letter.
+void appendTr(const char* tr) {
+    Potsy::noteTyped();
+    commitPending();
+    while (*tr && s_len < s_max) { s_buf[s_len++] = *tr++; }
+    s_buf[s_len] = '\0';
 }
 
 // Both of these moved into Theme so the WiFi password board can have the
@@ -232,6 +262,15 @@ static void toggleRect(int w, int h, bool qwerty) {
     if (qwerty) { s_toggleX = w - BX - BW_(); s_toggleY = backY(h); }
     else        { s_toggleX = BX;          s_toggleY = backY(h) - BH - 6; }
 }
+// The alphabet switch. Only on the QWERTY board -- centred in BACK's row
+// between BACK and the layout switch, where the thumb already is. Names the
+// OTHER alphabet: RU on the English board, EN on the Russian one.
+static int s_langX = 0, s_langY = 0;
+static void langRect(int w, int h) {
+    const int freeL = BX + BW_() + 6, freeR = w - BX - BW_() - 6;
+    s_langX = freeL + (freeR - freeL - BW_()) / 2;
+    s_langY = backY(h);
+}
 
 // How far outside the board a press can land and still count: the gutters
 // and a hair past the outer keys, so a press on the readout or the chrome is
@@ -242,15 +281,25 @@ static const int PRESS_REACH = 6;
 // nothing to learn.
 static const int SLIDE_REACH = 12;
 
+// Letters share one text size across the board: Latin A-Z and the Russian
+// key ids. Digits, punctuation and controls keep their own fit.
+static bool isLetterKey(char c) {
+    if (Qwerty::isRuKey(c)) return true;
+    return c >= 'A' && c <= 'Z';
+}
+
 // What a key says. Letters are themselves; the controls borrow the keypad's
-// own words, DEL rather than an arrow the 5x7 font does not have.
+// own words, DEL rather than an arrow the 5x7 font does not have. Russian
+// keys answer with their Cyrillic glyph -- printRU draws them, one[] below
+// could never hold their two bytes.
 static const char* keyLabel(char c) {
     static char one[2];
+    if (Qwerty::isRuKey(c)) return Qwerty::ruGlyph((uint8_t)(c - Qwerty::RU_BASE));
     switch (c) {
         case Qwerty::BKSP: return "DEL";
         case Qwerty::CLR:  return "CLR";
         case Qwerty::SHUF: return "SHUFFLE";
-        case Qwerty::OK:   return "OK";
+        case Qwerty::OK:   return Theme::tr("OK", "ОК");
         case ' ':          return "SPACE";
         default: one[0] = c; one[1] = '\0'; return one;
     }
@@ -297,6 +346,20 @@ static void qwertyFollow(int x, int y) {
              (unsigned)s_filter.cn, traceKey(s_armed));
 }
 
+static void typeKey(int k) {
+    if (k < 0) return;
+    const char c = s_keys[k].ch;
+    if      (c == Qwerty::BKSP) deleteLast();
+    else if (c == Qwerty::CLR)  { commitPending(); s_len = 0; s_buf[0] = '\0'; }
+    else if (c == Qwerty::SHUF) shuffleName();
+    else if (c == Qwerty::OK)   saveAndClose();
+    else if (Qwerty::isRuKey(c)) {
+        const uint8_t ix = (uint8_t)(c - Qwerty::RU_BASE);
+        appendTr(Qwerty::ruTr(ix));
+    }
+    else                        appendChar(c);
+}
+
 static void qwertyRelease() {
     // Nothing is read from the touch here, deliberately. The finger has gone,
     // and the samples just before it went are the ones the filter exists to
@@ -306,13 +369,7 @@ static void qwertyRelease() {
     s_armed = -1;
     QW_TRACE("[qw] U %lu typed=%s\n", (unsigned long)millis(), traceKey(k));
     s_lastQwKey = (int8_t)k;
-    if (k < 0) return;
-    const char c = s_keys[k].ch;
-    if      (c == Qwerty::BKSP) deleteLast();
-    else if (c == Qwerty::CLR)  { commitPending(); s_len = 0; s_buf[0] = '\0'; }
-    else if (c == Qwerty::SHUF) shuffleName();
-    else if (c == Qwerty::OK)   saveAndClose();
-    else                        appendChar(c);
+    typeKey(k);
 }
 
 void uiPhoneInit(TFT_eSPI& t) {
@@ -406,11 +463,11 @@ static void drawPinPad(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
 
     // Prompt -- or, with FORGOT armed, what a second tap will do.
     const bool armed = forgotArmed(now);
-    const char* pr = armed ? "TAP AGAIN: WIPE + UNLOCK" : s_pinPrompt;
+    const char* pr = armed ? Theme::tr("TAP AGAIN: WIPE + UNLOCK", "ЖМИ ЕЩЁ: СТЕРЕТЬ ВСЁ") : s_pinPrompt;
     t.setTextSize(1);
     t.setTextColor(armed ? Theme::RED : STEEL_LT);
-    t.setCursor(ux + (UW - t.textWidth(pr)) / 2, uy + 8);
-    t.print(pr);
+    t.setCursor(ux + (UW - Theme::textWidthRU(t, pr)) / 2, uy + 8);
+    Theme::printRU(t, pr);
 
     // The dots, or the wait banner in their place. A shake nudges them for a
     // moment after a wrong PIN.
@@ -420,8 +477,8 @@ static void drawPinPad(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
     if (s_pinWaitMsg) {
         t.setTextColor(Theme::RED);
         t.setTextSize(1);
-        t.setCursor(ux + (UW - t.textWidth(s_pinWaitMsg)) / 2, dY + (dH - 8) / 2);
-        t.print(s_pinWaitMsg);
+        t.setCursor(ux + (UW - Theme::textWidthRU(t, s_pinWaitMsg)) / 2, dY + (dH - 8) / 2);
+        Theme::printRU(t, s_pinWaitMsg);
     } else {
         int shake = 0;
         if (s_pinShakeAt && now - s_pinShakeAt < 300) shake = ((now / 40) % 2) ? 3 : -3;
@@ -442,16 +499,16 @@ static void drawPinPad(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
         if (!lab[0]) continue;                       // * and # left blank
         bevel(t, kx, ky, KW, KH, Theme::TASKBAR, STEEL_LT, STEEL, STEEL_DK, STEEL_SH, false);
         t.setTextSize(2);
-        if (t.textWidth(lab) > KW - 6) t.setTextSize(1);
+        if (Theme::textWidthRU(t, lab) > KW - 6) t.setTextSize(1);
         t.setTextColor(Theme::WHITE);
-        t.setCursor(kx + (KW - t.textWidth(lab)) / 2, ky + (KH - t.fontHeight()) / 2);
-        t.print(lab);
+        t.setCursor(kx + (KW - Theme::textWidthRU(t, lab)) / 2, ky + (KH - t.fontHeight()) / 2);
+        Theme::printRU(t, lab);
     }
 
     if (s_pinBack)
-        Theme::drawButton(t, BX, s_backY, BW_(), BH, "[ BACK ]", false);
+        Theme::drawButton(t, BX, s_backY, BW_(), BH, Theme::tr("[ BACK ]", "[ НАЗАД ]"), false);
     else if (s_pinForgot)
-        Theme::drawButton(t, BX, s_backY, BW_(), BH, armed ? "[ WIPE? ]" : "[ FORGOT ]", armed);
+        Theme::drawButton(t, BX, s_backY, BW_(), BH, armed ? Theme::tr("[ WIPE? ]", "[ СТЕРЕТЬ? ]") : Theme::tr("[ FORGOT ]", "[ ЗАБЫЛ ]"), armed);
 }
 
 // A key from a real keyboard (the T-Deck's), on whichever board is up: the
@@ -498,6 +555,18 @@ void uiPhoneTouch(int x, int y, uint32_t now, PhoneTouch phase) {
         s_sliding = false;
         s_armed = -1;
         Settings::togglePhoneQwerty();
+        return;
+    }
+
+    // The alphabet switch. Same deal: commit, disarm, flip. The typed text
+    // stays -- transliteration is already Latin, so nothing in it changes
+    // meaning when the labels do.
+    if (Settings::phoneQwerty() &&
+        x >= s_langX && x <= s_langX + BW_() && y >= s_langY && y <= s_langY + BH) {
+        commitPending();
+        s_sliding = false;
+        s_armed = -1;
+        Settings::togglePhoneQwertyRu();
         return;
     }
 
@@ -620,12 +689,12 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     // is what OK keeps, and what SHUFFLE changes.
     const bool curated = !msg() && s_len == 0;
     const char* shown = curated ? Potsy::nickname() : s_buf;
-    const int tw = t.textWidth(shown);
+    const int tw = Theme::textWidthRU(t, shown);
     int tx = dX + 7;
     if (tw > dW - 20) tx = dX + dW - 13 - tw;
     t.setCursor(tx, dY + (dH - 14) / 2);
     if (curated) t.setTextColor(STEEL_LT);
-    t.print(shown);
+    Theme::printRU(t, shown);
     t.setTextColor(Theme::GREEN);
     // A caret that stops blinking while a letter is still editable is one
     // glyph doing two jobs: it also says "this one can still change".
@@ -636,8 +705,10 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     }   // end of the readout (TH3 0N3's call takes it first)
     // A message has a limit worth seeing coming; a name's twelve is its own
     // readout.
-    char rem[8];
-    snprintf(rem, sizeof rem, "%u LEFT", (unsigned)(s_max - s_len));
+    char rem[12];
+    const unsigned left = s_maxChars ? (unsigned)(s_maxChars - u8len(s_buf)) : (unsigned)(s_max - s_len);
+    if (Settings::lang() == 1) snprintf(rem, sizeof rem, "%u ОСТ.", left);
+    else                       snprintf(rem, sizeof rem, "%u LEFT", left);
 
     s_backY = backY(h);
 
@@ -655,13 +726,13 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         if (s_armed >= 0) {
             const char* lab = keyLabel(s_keys[s_armed].ch);
             t.setTextSize(2);
-            if (t.textWidth(lab) > pw - 4) t.setTextSize(1);
+            if (Theme::textWidthRU(t, lab) > pw - 4) t.setTextSize(1);
             t.setTextColor(Theme::VAPOR_YELLOW);
-            t.setCursor(px + (pw - t.textWidth(lab)) / 2, dY + (dH - t.fontHeight()) / 2);
-            t.print(lab);
+            t.setCursor(px + (pw - Theme::textWidthRU(t, lab)) / 2, dY + (dH - t.fontHeight()) / 2);
+            Theme::printRU(t, lab);
         } else if (msg()) {
             char n[4];
-            snprintf(n, sizeof n, "%u", (unsigned)(s_max - s_len));
+            snprintf(n, sizeof n, "%u", s_maxChars ? (unsigned)(s_maxChars - u8len(s_buf)) : (unsigned)(s_max - s_len));
             t.setTextSize(1);
             t.setTextColor(STEEL_LT);
             t.setCursor(px + (pw - t.textWidth(n)) / 2, dY + (dH - t.fontHeight()) / 2);
@@ -670,24 +741,37 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
 
         // ---- keys ---------------------------------------------------------
         // Laid out here, every frame, and read by the hit test -- see s_keys.
-        s_keyN = Qwerty::layout(w, Qwerty::BAND_TOP, h - Qwerty::BAND_BOTTOM_INSET, s_keys, msg());
+        const Qwerty::Board bd =
+            Settings::phoneQwertyRu() ? Qwerty::Board::RU : Qwerty::Board::EN;
+        s_keyN = Qwerty::layout(w, Qwerty::BAND_TOP, h - Qwerty::BAND_BOTTOM_INSET, s_keys, msg(), bd);
+        // One size for every LETTER key: Cyrillic wide glyphs (Ж Ш Щ Ы Ю)
+        // must not shrink alone while neighbours stay size 2.
+        int letterSize = 2;
+        t.setTextSize(2);
+        for (uint8_t i = 0; i < s_keyN; i++) {
+            const Qwerty::Key& k = s_keys[i];
+            if (!isLetterKey(k.ch)) continue;
+            if (Theme::textWidthRU(t, keyLabel(k.ch)) > k.w - 6) { letterSize = 1; break; }
+        }
         for (uint8_t i = 0; i < s_keyN; i++) {
             const Qwerty::Key& k = s_keys[i];
             const bool lit = (s_armed == (int8_t)i);
             Theme::drawSteelKey(t, k.x, k.y, k.w, k.h, lit);
             const char* lab = keyLabel(k.ch);
-            t.setTextSize(2);
-            if (t.textWidth(lab) > k.w - 6) t.setTextSize(1);
+            int sz = 2;
+            if (isLetterKey(k.ch)) sz = letterSize;
+            else { t.setTextSize(2); if (Theme::textWidthRU(t, lab) > k.w - 6) sz = 1; }
+            t.setTextSize(sz);
             t.setTextColor(lit ? Theme::VAPOR_YELLOW : Theme::WHITE);
-            t.setCursor(k.x + (k.w - t.textWidth(lab)) / 2, k.y + (k.h - t.fontHeight()) / 2);
-            t.print(lab);
+            t.setCursor(k.x + (k.w - Theme::textWidthRU(t, lab)) / 2, k.y + (k.h - t.fontHeight()) / 2);
+            Theme::printRU(t, lab);
         }
     } else {
         if (msg()) {
             t.setTextSize(1);
             t.setTextColor(STEEL_DK);
-            t.setCursor(caseX() + UW - 12 - t.textWidth(rem), dY + dH + 6);
-            t.print(rem);
+            t.setCursor(caseX() + UW - 12 - Theme::textWidthRU(t, rem), dY + dH + 6);
+            Theme::printRU(t, rem);
         }
         // ---- keypad -------------------------------------------------------
         for (int i = 0; i < 12; i++) {
@@ -724,6 +808,13 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     // ---- layout switch ----------------------------------------------------
     toggleRect(w, h, qw);
     Theme::drawButton(t, s_toggleX, s_toggleY, BW_(), BH, qw ? "[ KEYPAD ]" : "[ QWERTY ]", false);
+    // ---- alphabet switch --------------------------------------------------
+    // QWERTY only: beside the layout switch, in the same row, the same size.
+    if (qw) {
+        langRect(w, h);
+        Theme::drawButton(t, s_langX, s_langY, BW_(), BH,
+                          Settings::phoneQwertyRu() ? "[ EN ]" : "[ РУ ]", false);
+    }
 
 }
 

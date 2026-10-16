@@ -24,6 +24,9 @@ struct Device {
     const char*   vendors;   // "A|B": vendor labels that mean this device, exact; or nullptr
     const char*   names;     // "A|B": advertised-name prefixes, any case; or nullptr
     const char*   text;      // fits the panel in portrait: seven lines of 34
+    const char*   textRU;    // the same page in Russian: seven lines of ~23
+                             // glyphs, under 320 bytes (wrapTextRU's buffer),
+                             // ASCII + Cyrillic only. Titles stay Latin.
 };
 
 extern const Device  kDevices[];

@@ -514,6 +514,11 @@ static const DetLines DET_LINES[] = {
 };
 static const uint8_t DET_LINES_N = sizeof(DET_LINES) / sizeof(DET_LINES[0]);
 
+// PotSquad RU chatter (display-only parallels to the EN banks above).
+#include "potsy_ru.inc"
+
+// PotSquad RU chatter (display-only parallels to the EN banks above).
+
 // Lifetime-detection-count thresholds Potsy calls out by name. Bigger
 // than any of these and he just keeps quiet about the exact number.
 static const uint32_t MILESTONES[] = { 10, 25, 50, 100, 250, 500, 1000, 2500, 5000 };
@@ -627,6 +632,7 @@ static uint32_t s_bestClearMs      = 0;  // longest-ever gap between detections
 static uint32_t s_bestSessionCount = 0;  // most detections seen in one boot
 static uint8_t  s_firstType        = (uint8_t)DetectionType::UNKNOWN;
 static uint8_t  s_shadeIdx         = 0;
+static bool     s_glassesOn        = true;   // removable shades layer; Simpson eyes show when off
 #if POTS_MESH
 // Declared here with the other persisted prefs rather than beside its
 // accessors: ensurePrefsLoaded() reads it far earlier in the file.
@@ -1434,6 +1440,7 @@ static const char* const HINTS[EGG_N][3] = {
       "Knock on the igloo three times!" },
 };
 static uint8_t s_hintSaid[EGG_N] = {};
+#include "potsy_ru_mid.inc"
 
 static void ensurePrefsLoaded();
 
@@ -1491,9 +1498,9 @@ static const char* pickBackgroundLine() {
         // the answer, so it does not become the same sentence every time.
         const uint8_t lvl = said < 2 ? said : (uint8_t)random(1, 3);
         if (said < 255) s_hintSaid[e]++;
-        return HINTS[e][lvl];
+        return isRU() ? HINTS_RU[e][lvl] : HINTS[e][lvl];
     }
-    return BG_LINES[idx][random(0, 3)];
+    return isRU() ? BG_LINES_RU[idx][random(0, 3)] : BG_LINES[idx][random(0, 3)];
 }
 
 // All of this module's persisted fields share one NVS namespace and
@@ -1508,6 +1515,7 @@ static void ensurePrefsLoaded() {
     s_bestSessionCount = s_petPrefs.getUInt("bestSess", 0);
     s_firstType       = s_petPrefs.getUChar("firstType", (uint8_t)DetectionType::UNKNOWN);
     s_shadeIdx        = s_petPrefs.getUChar("shadeIdx", 0);
+    s_glassesOn       = s_petPrefs.getBool("glasses", true);
 #if POTS_MESH
     s_petPrefs.getString("cname", s_customName, sizeof(s_customName));
 #endif
@@ -1598,7 +1606,7 @@ void trigger(Event evt, DetectionType dt, uint32_t lifetimeTotal, uint32_t hitCo
                 if (dt == s_prevType && now - s_prevAt < 30000u && rssi >= s_prevRssi + 6) {
                     if (s_backSteps < 3) s_backSteps++;
                     s_backAt = now;
-                    say(pick(BACK_LINES, 4), MIN_BUBBLE_MS);
+                    say(pickL(BACK_LINES, BACK_LINES_RU, 4), MIN_BUBBLE_MS);
                 }
                 s_prevRssi = rssi;
                 s_prevType = dt;
@@ -1668,43 +1676,46 @@ void trigger(Event evt, DetectionType dt, uint32_t lifetimeTotal, uint32_t hitCo
 
             if (hit > 0) {
                 s_lastMilestone = hit;
-                snprintf(s_milestoneBuf, sizeof(s_milestoneBuf),
+                if (isRU()) snprintf(s_milestoneBuf, sizeof(s_milestoneBuf),
+                         "Поимка #%lu! Рубеж.", (unsigned long)hit);
+                else          snprintf(s_milestoneBuf, sizeof(s_milestoneBuf),
                          "Detection #%lu! Milestone.", (unsigned long)hit);
                 say(s_milestoneBuf, 5500);
             } else if (newRegular && regular) {
-                snprintf(ctxBuf, sizeof ctxBuf, pick(NEW_REGULAR_LINES, 3), regular);
+                snprintf(ctxBuf, sizeof ctxBuf, pickL(NEW_REGULAR_LINES, NEW_REGULAR_LINES_RU, 3), regular);
                 say(ctxBuf, 5500);
             } else if (s_runN == 3 || s_runN == 5 || s_runN == 10) {
-                const char* tmpl = s_runN == 3 ? pick(RUN3_LINES, 2) : s_runN == 5 ? pick(RUN5_LINES, 2) : RUN10_LINES[0];
+                const char* tmpl = s_runN == 3 ? pickL(RUN3_LINES, RUN3_LINES_RU, 2) : s_runN == 5 ? pickL(RUN5_LINES, RUN5_LINES_RU, 2) : (isRU() ? RUN10_LINES_RU[0] : RUN10_LINES[0]);
                 snprintf(ctxBuf, sizeof ctxBuf, tmpl, detectionTypeName(dt), detectionTypeName(dt));
                 say(ctxBuf, 5500);
             } else if (newClosest && random(0, 3) != 0) {
-                snprintf(ctxBuf, sizeof ctxBuf, pick(CLOSEST_LINES, 3), detectionTypeName(dt));
+                snprintf(ctxBuf, sizeof ctxBuf, pickL(CLOSEST_LINES, CLOSEST_LINES_RU, 3), detectionTypeName(dt));
                 say(ctxBuf, 5500);
             } else if (regular && random(0, 3) != 0) {
-                snprintf(ctxBuf, sizeof ctxBuf, pick(REGULAR_LINES, 6), regular, regular);
+                snprintf(ctxBuf, sizeof ctxBuf, pickL(REGULAR_LINES, REGULAR_LINES_RU, 6), regular, regular);
                 say(ctxBuf, 5000);
             } else if (nemesisHit && random(0, 2) == 0) {
-                snprintf(ctxBuf, sizeof ctxBuf, pick(NEMESIS_LINES, 5), detectionTypeName(dt), detectionTypeName(dt));
+                snprintf(ctxBuf, sizeof ctxBuf, pickL(NEMESIS_LINES, NEMESIS_LINES_RU, 5), detectionTypeName(dt), detectionTypeName(dt));
                 say(ctxBuf, 5000);
             } else if (hitCount >= 8) {
                 // A device that's matched this many times isn't a
                 // one-off ping — that's a real pattern worth calling
                 // out plainly, every time (no dice roll), since it's
                 // the more actionable signal.
-                say(pick(PERSISTENT_LINES, 4), 5500);
+                say(pickL(PERSISTENT_LINES, PERSISTENT_LINES_RU, 4), 5500);
             } else if (hitCount >= 3 && random(0, 2) == 0) {
                 // A lighter "I recognize this one" tier — rolled, not
                 // guaranteed, so a device that legitimately racks up
                 // repeats doesn't say the same thing every single time.
-                say(pick(SEEN_BEFORE_LINES, 4), 5000);
+                say(pickL(SEEN_BEFORE_LINES, SEEN_BEFORE_LINES_RU, 4), 5000);
             } else {
                 uint8_t idx = (uint8_t)dt;
                 if (idx >= DET_LINES_N) idx = 0;
-                const char* base = random(0, 2) ? DET_LINES[idx].a : DET_LINES[idx].b;
-                static char oath[96];
+                const char* base = isRU() ? (random(0, 2) ? DET_LINES_RU[idx].a : DET_LINES_RU[idx].b)
+                                                : (random(0, 2) ? DET_LINES[idx].a : DET_LINES[idx].b);
+                static char oath[160];
                 if (random(0, 3) == 0) {
-                    snprintf(oath, sizeof oath, pick(OATH_LINES, OATH_LINES_N), detectionTypeName(dt));
+                    snprintf(oath, sizeof oath, pickL(OATH_LINES, OATH_LINES_RU, OATH_LINES_N), detectionTypeName(dt));
                     base = oath;
                 }
                 // High confidence hits get the line straight — no need
@@ -1730,15 +1741,15 @@ void trigger(Event evt, DetectionType dt, uint32_t lifetimeTotal, uint32_t hitCo
             opens[oi] = now; oi = (uint8_t)((oi + 1) % 5);
             bool five = true;
             for (uint8_t i = 0; i < 5; i++) if (!opens[i] || now - opens[i] > 60000u) five = false;
-            if (five) { say(pick(CHECKING_LINES, 3), MIN_BUBBLE_MS); memset(opens, 0, sizeof opens); }
-            else      say(pick(LOG_OPEN_LINES, 2), MIN_BUBBLE_MS);
+            if (five) { say(pickL(CHECKING_LINES, CHECKING_LINES_RU, 3), MIN_BUBBLE_MS); memset(opens, 0, sizeof opens); }
+            else      say(pickL(LOG_OPEN_LINES, LOG_OPEN_LINES_RU, 2), MIN_BUBBLE_MS);
             break;
         }
         case Event::LOG_CLEARED:
-            say(pick(LOG_CLEAR_LINES, LOG_CLEAR_N), MIN_BUBBLE_MS);
+            say(pickL(LOG_CLEAR_LINES, LOG_CLEAR_LINES_RU, LOG_CLEAR_N), MIN_BUBBLE_MS);
             break;
         case Event::ROTATED:
-            say(pick(ROTATE_LINES, 3), MIN_BUBBLE_MS);
+            say(pickL(ROTATE_LINES, ROTATE_LINES_RU, 3), MIN_BUBBLE_MS);
             break;
         case Event::BOOTED:
             s_lastTouchAt = now;
@@ -1752,7 +1763,7 @@ void trigger(Event evt, DetectionType dt, uint32_t lifetimeTotal, uint32_t hitCo
             if (!s_petPrefs.getBool("onboarded", false)) {
                 startOnboardingInternal();
             } else {
-                say(pick(BOOT_LINES, 2), MIN_BUBBLE_MS);
+                say(pickL(BOOT_LINES, BOOT_LINES_RU, 2), MIN_BUBBLE_MS);
             }
             break;
         case Event::PETTED: {
@@ -1792,17 +1803,17 @@ void trigger(Event evt, DetectionType dt, uint32_t lifetimeTotal, uint32_t hitCo
                 mood = Mood::IDLE;
                 s_leanStart = now;
                 s_leanDir   = 0;
-                say(pick(TICKLE_HEAD_LINES, 3), MIN_BUBBLE_MS);
+                say(pickL(TICKLE_HEAD_LINES, TICKLE_HEAD_LINES_RU, 3), MIN_BUBBLE_MS);
             } else if (s_tapZone == 2 && random(0, 2) == 0) {
                 // The belly: a giggle, which is a faster, smaller bounce.
                 moodUntil = now + tempo(1600);
-                say(pick(TICKLE_BELLY_LINES, 3), MIN_BUBBLE_MS);
+                say(pickL(TICKLE_BELLY_LINES, TICKLE_BELLY_LINES_RU, 3), MIN_BUBBLE_MS);
             } else if (s_tapZone == 3 && random(0, 2) == 0) {
                 // The feet: one big hop, and an objection.
                 moodUntil = now + tempo(700);
-                say(pick(TICKLE_FEET_LINES, 3), MIN_BUBBLE_MS);
+                say(pickL(TICKLE_FEET_LINES, TICKLE_FEET_LINES_RU, 3), MIN_BUBBLE_MS);
             } else {
-                say(pick(PET_LINES, 20), MIN_BUBBLE_MS);
+                say(pickL(PET_LINES, PET_LINES_RU, 20), MIN_BUBBLE_MS);
             }
             s_tapZone = 0;
             break;
@@ -1813,7 +1824,7 @@ void trigger(Event evt, DetectionType dt, uint32_t lifetimeTotal, uint32_t hitCo
             moodUntil = now + tempo(1500);
             s_petFxStart = now;
             s_petFxUntil = now + 2600;
-            say(th3Wearing() ? "There is no spoon." : pick(HELD_LINES, 6), MIN_BUBBLE_MS);
+            say(th3Wearing() ? "There is no spoon." : pickL(HELD_LINES, HELD_LINES_RU, 6), MIN_BUBBLE_MS);
             break;
         }
         case Event::PETTING: {
@@ -1825,7 +1836,7 @@ void trigger(Event evt, DetectionType dt, uint32_t lifetimeTotal, uint32_t hitCo
             static uint32_t lastLineAt = 0;
             if (now - lastLineAt > 2000) {
                 lastLineAt = now;
-                say(pick(PETTING_LINES, 6), MIN_BUBBLE_MS);
+                say(pickL(PETTING_LINES, PETTING_LINES_RU, 6), MIN_BUBBLE_MS);
             }
             break;
         }
@@ -1905,7 +1916,7 @@ static void launch(float vx, float vy, uint32_t now) {
     lastInteraction = now;
     mood = Mood::SHOCKED;
     moodUntil = now + 1600;
-    say(pick(THROW_LINES, 5), MIN_BUBBLE_MS);
+    say(pickL(THROW_LINES, THROW_LINES_RU, 5), MIN_BUBBLE_MS);
     Sound::play(Sound::Id::THROW);
 }
 
@@ -1954,7 +1965,7 @@ void toasterNear(int x, int y) {
     s_duckCooldown = now + 30000;
     // A detection outranks a kitchen appliance, so a startle keeps the
     // floor. He still ducks either way; he just does not comment on it.
-    if (mood != Mood::SHOCKED) say(pick(DUCK_LINES, 5), 3000);
+    if (mood != Mood::SHOCKED) say(pickL(DUCK_LINES, DUCK_LINES_RU, 5), 3000);
 }
 
 void setTempo(uint8_t pct) {
@@ -2042,7 +2053,7 @@ void flick(int8_t dir) {
     lastInteraction = s_flickStart;
     mood = Mood::IDLE;
     moodUntil = 0;
-    say(pick(FLICK_LINES, 4), MIN_BUBBLE_MS);
+    say(pickL(FLICK_LINES, FLICK_LINES_RU, 4), MIN_BUBBLE_MS);
 }
 
 // ---- Drawing ----
@@ -2224,6 +2235,7 @@ static int         s_deferCx = 0, s_deferY = 0, s_deferTail = 0;
 // the face down until it fits, or is back at that size: a bigger bubble
 // never loses the end of what he said.
 static void speechFace(TFT_eSPI& t, const char* text) {
+    if (isRU()) return;   // RU bubble: font-1 mixed face (font 2 has no Cyrillic)
     Theme::speechFontOn(t, s_bubbleSmall);
     t.setTextWrap(false);
     while (Theme::speechAboveNormal()) {
@@ -2244,7 +2256,7 @@ static void drawBubble(TFT_eSPI& t, int cx, int topY, const char* text,
     if (s_bubbleHeld) return;
     speechFace(t, text);
     drawBubbleIn(t, cx, topY, text, now, mayRise, tailX);
-    Theme::bubbleFontOff(t);
+    if (!isRU()) Theme::bubbleFontOff(t);
     t.setTextSize(1);
 }
 
@@ -2255,8 +2267,9 @@ static void drawBubbleIn(TFT_eSPI& t, int cx, int topY, const char* text,
     // small print. Only his own bubble: the other screens that share the
     // font are laid out around 16 rows. FONTS > BUBBLES moves it a rung
     // either way (Theme::speechFontOn()).
-    const int k = Theme::speechScale();
-    t.setTextSize(k);
+    const bool ru = isRU();
+    const int k = ru ? 1 : Theme::speechScale();
+    t.setTextSize(ru ? 1 : k);
     t.setTextWrap(false);
     int screenW = t.width();
     int maxW = screenW - 16;   // widest a wrapped bubble is allowed to get
@@ -2265,12 +2278,12 @@ static void drawBubbleIn(TFT_eSPI& t, int cx, int topY, const char* text,
     // full width, it stayed under them, and at double size that put it
     // across the top of his head.
     if (k > 1 && maxW > screenW - 2 * CORNER_W - 2) maxW = screenW - 2 * CORNER_W - 2;
-    int tw = t.textWidth(text);
+    int tw = ru ? Theme::textWidthRU(t, text) : t.textWidth(text);
 
     if (tw <= maxW - 10) {
         // Fits on one line -- the original compact box.
         int bw = tw + 10;
-        int bh = Theme::speechTextH() * k + 6;
+        int bh = (ru ? 8 : Theme::speechTextH() * k) + 6;
         int bx = cx - bw / 2;
         if (bx + bw > screenW - 2) bx = screenW - 2 - bw;
         if (bx < 2) bx = 2;
@@ -2280,8 +2293,8 @@ static void drawBubbleIn(TFT_eSPI& t, int cx, int topY, const char* text,
         t.drawRoundRect(bx, by, bw, bh, 3, Theme::VAPOR_PINK);
         if (s_bubbleTone == 1) t.drawRoundRect(bx - 1, by - 1, bw + 2, bh + 2, 4, Theme::AMBER);
         t.setTextColor(s_bubbleTone == 2 ? Theme::W95_LIGHT : Theme::WHITE, Theme::BG);
-        t.setCursor(bx + 5, by + 3 + Theme::speechAscent());
-        t.print(text);
+        t.setCursor(bx + 5, by + 3 + (ru ? 0 : Theme::speechAscent()));
+        if (ru) Theme::printRU(t, text); else t.print(text);
         lastBubbleX = bx;
         lastBubbleY = by;
         lastBubbleW = bw;
@@ -2305,9 +2318,10 @@ static void drawBubbleIn(TFT_eSPI& t, int cx, int topY, const char* text,
     }
 
     char lines[BUBBLE_MAX_LINES][48];
-    uint8_t n = Theme::wrapText(t, text, bw - 10, lines, k > 1 ? BUBBLE_MAX_LINES : 2);
+    uint8_t n = ru ? Theme::wrapTextRU(t, text, bw - 10, lines, k > 1 ? BUBBLE_MAX_LINES : 2)
+                   : Theme::wrapText(t, text, bw - 10, lines, k > 1 ? BUBBLE_MAX_LINES : 2);
 
-    const int lineH = Theme::speechTextH() * k + 1;
+    const int lineH = (ru ? 8 : Theme::speechTextH() * k) + 1;
     int bh = 3 + (int)n * lineH + 3;
 
     // Asked the same question, and the width answers it: a wrapped box is
@@ -2321,9 +2335,9 @@ static void drawBubbleIn(TFT_eSPI& t, int cx, int topY, const char* text,
     if (s_bubbleTone == 1) t.drawRoundRect(bx - 1, by - 1, bw + 2, bh + 2, 4, Theme::AMBER);
     t.setTextColor(s_bubbleTone == 2 ? Theme::W95_LIGHT : Theme::WHITE, Theme::BG);
     for (uint8_t i = 0; i < n; i++) {
-        int lw = t.textWidth(lines[i]);
-        t.setCursor(bx + (bw - lw) / 2, by + 3 + i * lineH + Theme::speechAscent());
-        t.print(lines[i]);
+        int lw = ru ? Theme::textWidthRU(t, lines[i]) : t.textWidth(lines[i]);
+        t.setCursor(bx + (bw - lw) / 2, by + 3 + i * lineH + (ru ? 0 : Theme::speechAscent()));
+        if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
     }
     lastBubbleX = bx;
     lastBubbleY = by;
@@ -2359,7 +2373,9 @@ static void drawOnboardBubble(TFT_eSPI& t, int cx, int topY, const char* text,
     if (bx + bw > screenW - 4) bx = screenW - 4 - bw;
 
     char lines[ONBOARD_MAX_LINES][48];
-    uint8_t n = Theme::wrapText(t, text, bw - 12, lines, ONBOARD_MAX_LINES);
+    const bool ru = isRU();
+    uint8_t n = ru ? Theme::wrapTextRU(t, text, bw - 12, lines, ONBOARD_MAX_LINES)
+                   : Theme::wrapText(t, text, bw - 12, lines, ONBOARD_MAX_LINES);
 
     t.fillRoundRect(bx, topY, bw, ONBOARD_BUBBLE_H, 5, Theme::BG);
     t.drawRoundRect(bx, topY, bw, ONBOARD_BUBBLE_H, 5, Theme::VAPOR_PINK);
@@ -2367,9 +2383,9 @@ static void drawOnboardBubble(TFT_eSPI& t, int cx, int topY, const char* text,
     t.setTextColor(Theme::WHITE, Theme::BG);
     const int lineH = 11;
     for (uint8_t i = 0; i < n; i++) {
-        int tw = t.textWidth(lines[i]);
+        int tw = ru ? Theme::textWidthRU(t, lines[i]) : t.textWidth(lines[i]);
         t.setCursor(bx + (bw - tw) / 2, topY + 6 + i * lineH);
-        t.print(lines[i]);
+        if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
     }
 
     char stepBuf[8];
@@ -2382,10 +2398,10 @@ static void drawOnboardBubble(TFT_eSPI& t, int cx, int topY, const char* text,
     // chrome — the whole box already gets a full repaint every call
     // above, so this just naturally toggles on/off with no smear.
     if ((millis() / 500) % 2 == 0) {
-        const char* tap = "tap to continue >";
-        int tw2 = t.textWidth(tap);
+        const char* tap = Theme::tr("tap to continue >", "жми: дальше >");
+        int tw2 = ru ? Theme::textWidthRU(t, tap) : t.textWidth(tap);
         t.setCursor(bx + bw - tw2 - 6, topY + ONBOARD_BUBBLE_H - 12);
-        t.print(tap);
+        if (ru) Theme::printRU(t, tap); else t.print(tap);
     }
 
     lastBubbleX = bx;
@@ -2408,7 +2424,7 @@ static void advanceOnboarding() {
         finishOnboarding();
         return;
     }
-    bubbleText  = ONBOARD_LINES[s_onboardStep];
+    bubbleText  = isRU() ? ONBOARD_LINES_RU[s_onboardStep] : ONBOARD_LINES[s_onboardStep];
     bubbleUntil = millis() + ONBOARD_STEP_MS;
 }
 
@@ -2417,7 +2433,7 @@ static void startOnboardingInternal() {
     s_onboardActive = true;
     s_onboardStep   = 0;
     mood            = Mood::IDLE;
-    bubbleText      = ONBOARD_LINES[0];
+    bubbleText      = isRU() ? ONBOARD_LINES_RU[0] : ONBOARD_LINES[0];
     bubbleUntil     = millis() + ONBOARD_STEP_MS;
 }
 
@@ -2485,6 +2501,10 @@ void cycleShadesColor() {
     s_petPrefs.putUChar("shadeIdx", s_shadeIdx);
 }
 
+bool glassesOn() { ensurePrefsLoaded(); return s_glassesOn; }
+void toggleGlasses() { ensurePrefsLoaded(); s_glassesOn = !s_glassesOn; s_petPrefs.putBool("glasses", s_glassesOn); }
+void setGlasses(bool on) { ensurePrefsLoaded(); s_glassesOn = on; s_petPrefs.putBool("glasses", s_glassesOn); }
+
 const char* outfitName() {
     ensurePrefsLoaded();
     return OUTFITS[(uint8_t)currentOutfit()].name;
@@ -2521,7 +2541,7 @@ void unlockWolfPelt() {
     refreshOutfitUnlocks();
     mood      = Mood::SHOCKED;
     moodUntil = millis() + tempo(2000);
-    say("...it left me its coat.", 3600);
+    say(Theme::tr("...it left me its coat.", "...оставил мне шубу."), 3600);
 }
 
 bool consumeOutfitUnlock(uint8_t& outIdx) {
@@ -2626,18 +2646,18 @@ static const char* const WEEKEND_LINES[] = {
 
 static const char* pickTimeLine() {
     const uint8_t wd = Clock::weekday();
-    if (Clock::weekend() && random(0, 4) == 0)  return pick(WEEKEND_LINES, 3);
-    if (wd == 1 && random(0, 4) == 0)           return pick(MONDAY_LINES, 2);
-    if (wd == 5 && random(0, 4) == 0)           return pick(FRIDAY_LINES, 2);
+    if (Clock::weekend() && random(0, 4) == 0)  return pickL(WEEKEND_LINES, WEEKEND_LINES_RU, 3);
+    if (wd == 1 && random(0, 4) == 0)           return pickL(MONDAY_LINES, MONDAY_LINES_RU, 2);
+    if (wd == 5 && random(0, 4) == 0)           return pickL(FRIDAY_LINES, FRIDAY_LINES_RU, 2);
     const uint8_t h = Clock::hour();
-    if (h < 5)   return pick(LATE_LINES, 4);
-    if (h < 8)   return pick(EARLY_LINES, 4);
-    if (h < 11)  return pick(MORNING_LINES, 4);
-    if (h < 14)  return pick(LUNCH_LINES, 4);
-    if (h < 17)  return pick(SLUMP_LINES, 4);
-    if (h < 21)  return pick(EVENING_LINES, 4);
-    if (h < 23)  return pick(NIGHT_LINES, 4);
-    return pick(LATE_LINES, 4);
+    if (h < 5)   return pickL(LATE_LINES, LATE_LINES_RU, 4);
+    if (h < 8)   return pickL(EARLY_LINES, EARLY_LINES_RU, 4);
+    if (h < 11)  return pickL(MORNING_LINES, MORNING_LINES_RU, 4);
+    if (h < 14)  return pickL(LUNCH_LINES, LUNCH_LINES_RU, 4);
+    if (h < 17)  return pickL(SLUMP_LINES, SLUMP_LINES_RU, 4);
+    if (h < 21)  return pickL(EVENING_LINES, EVENING_LINES_RU, 4);
+    if (h < 23)  return pickL(NIGHT_LINES, NIGHT_LINES_RU, 4);
+    return pickL(LATE_LINES, LATE_LINES_RU, 4);
 }
 
 // The days that count, and what he says on them. Said once each, ever: the
@@ -2667,19 +2687,20 @@ const char* takeDayLine() {
         Clock::formatDate(date, sizeof date);
         const uint8_t h = Clock::hour();
         const char* fmt;
-        if      (h < 5)  fmt = random(0, 2) ? "Past midnight. %s, technically. Hi." : "New day. %s. Same me.";
-        else if (h < 12) fmt = Clock::weekend() ? (random(0, 2) ? "Morning. %s. Nowhere to be." : "%s. Weekend. Sleep in, I've got this.")
-                                                : (random(0, 2) ? "Morning. %s." : "%s. Coffee's on you.");
-        else if (h < 17) fmt = random(0, 2) ? "Afternoon. %s. First I've seen of you." : "%s. You're late. I'm not.";
-        else             fmt = random(0, 2) ? "Evening. %s. Late start for us." : "%s. Better late than never.";
+        if      (h < 5)  fmt = random(0, 2) ? (isRU() ? "После полуночи. %s, технически. Привет." : "Past midnight. %s, technically. Hi.") : (isRU() ? "Новый день. %s. Всё тот же я." : "New day. %s. Same me.");
+        else if (h < 12) fmt = Clock::weekend() ? (random(0, 2) ? (isRU() ? "Утро. %s. Никуда не надо." : "Morning. %s. Nowhere to be.") : (isRU() ? "%s. Выходные. Спи, я подежурю." : "%s. Weekend. Sleep in, I've got this."))
+                                                : (random(0, 2) ? (isRU() ? "Утро. %s." : "Morning. %s.") : (isRU() ? "%s. Кофе с тебя." : "%s. Coffee's on you."));
+        else if (h < 17) fmt = random(0, 2) ? (isRU() ? "День. %s. Впервые тебя вижу." : "Afternoon. %s. First I've seen of you.") : (isRU() ? "%s. Опаздываешь. А я нет." : "%s. You're late. I'm not.");
+        else             fmt = random(0, 2) ? (isRU() ? "Вечер. %s. Поздновато мы." : "Evening. %s. Late start for us.") : (isRU() ? "%s. Лучше поздно, чем никогда." : "%s. Better late than never.");
         snprintf(buf, sizeof buf, fmt, date);
         return buf;
     }
     const uint32_t days = Clock::daysTogether();
-    for (const DayMilestone& m : DAY_MILESTONES) {
+    for (size_t i = 0; i < sizeof(DAY_MILESTONES) / sizeof(DAY_MILESTONES[0]); i++) {
+        const DayMilestone& m = DAY_MILESTONES[i];
         if (days >= m.days && Clock::milestoneSaid() < m.days) {
             Clock::setMilestoneSaid(m.days);
-            return m.line;
+            return isRU() ? DAY_MILESTONES_RU[i] : m.line;
         }
     }
     return nullptr;
@@ -3016,7 +3037,7 @@ void unlockParka() {
     refreshOutfitUnlocks();
     mood      = Mood::BOUNCE;
     moodUntil = millis() + tempo(2000);
-    say("somebody was home.", 3600);
+    say(Theme::tr("somebody was home.", "кто-то был дома."), 3600);
 }
 
 // XYZZY, tapped on the TERMINAL background. `said` is how many times in a
@@ -3053,9 +3074,15 @@ void unlockShark() {
             "twice now. rude of us.",
             "same fish. same result.",
         };
+        static const char* const AGAIN_RU[4] = {
+            "снова попался.",
+            "ничему не учится.",
+            "дважды уже. грубо с нас.",
+            "та же рыба. тот же итог.",
+        };
         mood      = Mood::BOUNCE;
         moodUntil = millis() + tempo(1600);
-        say(AGAIN[again++ & 3], 3200);
+        say(isRU() ? AGAIN_RU[again++ & 3] : AGAIN[again++ & 3], 3200);
         return;
     }
     s_sharkUnlocked = true;
@@ -3063,7 +3090,7 @@ void unlockShark() {
     refreshOutfitUnlocks();
     mood      = Mood::BOUNCE;
     moodUntil = millis() + tempo(2000);
-    say("he came back for me.", 3600);
+    say(Theme::tr("he came back for me.", "вернулся за мной."), 3600);
 }
 
 void unlockVoidEye() {
@@ -3074,7 +3101,7 @@ void unlockVoidEye() {
     refreshOutfitUnlocks();
     mood      = Mood::SHOCKED;
     moodUntil = millis() + tempo(2000);
-    say("it blinked first.", 3600);
+    say(Theme::tr("it blinked first.", "моргнул первым."), 3600);
 }
 
 void unlockChromeWing() {
@@ -3085,7 +3112,7 @@ void unlockChromeWing() {
     refreshOutfitUnlocks();
     mood      = Mood::DANCE;
     moodUntil = millis() + tempo(2000);
-    say("caught one!", 3400);
+    say(Theme::tr("caught one!", "поймал одного!"), 3400);
 }
 
 void unlockAllOutfits() {
@@ -3116,7 +3143,7 @@ void unlockAllOutfits() {
     uint32_t now = millis();
     mood      = Mood::BOUNCE;
     moodUntil = now + tempo(2500);
-    say("EVERY OUTFIT UNLOCKED. GO WILD.", 5000);
+    say(Theme::tr("EVERY OUTFIT UNLOCKED. GO WILD.", "ВСЁ ОТКРЫТО. ГУЛЯЙ."), 5000);
     s_legendary      = true;
     s_legendaryUntil = now + 6000;
     for (uint8_t i = 0; i < CONFETTI_N; i++) {
@@ -3501,6 +3528,7 @@ static const CtxExchange CTX_EXCHANGES[] = {
     { Ctx::LONG_UP, 0, "%s hours and counting.",    "You blink, I'll watch.",       nullptr },
 };
 static const uint8_t CTX_EXCHANGES_N = sizeof(CTX_EXCHANGES) / sizeof(CTX_EXCHANGES[0]);
+#include "potsy_ru_late.inc"
 
 static VisitContext s_vctx = {};
 void setVisitContext(const VisitContext& c) { s_vctx = c; }
@@ -3553,9 +3581,10 @@ static bool ctxPick(uint32_t seed) {
     s_ctxSeed = seed;
     s_ctxOn   = false;
     if (seed % 3) return false;                 // two in three exchanges are about nothing
+    const CtxExchange* table = isRU() ? CTX_EXCHANGES_RU : CTX_EXCHANGES;
     uint8_t cands[CTX_EXCHANGES_N];
     uint8_t n = 0;
-    for (uint8_t i = 0; i < CTX_EXCHANGES_N; i++) if (ctxApplies(CTX_EXCHANGES[i])) cands[n++] = i;
+    for (uint8_t i = 0; i < CTX_EXCHANGES_N; i++) if (ctxApplies(table[i])) cands[n++] = i;
     if (!n) return false;
     // Not the same one twice running, and a stride through the list rather
     // than a walk, so with three candidates the weather is not the only
@@ -3564,7 +3593,7 @@ static bool ctxPick(uint32_t seed) {
     uint8_t k = (uint8_t)((seed / 3 * 7) % n);
     if (n > 1 && cands[k] == last) k = (uint8_t)((k + 1) % n);
     last = cands[k];
-    const CtxExchange& e = CTX_EXCHANGES[last];
+    const CtxExchange& e = table[last];
     char num[8];
     const char* arg = ctxArg(e.ctx, num, sizeof num);
     ctxFill(s_ctxHost,  sizeof s_ctxHost,  e.host,   arg);
@@ -3705,9 +3734,9 @@ static const char* const SCARE_LINES[] = {
     "Was that for us?", "Did you see that?", "I felt that one.", "Not again.",
 };
 
-uint32_t    visitDanceCall(uint32_t seed)  { return visitSay(DANCE_CALLS[seed % 4]); }
-const char* visitDanceReply(uint32_t seed) { return DANCE_REPLIES[seed % 4]; }
-const char* visitScareLine(uint32_t seed)  { return SCARE_LINES[seed % 4]; }
+uint32_t    visitDanceCall(uint32_t seed)  { return visitSay(selL(DANCE_CALLS, DANCE_CALLS_RU, 4, seed)); }
+const char* visitDanceReply(uint32_t seed) { return selL(DANCE_REPLIES, DANCE_REPLIES_RU, 4, seed); }
+const char* visitScareLine(uint32_t seed)  { return selL(SCARE_LINES, SCARE_LINES_RU, 4, seed); }
 
 // A returning visitor, rock-paper-scissors, snowballs, and waking up. Small
 // pools for the same reason as the dance-off's: these come round rarely.
@@ -3725,38 +3754,45 @@ static const char* const SNOW_REPLIES[] = {
     "Oh, it's ON.", "You'll pay for that.", "Cold! COLD!", "My turn.",
 };
 
-uint32_t visitFriendHello(uint32_t seed) { return visitSay(FRIEND_HELLOS[seed % 4]); }
-uint32_t visitRpsCall(uint32_t seed)     { return visitSay(RPS_CALLS[seed % 4]); }
+uint32_t visitFriendHello(uint32_t seed) { return visitSay(selL(FRIEND_HELLOS, FRIEND_HELLOS_RU, 4, seed)); }
+uint32_t visitRpsCall(uint32_t seed)     { return visitSay(selL(RPS_CALLS, RPS_CALLS_RU, 4, seed)); }
 uint32_t visitRpsResult(uint8_t outcome, uint32_t seed) {
     const char* const* pool = outcome == 1 ? RPS_WIN : outcome == 2 ? RPS_LOSE : RPS_TIE;
-    return visitSay(pool[seed % 3]);
+    const char* const* poolRu = outcome == 1 ? RPS_WIN_RU : outcome == 2 ? RPS_LOSE_RU : RPS_TIE_RU;
+    return visitSay(selL(pool, poolRu, 3, seed));
 }
-uint32_t    visitSnowCall(uint32_t seed)  { return visitSay(SNOW_CALLS[seed % 4]); }
-const char* visitSnowReply(uint32_t seed) { return SNOW_REPLIES[seed % 4]; }
+uint32_t    visitSnowCall(uint32_t seed)  { return visitSay(selL(SNOW_CALLS, SNOW_CALLS_RU, 4, seed)); }
+const char* visitSnowReply(uint32_t seed) { return selL(SNOW_REPLIES, SNOW_REPLIES_RU, 4, seed); }
 
+const char* visitHangHostLine(uint32_t seed) {
+    if (ctxPick(seed)) return s_ctxHost;
+    const Exchange* tbl = isRU() ? HANG_EXCHANGES_RU : HANG_EXCHANGES;
+    return tbl[seed % HANG_EXCHANGES_N].host;
+}
 uint32_t visitHangHost(uint32_t seed) {
-    if (ctxPick(seed)) return visitSay(s_ctxHost);
-    return visitSay(HANG_EXCHANGES[seed % HANG_EXCHANGES_N].host);
+    return visitSay(visitHangHostLine(seed));
 }
 const char* visitHangGuest(uint32_t seed) {
     if (s_ctxOn && seed == s_ctxSeed) return s_ctxGuest;
-    return HANG_EXCHANGES[seed % HANG_EXCHANGES_N].guest;
+    const Exchange* tbl = isRU() ? HANG_EXCHANGES_RU : HANG_EXCHANGES;
+    return tbl[seed % HANG_EXCHANGES_N].guest;
 }
 const char* visitHangTopper(uint32_t seed) {
     if (s_ctxOn && seed == s_ctxSeed) return s_ctxTop[0] ? s_ctxTop : nullptr;
-    return HANG_EXCHANGES[seed % HANG_EXCHANGES_N].topper;
+    const Exchange* tbl = isRU() ? HANG_EXCHANGES_RU : HANG_EXCHANGES;
+    return tbl[seed % HANG_EXCHANGES_N].topper;
 }
 
 uint32_t visitReaction(VisitMoment m) {
     switch (m) {
         case VisitMoment::MEET:
-            return visitSay(pick(MEET_HOST_LINES, POOL_N(MEET_HOST_LINES)));
+            return visitSay(pickL(MEET_HOST_LINES, MEET_HOST_LINES_RU, POOL_N(MEET_HOST_LINES)));
         case VisitMoment::HANGOUT:
             // Not reachable -- the hangout goes through the paired table
             // above. Kept total rather than falling off the end.
             return visitHangHost((uint32_t)random(0, HANG_EXCHANGES_N));
         default:
-            return visitSay(pick(PART_HOST_LINES, POOL_N(PART_HOST_LINES)));
+            return visitSay(pickL(PART_HOST_LINES, PART_HOST_LINES_RU, POOL_N(PART_HOST_LINES)));
     }
 }
 
@@ -3797,11 +3833,11 @@ const char* visitGuestLine(VisitMoment m, uint32_t seed) {
     // changes once per line.
     switch (m) {
         case VisitMoment::MEET:
-            return MEET_GUEST_LINES[seed % POOL_N(MEET_GUEST_LINES)];
+            return selL(MEET_GUEST_LINES, MEET_GUEST_LINES_RU, POOL_N(MEET_GUEST_LINES), seed);
         case VisitMoment::HANGOUT:
             return visitHangGuest(seed);
         default:
-            return PART_GUEST_LINES[seed % POOL_N(PART_GUEST_LINES)];
+            return selL(PART_GUEST_LINES, PART_GUEST_LINES_RU, POOL_N(PART_GUEST_LINES), seed);
     }
 }
 #endif // POTS_MESH
@@ -3848,17 +3884,17 @@ void scanReaction(ScanMoment moment, uint8_t count) {
             // Mood still reacts (visual feedback that something was
             // found); only the bubble text is held back so it can't
             // cut the hint off early.
-            if (now >= s_scanHintUntil) say(pick(SCAN_HIT_LINES, 3), 2200);
+            if (now >= s_scanHintUntil) say(pickL(SCAN_HIT_LINES, SCAN_HIT_LINES_RU, 3), 2200);
             break;
         case ScanMoment::DONE_EMPTY:
             mood = Mood::SLEEPY;
             moodUntil = now + tempo(2000);
-            if (now >= s_scanHintUntil) say(pick(SCAN_EMPTY_LINES, 3), 4000);
+            if (now >= s_scanHintUntil) say(pickL(SCAN_EMPTY_LINES, SCAN_EMPTY_LINES_RU, 3), 4000);
             break;
         case ScanMoment::DONE_FOUND:
             mood = Mood::BOUNCE;
             moodUntil = now + tempo(2000);
-            if (now >= s_scanHintUntil) say(pick(SCAN_FOUND_LINES, 3), 4500);
+            if (now >= s_scanHintUntil) say(pickL(SCAN_FOUND_LINES, SCAN_FOUND_LINES_RU, 3), 4500);
             // "A lot" flourish -- same rare party-confetti mechanism
             // milestone detections and the outfit-unlock easter egg
             // use (see unlockAllOutfits() above), not a separate
@@ -3893,12 +3929,12 @@ void huntReaction(HuntMoment moment) {
             s_reactType = DetectionType::UNKNOWN;
             mood = Mood::SHOCKED;
             moodUntil = now + tempo(700);
-            if (now >= s_huntHintUntil) say(pick(HUNT_FIRST_SIGNAL_LINES, 3), 2200);
+            if (now >= s_huntHintUntil) say(pickL(HUNT_FIRST_SIGNAL_LINES, HUNT_FIRST_SIGNAL_LINES_RU, 3), 2200);
             break;
         case HuntMoment::WARMER:
             mood = Mood::BOUNCE;
             moodUntil = now + tempo(800);
-            if (now >= s_huntHintUntil) say(pick(HUNT_WARMER_LINES, 4), 2200);
+            if (now >= s_huntHintUntil) say(pickL(HUNT_WARMER_LINES, HUNT_WARMER_LINES_RU, 4), 2200);
             break;
         case HuntMoment::COLDER:
             // Borrows LOOK_AROUND (normally a tracker's "something's
@@ -3908,7 +3944,7 @@ void huntReaction(HuntMoment moment) {
             s_reactType = DetectionType::AIRTAG;
             mood = Mood::SHOCKED;
             moodUntil = now + tempo(900);
-            if (now >= s_huntHintUntil) say(pick(HUNT_COLDER_LINES, 4), 2200);
+            if (now >= s_huntHintUntil) say(pickL(HUNT_COLDER_LINES, HUNT_COLDER_LINES_RU, 4), 2200);
             break;
         case HuntMoment::HOT:
             // BOUNCE, not SHOCKED -- matches the same "found something
@@ -3916,7 +3952,7 @@ void huntReaction(HuntMoment moment) {
             // uses, rather than an alarmed startle.
             mood = Mood::BOUNCE;
             moodUntil = now + tempo(1500);
-            if (now >= s_huntHintUntil) say(pick(HUNT_HOT_LINES, 3), 3500);
+            if (now >= s_huntHintUntil) say(pickL(HUNT_HOT_LINES, HUNT_HOT_LINES_RU, 3), 3500);
             // Same rare party-confetti flourish milestone detections
             // and a big scan haul use -- a successful hunt earns it.
             s_legendary      = true;
@@ -3931,7 +3967,7 @@ void huntReaction(HuntMoment moment) {
         case HuntMoment::STALLED:
             mood = Mood::SLEEPY;
             moodUntil = now + tempo(2000);
-            if (now >= s_huntHintUntil) say(pick(HUNT_STALLED_LINES, 3), 4000);
+            if (now >= s_huntHintUntil) say(pickL(HUNT_STALLED_LINES, HUNT_STALLED_LINES_RU, 3), 4000);
             break;
     }
 }
@@ -3939,7 +3975,7 @@ void huntReaction(HuntMoment moment) {
 void watchAlertReaction() {
     mood = Mood::SHOCKED;
     moodUntil = millis() + tempo(1200);
-    say(pick(WATCH_ALERT_LINES, 4), 3000);
+    say(pickL(WATCH_ALERT_LINES, WATCH_ALERT_LINES_RU, 4), 3000);
 }
 
 // Costume overlays (see potsy.h's Outfits section), drawn last from
@@ -7466,7 +7502,27 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         // sd slides the whole pair down the bridge of his nose during a
         // double-take, so he ends up looking over the top of them.
         const int sd = (int)s_shadeDrop;
-        if (t3) {
+        if (!glassesOn()) {
+            // Simpson base face: big bare eyes under the (removed) shades.
+            // The shades above are the separate sprite layer; with them off
+            // the same blink/wink cycle drives real eyes instead of lenses.
+            if (blink) {
+                t.drawLine(cx2 - S(9), hh + S(9), cx2 - S(1), hh + S(9), BLACK);
+                t.drawLine(cx2 + S(1), hh + S(9), cx2 + S(9), hh + S(9), BLACK);
+            } else {
+                t.fillEllipse(cx2 - S(5), hh + S(9), S(4), S(5), WHITE);
+                t.fillEllipse(cx2 + S(5), hh + S(9), S(4), S(5), WHITE);
+                if (winking) {
+                    t.drawLine(cx2 - S(9), hh + S(9), cx2 - S(1), hh + S(9), BLACK);
+                    t.fillCircle(cx2 + S(5), hh + S(10), S(1) + 1, BLACK);
+                } else {
+                    t.fillCircle(cx2 - S(5), hh + S(10), S(1) + 1, BLACK);
+                    t.fillCircle(cx2 + S(5), hh + S(10), S(1) + 1, BLACK);
+                    t.fillCircle(cx2 - S(5) + 1, hh + S(9), 1, WHITE);
+                    t.fillCircle(cx2 + S(5) + 1, hh + S(9), 1, WHITE);
+                }
+            }
+        } else if (t3) {
             // TH3 0N3: his shades made round, the code inside them.
             t3Shades(t, cx2, hh + sd, blink, scale);
         } else {
@@ -7832,28 +7888,30 @@ void deferBubble(bool on) { s_bubbleDefer = on; }
 void drawSampleBubble(TFT_eSPI& t, int cx, int topY, const char* text) {
     speechFace(t, text);
     drawBubbleIn(t, cx, topY, text, bubbleStart + BUBBLE_POP_MS, false, NO_TAIL);
-    Theme::bubbleFontOff(t);
+    if (!isRU()) Theme::bubbleFontOff(t);
     t.setTextSize(1);
 }
 // How tall his bubble comes out for `text` on this panel, without drawing
 // it: the same font, size and wrap width drawBubbleIn() uses.
 int bubbleHeight(TFT_eSPI& t, const char* text) {
     speechFace(t, text);
-    const int k = Theme::speechScale();
-    t.setTextSize(k);
+    const bool ru = isRU();
+    const int k = ru ? 1 : Theme::speechScale();
+    t.setTextSize(ru ? 1 : k);
     t.setTextWrap(false);
     const int screenW = t.width();
     int maxW = screenW - 16;
     if (k > 1 && maxW > screenW - 2 * CORNER_W - 2) maxW = screenW - 2 * CORNER_W - 2;
     int h;
-    if (t.textWidth(text) <= maxW - 10) {
-        h = Theme::speechTextH() * k + 6;
+    if ((ru ? Theme::textWidthRU(t, text) : t.textWidth(text)) <= maxW - 10) {
+        h = (ru ? 8 : Theme::speechTextH() * k) + 6;
     } else {
         char lines[BUBBLE_MAX_LINES][48];
-        const uint8_t n = Theme::wrapText(t, text, maxW - 10, lines, k > 1 ? BUBBLE_MAX_LINES : 2);
-        h = 6 + (int)n * (Theme::speechTextH() * k + 1);
+        const uint8_t n = ru ? Theme::wrapTextRU(t, text, maxW - 10, lines, k > 1 ? BUBBLE_MAX_LINES : 2)
+                             : Theme::wrapText(t, text, maxW - 10, lines, k > 1 ? BUBBLE_MAX_LINES : 2);
+        h = 6 + (int)n * ((ru ? 8 : Theme::speechTextH() * k) + 1);
     }
-    Theme::bubbleFontOff(t);
+    if (!ru) Theme::bubbleFontOff(t);
     t.setTextSize(1);
     return h;
 }
@@ -7971,35 +8029,35 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
                 moodUntil  = now + SHOW_STEP_MS + 300u;
                 nextIdleAt = now + SHOW_STEP_MS + 300u;
                 switch (idx) {
-                    case 0:  mood = Mood::IDLE;    say("IDLE + SQUASH", SHOW_STEP_MS); break;
-                    case 1:  mood = Mood::WAVE;    say("WAVE", SHOW_STEP_MS); break;
-                    case 2:  mood = Mood::BOUNCE;  say("BOUNCE", SHOW_STEP_MS); break;
-                    case 3:  mood = Mood::WINK;    say("WINK", SHOW_STEP_MS); break;
+                    case 0:  mood = Mood::IDLE;    say(Theme::tr("IDLE + SQUASH", "СТОЮ + ПРИСЕД"), SHOW_STEP_MS); break;
+                    case 1:  mood = Mood::WAVE;    say(Theme::tr("WAVE", "МАШУ"), SHOW_STEP_MS); break;
+                    case 2:  mood = Mood::BOUNCE;  say(Theme::tr("BOUNCE", "ПРЫГАЮ"), SHOW_STEP_MS); break;
+                    case 3:  mood = Mood::WINK;    say(Theme::tr("WINK", "ПОДМИГНУЛ"), SHOW_STEP_MS); break;
                     case 4:  mood = Mood::STRETCH; s_stretchStart = now;
-                             say("STRETCH + YAWN", SHOW_STEP_MS); break;
+                             say(Theme::tr("STRETCH + YAWN", "ТЯНУСЬ + ЗЕВОК"), SHOW_STEP_MS); break;
                     case 5:  mood = Mood::GUM;     s_gumStart = now;
-                             say("GUM BUBBLE", SHOW_STEP_MS); break;
+                             say(Theme::tr("GUM BUBBLE", "ЖВАЧКА"), SHOW_STEP_MS); break;
                     case 6:  mood = Mood::JUGGLE;
                              // Real types, so the packets are the colours
                              // they would be if these had just been caught.
                              s_recentTypes[0] = DetectionType::AIRTAG;
                              s_recentTypes[1] = DetectionType::FLOCK;
                              s_recentTypes[2] = DetectionType::CAMERA;
-                             say("PACKET JUGGLE", SHOW_STEP_MS); break;
-                    case 7:  mood = Mood::DANCE;   say("DANCE", SHOW_STEP_MS); break;
+                             say(Theme::tr("PACKET JUGGLE", "ЖОНГЛИРУЮ"), SHOW_STEP_MS); break;
+                    case 7:  mood = Mood::DANCE;   say(Theme::tr("DANCE", "ТАНЦУЮ"), SHOW_STEP_MS); break;
                     case 8:  mood = Mood::WALK; s_walkStart = now; s_walkDir = 1; s_walkYanked = false;
-                             s_showWB = 1; say("WALK: SNIFF", SHOW_STEP_MS); break;
-                    case 9:  s_showWB = 2; say("WALK: LOOK UP", SHOW_STEP_MS); break;
-                    case 10: s_showWB = 3; say("WALK: SCRATCH", SHOW_STEP_MS); break;
+                             s_showWB = 1; say(Theme::tr("WALK: SNIFF", "ИДУ: НЮХАЮ"), SHOW_STEP_MS); break;
+                    case 9:  s_showWB = 2; say(Theme::tr("WALK: LOOK UP", "ИДУ: ГЛЯЖУ"), SHOW_STEP_MS); break;
+                    case 10: s_showWB = 3; say(Theme::tr("WALK: SCRATCH", "ИДУ: ЧЕШУСЬ"), SHOW_STEP_MS); break;
                     case 11: s_showWB = -1; mood = Mood::SHOCKED;
                              s_reactType = DetectionType::AXON;
                              s_dtStart = now; s_recoilK = 1.0f;
-                             say("DOUBLE-TAKE + RECOIL", SHOW_STEP_MS); break;
-                    case 12: mood = Mood::IDLE; say("BINOCULARS", SHOW_STEP_MS); break;
+                             say(Theme::tr("DOUBLE-TAKE + RECOIL", "ОГЛЯНУЛСЯ + ОТШАТНУЛСЯ"), SHOW_STEP_MS); break;
+                    case 12: mood = Mood::IDLE; say(Theme::tr("BINOCULARS", "БИНОКЛЬ"), SHOW_STEP_MS); break;
                     case 13: mood = Mood::IDLE; s_duckCooldown = 0;
                              s_duckUntil = now + 900u;
-                             say("TOASTER DUCK", SHOW_STEP_MS); break;
-                    case 14: mood = Mood::IDLE; say("PICK UP + DROP", SHOW_STEP_MS); break;
+                             say(Theme::tr("TOASTER DUCK", "ТОСТЕР, ЛОЖИСЬ"), SHOW_STEP_MS); break;
+                    case 14: mood = Mood::IDLE; say(Theme::tr("PICK UP + DROP", "ВЗЯЛ + БРОСИЛ"), SHOW_STEP_MS); break;
                     case 15: mood = Mood::LEAN; s_leanStart = now; s_leanDir = 1;
                              say("LEAN + LISTEN", SHOW_STEP_MS); break;
                     case 16: mood = Mood::TRIP; s_dtStart = now; s_recoilK = 0.8f;
@@ -8013,7 +8071,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
                              say("SIT DOWN", SHOW_STEP_MS); break;
                     case 20: mood = Mood::IDLE; s_flickStart = now; s_flickDir = 1;
                              say("FLICK", SHOW_STEP_MS); break;
-                    default: mood = Mood::SLEEPY; say("NAP", SHOW_STEP_MS); break;
+                    default: mood = Mood::SLEEPY; say(Theme::tr("NAP", "СПЛЮ"), SHOW_STEP_MS); break;
                 }
             }
             if (s_showIdx == 12) s_binoc = true;
@@ -8072,7 +8130,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
         !s_visiting &&                      // he is in the middle of a chat
 #endif
         now >= s_nextWatchAt && now >= bubbleUntil) {
-        say(pick(WATCHING_LINES, WATCHING_N), 4000);
+        say(pickL(WATCHING_LINES, WATCHING_LINES_RU, WATCHING_N), 4000);
         s_nextWatchAt = now + WATCH_EVERY_MS;
         // Hold the random idle roll off so the two do not stack into one
         // bubble replacing another mid-read.
@@ -8104,7 +8162,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
             // re-enters itself below rather than popping in and out
             // every idle cycle, but only up to NAP_DURATION_MS total.
             if (s_napStart == 0) s_napStart = now;
-            say(pick(SLEEPY_LINES, 4), 6000);
+            say(pickL(SLEEPY_LINES, SLEEPY_LINES_RU, 4), 6000);
             mood = Mood::SLEEPY;
             moodUntil = now + tempo(8000);
             nextIdleAt = now + tempo(8000);
@@ -8117,7 +8175,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
             // Waking up used to snap straight to a wave -- the one
             // transition in his whole state machine with no transition
             // at all. STRETCH gives it an exit.
-            say(pick(STRETCH_LINES, 4), MIN_BUBBLE_MS);
+            say(pickL(STRETCH_LINES, STRETCH_LINES_RU, 4), MIN_BUBBLE_MS);
             mood = Mood::STRETCH;
             s_stretchStart = now;
             moodUntil = now + STRETCH_MS;
@@ -8125,7 +8183,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
         } else if (random(0, 250) == 0) {
             // Rare shimmering flourish — see drawBody's fur-color swap
             // — escalated into a full rainbow-wash-and-confetti moment.
-            say(pick(PARTY_LINES, 4), 5000);
+            say(pickL(PARTY_LINES, PARTY_LINES_RU, 4), 5000);
             mood = Mood::BOUNCE;
             moodUntil = now + tempo(2000);
             s_legendary = true;
@@ -8152,14 +8210,14 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
             // activity so it can only appear when there is genuinely
             // something to show -- the one flourish here that carries
             // information rather than just character.
-            say(pick(JUGGLE_LINES, 4), 3600);
+            say(pickL(JUGGLE_LINES, JUGGLE_LINES_RU, 4), 3600);
             mood = Mood::JUGGLE;
             moodUntil = now + tempo(3600);
             nextIdleAt = now + tempo(14000) + random(0, 18000);
         } else if (random(0, 7) == 0) {
             // Gum. Means nothing, which is the argument for it: every
             // other thing he does is a reaction to the radio.
-            say(pick(GUM_LINES, 4), 3000);
+            say(pickL(GUM_LINES, GUM_LINES_RU, 4), 3000);
             mood = Mood::GUM;
             s_gumStart = now;
             moodUntil = now + GUM_GROW_MS + GUM_HOLD_MS + GUM_POP_MS + 400;
@@ -8170,14 +8228,14 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
             // SLEEPY_AFTER_MS -- ten full minutes of being ignored --
             // before it will even start, so the pose was effectively
             // unreachable on a device anyone was actually looking at.
-            say(pick(STRETCH_LINES, 4), 3000);
+            say(pickL(STRETCH_LINES, STRETCH_LINES_RU, 4), 3000);
             mood = Mood::STRETCH;
             s_stretchStart = now;
             moodUntil = now + STRETCH_MS;
             nextIdleAt = now + tempo(12000) + random(0, 16000);
         } else if (s_lastTouchAt && !s_ignoredSaid && now - s_lastTouchAt > 86400000u) {
             s_ignoredSaid = true;
-            say(pick(IGNORED_LINES, 3), 6000);
+            say(pickL(IGNORED_LINES, IGNORED_LINES_RU, 3), 6000);
             mood = Mood::WAVE;
             moodUntil = now + tempo(1200);
             nextIdleAt = now + tempo(9000) + random(0, 13000);
@@ -8192,7 +8250,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
         } else if (longIdle && random(0, 5) == 0) {
             // Nothing for a minute and a half: he sits down. His crouch pose,
             // held, with his hands on his knees; a catch stands him up.
-            say(pick(SIT_LINES, 4), MIN_BUBBLE_MS);
+            say(pickL(SIT_LINES, SIT_LINES_RU, 4), MIN_BUBBLE_MS);
             mood = Mood::ACT;
             s_hostAct = (uint8_t)VisitPose::CROUCH;
             moodUntil = now + tempo(9000);
@@ -8201,7 +8259,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
         } else if (random(0, 9) == 0) {
             // He heard something. Leans toward one side to listen, then
             // comes back -- see the LEAN block in the body maths.
-            say(pick(LEAN_LINES, 4), MIN_BUBBLE_MS);
+            say(pickL(LEAN_LINES, LEAN_LINES_RU, 4), MIN_BUBBLE_MS);
             mood = Mood::LEAN;
             s_leanStart = now;
             s_leanDir   = random(0, 2) ? 1 : -1;
@@ -8210,7 +8268,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
         } else if (random(0, 30) == 0) {
             // Trips over nothing. The double-take's stumble, with no cause and
             // no shades slip, and a look around afterwards.
-            say(pick(TRIP_LINES, 4), MIN_BUBBLE_MS);
+            say(pickL(TRIP_LINES, TRIP_LINES_RU, 4), MIN_BUBBLE_MS);
             mood = Mood::TRIP;
             s_dtStart = now;
             s_recoilK = 0.8f;
@@ -8218,14 +8276,14 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
             nextIdleAt = now + tempo(9000) + random(0, 13000);
         } else if (random(0, 8) == 0) {
             // A little dance break -- see drawBody()'s DANCE arm case.
-            say(pick(DANCE_LINES, 4), 3200);
+            say(pickL(DANCE_LINES, DANCE_LINES_RU, 4), 3200);
             mood = Mood::DANCE;
             moodUntil = now + tempo(2400);
             nextIdleAt = now + tempo(9000) + random(0, 13000);
         } else if (random(0, 6) == 0) {
             // A little wander away from center and back — see the
             // bodyCx computation below and the leg-cycle in drawBody().
-            say(pick(WALK_LINES, 4), MIN_BUBBLE_MS);
+            say(pickL(WALK_LINES, WALK_LINES_RU, 4), MIN_BUBBLE_MS);
             mood = Mood::WALK;
             moodUntil = now + WALK_DURATION_MS;
             s_walkStart = now;
@@ -8235,7 +8293,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
         } else if (random(0, 12) == 0) {
             // A brief fourth-wall wink -- see drawBody()'s Mood::WINK
             // branch for the actual pose (one shut lens + a sparkle).
-            say(pick(WINK_LINES, 4), MIN_BUBBLE_MS);
+            say(pickL(WINK_LINES, WINK_LINES_RU, 4), MIN_BUBBLE_MS);
             mood = Mood::WINK;
             moodUntil = now + tempo(1800);
             nextIdleAt = now + tempo(9000) + random(0, 13000);
@@ -8247,9 +8305,9 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
             // bored/encourage/idle mix the rest of the time.
             bool haveHistory = s_cachedLifetimeTotal > 0;
             if (s_activityHeat >= 50.0f && random(0, 2) == 0) {
-                say(pick(ALERT_MOOD_LINES, 4), MIN_BUBBLE_MS);
+                say(pickL(ALERT_MOOD_LINES, ALERT_MOOD_LINES_RU, 4), MIN_BUBBLE_MS);
             } else if (s_activityHeat < 15.0f && longIdle && random(0, 2) == 0) {
-                say(pick(RELAXED_MOOD_LINES, 4), MIN_BUBBLE_MS);
+                say(pickL(RELAXED_MOOD_LINES, RELAXED_MOOD_LINES_RU, 4), MIN_BUBBLE_MS);
             } else if (Clock::trusted() && random(0, 3) == 0) {
                 // The hour, the day of the week: what a clock is for.
                 say(pickTimeLine(), MIN_BUBBLE_MS);
@@ -8260,15 +8318,15 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
                 // find in it -- see pickBackgroundLine().
                 say(pickBackgroundLine(), MIN_BUBBLE_MS);
             } else if (longIdle && random(0, 3) == 0) {
-                say(pick(BORED_LINES, 4), MIN_BUBBLE_MS);
+                say(pickL(BORED_LINES, BORED_LINES_RU, 4), MIN_BUBBLE_MS);
             } else if (th3Wearing() && random(0, 3) == 0) {
                 say(pick(T3_LINES, T3_LINES_N), MIN_BUBBLE_MS);
             } else if (random(0, 5) == 0) {
-                say(pick(NOIR_LINES, NOIR_LINES_N), MIN_BUBBLE_MS);
+                say(pickL(NOIR_LINES, NOIR_LINES_RU, NOIR_LINES_N), MIN_BUBBLE_MS);
             } else if (random(0, 4) == 0) {
-                say(pick(ENCOURAGE_LINES, 8), MIN_BUBBLE_MS);
+                say(pickL(ENCOURAGE_LINES, ENCOURAGE_LINES_RU, 8), MIN_BUBBLE_MS);
             } else {
-                say(pick(IDLE_LINES, 18), MIN_BUBBLE_MS);
+                say(pickL(IDLE_LINES, IDLE_LINES_RU, 18), MIN_BUBBLE_MS);
             }
             mood = random(0, 2) ? Mood::WAVE : Mood::BOUNCE;
             moodUntil = now + tempo(1200);
@@ -8669,7 +8727,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
         bodyCx += (int)(sinf((float)(now - s_shakeStart) / 28.0f) * 4.0f * scale * k);
         s_headDrop += (int)(k * 2.0f * scale);
     } else if (s_shakeStart && now - s_shakeStart >= SHAKE_MS) {
-        if (advance) { s_shakeStart = 0; say(pick(SHAKE_LINES, 3), MIN_BUBBLE_MS); }
+        if (advance) { s_shakeStart = 0; say(pickL(SHAKE_LINES, SHAKE_LINES_RU, 3), MIN_BUBBLE_MS); }
     }
     // Backing away: each step is a few pixels further from centre, away from
     // whichever side he was reaching toward. Steps fade after 20 s of quiet.
@@ -8829,7 +8887,7 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
                         moodUntil = 0;
                         static const char* const YANKED[3] = { "Worth it.", "Ow. Can't blame a guy.", "Okay. Okay. I'll sit." };
                         if (s_thYanked) say(YANKED[random(0, 3)], MIN_BUBBLE_MS);
-                        else say(hard ? pick(DIZZY_LINES, 4) : pick(LAND_LINES, 3), MIN_BUBBLE_MS);
+                        else say(hard ? pickL(DIZZY_LINES, DIZZY_LINES_RU, 4) : pickL(LAND_LINES, LAND_LINES_RU, 3), MIN_BUBBLE_MS);
                         s_thYanked = false;
                     }
                 }

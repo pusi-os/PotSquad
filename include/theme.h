@@ -34,14 +34,14 @@ namespace Theme {
     constexpr uint16_t WHITE        = 0xFFFF;
     constexpr uint16_t BLACK        = 0x0000;
 
-    // Potsy's fur — real Sapots brown, matching the original
-    // legacy demo-page pet palette (not the neon set
-    // above). Deliberately NOT part of the swappable palette — he
-    // should look like Potsy no matter which UI theme is active.
+    // Potsy's skin — Simpson yellow. The base character reads as a
+    // Springfield cryptid now: yellow skin, big eyes, outfits on top.
+    // Deliberately NOT part of the swappable palette — he should look
+    // like Potsy no matter which UI theme is active.
     constexpr uint16_t FUR_DARK     = 0x38C0;  // #3d1800 shadow only
-    constexpr uint16_t FUR_MAIN     = 0x5941;  // #5a2808 body/head fill
-    constexpr uint16_t FUR_LIGHT    = 0x9326;  // #965a32 highlight/outline
-    constexpr uint16_t SKIN_TAN     = 0xF60F;  // #f4c07a face patch
+    constexpr uint16_t FUR_MAIN     = 0xFEA3;  // #fed41d Simpson skin fill
+    constexpr uint16_t FUR_LIGHT    = 0xFF2B;  // #ffe45e Simpson highlight
+    constexpr uint16_t SKIN_TAN     = 0xFF2B;  // #ffe45e face patch (same yellow)
     constexpr uint16_t SKIN_DARK    = 0xCB88;  // #c87040 ear inner
 
     // Windows 95/98 system chrome.
@@ -776,6 +776,25 @@ namespace Theme {
     // The same, 80 letters to a row: running text on the large panels.
     uint8_t wrapText(TFT_eSPI& t, const char* text, int maxW,
                      char lines[][80], uint8_t maxLines);
+
+    // ---- Russian text (PotSquad) -------------------------------------------
+    // Mixed ASCII/Cyrillic output for UI strings when Settings::lang()==1.
+    // ASCII goes through the normal GLCD path, Cyrillic through RuCyr8
+    // (include/ru_font.h, U+0401..U+0451). Width/wrap mirror textWidth()/
+    // wrapText() but measure glyphs (RuText), not bytes: strlen lies 2x on
+    // Cyrillic. Callers branch on lang themselves, so the EN path stays
+    // pixel-identical. A Cyrillic codepoint with no glyph (gaps in the
+    // RuCyr8 range) prints as '?', never as nothing.
+    void    printRU(TFT_eSPI& t, const char* s);
+    int     textWidthRU(TFT_eSPI& t, const char* s);
+    uint8_t wrapTextRU(TFT_eSPI& t, const char* text, int maxW,
+                       char lines[][48], uint8_t maxLines);
+
+    // Pick the EN or RU string by Settings::lang() (0 EN, 1 RU). All
+    // PotSquad UI translation goes through this one function, so the
+    // language switch lives in exactly one place. Both pointers must be
+    // valid statics; the return is used (never stored) within the frame.
+    const char* tr(const char* en, const char* ru);
 
     // Modal "MORE INFO" explanation panel -- shared by LOG's confirm
     // panel and ALERT's own MORE INFO button (the two screens are never

@@ -7756,6 +7756,7 @@ void loop() {
                         case SettingsRow::BACKGROUND: Settings::cycleBackground(); break;
                         case SettingsRow::BACKGROUND_LOCK: Settings::toggleBackgroundLocked(); break;
                         case SettingsRow::UPDATE_CHECK:    Settings::toggleUpdateCheck();     break;
+                        case SettingsRow::LANGUAGE:         Settings::cycleLang();               break;
                         case SettingsRow::TIME_ZONE:
                             // Left half back, right half forward -- see the row's label.
                             Settings::stepTimeZone(gestureStartX < tft.width() / 2 ? -1 : 1);
@@ -7962,6 +7963,7 @@ void loop() {
                             enterClear();
                             break;
                         case SettingsRow::SHADES_COLOR: Potsy::cycleShadesColor(); break;
+                        case SettingsRow::GLASSES: Potsy::toggleGlasses(); break;
                         case SettingsRow::POTSY_SIZE: Settings::cyclePotsySize(); break;
                         case SettingsRow::OUTFIT:
                         case SettingsRow::PET:
