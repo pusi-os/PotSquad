@@ -1,0 +1,7 @@
+potssim
+potssim-live
+out/
+.nvs/
+__pycache__/
+potssim.png
+build/

@@ -1,0 +1,347 @@
+// The PotsMesh payload codec.
+//
+// This runs inside the BLE advertisement callback, on every advert in the
+// air, against bytes a stranger composed. So -- exactly like the pwnagotchi
+// parser it sits beside -- the cases worth writing down are not "does the
+// round trip work". They are the refusals: a payload that is nearly right,
+// a name that never terminates, a length that disagrees with the flag that
+// implies it, bytes hiding in the padding.
+//
+// The round trip is here too, but it is the cheap half.
+#include "potsmesh.h"
+#include "test_util.h"
+#include <cstring>
+#include <cstdio>
+
+using namespace PotsMesh;
+
+static uint8_t buf[64];
+
+static Peer mk(uint8_t nick, uint8_t outfit, uint8_t shade, const char* name) {
+    Peer p{};
+    p.nick = nick; p.outfit = outfit; p.shade = shade;
+    p.custom = (name != nullptr);
+    p.name[0] = '\0';
+    if (name) {
+        size_t i = 0;
+        for (; i < NAME_LEN && name[i]; i++) p.name[i] = name[i];
+        p.name[i] = '\0';
+    }
+    return p;
+}
+
+// A known-good indexed payload, rebuilt before each mutation so one test
+// cannot leak damage into the next.
+static size_t good(bool custom) {
+    memset(buf, 0xAA, sizeof(buf));
+    return encode(mk(3, 7, 2, custom ? "STOMPY" : nullptr), buf);
+}
+
+int main() {
+    Peer p{};
+
+    suite("A payload round-trips");
+    {
+        size_t n = encode(mk(3, 7, 2, nullptr), buf);
+        ck("an indexed payload is 8 bytes", n == LEN_INDEXED);
+        ck("it decodes", decode(buf, n, p));
+        ck("nickname survives",  p.nick == 3);
+        ck("outfit survives",    p.outfit == 7);
+        ck("shades survive",     p.shade == 2);
+        ck("it is not custom",   !p.custom);
+        ck("the name is empty",  p.name[0] == '\0');
+
+        // 14 is the shark suit, the last outfit: it once clamped to NONE.
+        n = encode(mk(9, 14, 3, "STOMPY"), buf);
+        ck("a named payload is 20 bytes", n == LEN_NAMED);
+        ck("it decodes", decode(buf, n, p));
+        ck("nickname survives",  p.nick == 9);
+        ck("outfit survives",    p.outfit == 14);
+        ck("shades survive",     p.shade == 3);
+        ck("it is custom",       p.custom);
+        ck("the name survives",  strcmp(p.name, "STOMPY") == 0);
+    }
+
+    suite("A name exactly fills the field");
+    {
+        // Twelve characters and no room for a terminator inside the field.
+        // The decoder has to stop at the field width rather than at a NUL
+        // it will never find.
+        size_t n = encode(mk(0, 0, 0, "ABCDEFGHIJKL"), buf);
+        ck("it is a named payload", n == LEN_NAMED);
+        ck("it decodes", decode(buf, n, p));
+        ck("all twelve characters survive", strcmp(p.name, "ABCDEFGHIJKL") == 0);
+    }
+
+    suite("Encoding refuses to produce nonsense");
+    {
+        // A custom name that is empty is not a custom name. Letting one on
+        // the air would mean every receiver needed a rule for it.
+        Peer e = mk(1, 1, 1, "");
+        e.custom = true;
+        size_t n = encode(e, buf);
+        ck("an empty custom name encodes as indexed", n == LEN_INDEXED);
+        ck("and decodes as not-custom", decode(buf, n, p) && !p.custom);
+
+        // Longer than the field: truncated, never overrun.
+        Peer l{};
+        l.custom = true;
+        memcpy(l.name, "ABCDEFGHIJKL", 13);   // exactly NAME_LEN + NUL
+        n = encode(l, buf);
+        ck("a full-width name still fits", n == LEN_NAMED);
+        ck("and comes back whole", decode(buf, n, p) && strlen(p.name) == NAME_LEN);
+    }
+
+    suite("The header must be right");
+    {
+        for (int i = 0; i < 4; i++) {
+            size_t n = good(false);
+            buf[i] ^= 0xFF;
+            char what[64];
+            snprintf(what, sizeof(what), "magic byte %d wrong is refused", i);
+            ck(what, !decode(buf, n, p));
+        }
+        size_t n = good(false);
+        buf[4] = VERSION + 1;
+        ck("an unknown version is refused", !decode(buf, n, p));
+
+        n = good(false);
+        buf[7] = 0x02;
+        ck("a reserved flags bit is refused", !decode(buf, n, p));
+        n = good(false);
+        buf[7] = FLAG_PHONE;
+        ck("the phone flag without its identity bytes is refused", !decode(buf, n, p));
+    }
+
+    suite("A phone carries an identity after everything else");
+    {
+        Peer me{};
+        me.nick = 3; me.outfit = 13; me.shade = 1;
+        me.phone = true;
+        me.id[0] = 0xDE; me.id[1] = 0xAD; me.id[2] = 0xBE; me.id[3] = 0xEF;
+        size_t n = encode(me, buf);
+        ck("an indexed phone payload is 12 bytes", n == LEN_INDEXED_PHONE);
+        ck("its flags byte says phone", buf[7] == FLAG_PHONE);
+        ck("it decodes", decode(buf, n, p));
+        ck("as a phone", p.phone);
+        ck("with the identity", memcmp(p.id, me.id, PHONE_ID_LEN) == 0);
+        ck("and the look", p.nick == 3 && p.outfit == 13 && p.shade == 1 && !p.custom);
+        ck("one byte short is refused", !decode(buf, n - 1, p));
+        ck("one byte long is refused", !decode(buf, n + 1, p));
+
+        me.custom = true;
+        strcpy(me.name, "NIGHTWALKER");
+        n = encode(me, buf);
+        ck("a named phone payload is 24 bytes", n == LEN_NAMED_PHONE);
+        ck("it decodes", decode(buf, n, p));
+        ck("with the name", strcmp(p.name, "NIGHTWALKER") == 0 && p.custom && p.phone);
+        ck("and the identity after the name", memcmp(p.id, me.id, PHONE_ID_LEN) == 0);
+
+        uint8_t pm[6];
+        phoneMac(me.id, pm);
+        ck("the sealing address is a local prefix and the identity",
+           pm[0] == 0x02 && pm[1] == 'P' && memcmp(pm + 2, me.id, 4) == 0);
+
+        Peer board{};
+        board.nick = 1;
+        n = encode(board, buf);
+        ck("a board's payload has no phone bytes", n == LEN_INDEXED && buf[7] == 0);
+        ck("and decodes as not a phone", decode(buf, n, p) && !p.phone);
+    }
+
+    suite("Only two lengths are legal");
+    {
+        size_t n = good(true);
+        ck("the real length decodes", decode(buf, n, p));
+        for (size_t l = 0; l < LEN_NAMED; l++) {
+            if (l == LEN_INDEXED) continue;   // legal, but for the other flag
+            if (!decode(buf, l, p)) continue;
+            char what[64];
+            snprintf(what, sizeof(what), "length %zu should have been refused", l);
+            ck(what, false);
+        }
+        ck("every truncation short of 20 is refused", true);
+        ck("one byte too many is refused", !decode(buf, LEN_NAMED + 1, p));
+        ck("a null buffer is refused", !decode(nullptr, LEN_INDEXED, p));
+    }
+
+    suite("The custom bit and the length must agree");
+    {
+        // Custom bit set, but only the indexed bytes present. Without this
+        // check the name read would run off the end of the advert.
+        size_t n = good(false);
+        buf[5] |= (uint8_t)(CUSTOM_BIT & 0xFF);
+        ck("custom bit on a short payload is refused", !decode(buf, n, p));
+
+        // The reverse: name bytes present, bit clear.
+        n = good(true);
+        buf[5] &= (uint8_t)~(CUSTOM_BIT & 0xFF);
+        ck("name bytes without the custom bit are refused", !decode(buf, n, p));
+    }
+
+    suite("Names are printable ASCII or they are refused");
+    {
+        const struct { uint8_t byte; const char* what; } bad[] = {
+            { 0x01, "a control character is refused" },
+            { 0x0A, "a newline is refused" },
+            { 0x1B, "an escape is refused" },
+            { 0x7F, "DEL is refused" },
+            { 0x80, "a high-bit byte is refused" },
+            { 0xFF, "0xFF is refused" },
+        };
+        for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++) {
+            size_t n = good(true);
+            buf[LEN_INDEXED + 2] = bad[i].byte;
+            ck(bad[i].what, !decode(buf, n, p));
+        }
+
+        // An all-padding name with the custom bit set: encode() will not
+        // make one, so it did not come from us.
+        size_t n = good(true);
+        memset(buf + LEN_INDEXED, 0, NAME_LEN);
+        ck("an empty custom name is refused", !decode(buf, n, p));
+    }
+
+    suite("Nothing hides in the padding");
+    {
+        // "SQ\0" then a second string in the tail. A renderer that stops at
+        // the terminator would never show it, which is exactly why it must
+        // not be allowed to travel: any later code reading the field as a
+        // fixed twelve bytes would.
+        size_t n = good(true);
+        memset(buf + LEN_INDEXED, 0, NAME_LEN);
+        memcpy(buf + LEN_INDEXED, "SQ", 2);
+        memcpy(buf + LEN_INDEXED + 5, "HIDDEN", 6);
+        ck("data after the terminator is refused", !decode(buf, n, p));
+
+        // The same payload without the stowaway is fine, so the refusal
+        // above is about the tail and not about the short name.
+        n = good(true);
+        memset(buf + LEN_INDEXED, 0, NAME_LEN);
+        memcpy(buf + LEN_INDEXED, "SQ", 2);
+        ck("...but a short name with clean padding is fine",
+           decode(buf, n, p) && strcmp(p.name, "SQ") == 0);
+    }
+
+    suite("Unknown indices clamp rather than refuse");
+    {
+        // Five bits hold 0..31 and this build has 19 outfits, so a peer on
+        // newer firmware can send one we do not have: a wrong hat, not an
+        // attack.
+        size_t n = encode(mk(15, 31, 3, nullptr), buf);
+        ck("a payload with out-of-range indices still decodes", decode(buf, n, p));
+        ck("nickname lands in range", p.nick < NICK_N);
+        ck("outfit lands in range",   p.outfit < OUTFIT_N);
+        ck("shades land in range",    p.shade < 4);
+    }
+
+    suite("The seventeenth outfit, and boards from before it");
+    {
+        ck("twenty outfits", OUTFIT_N == 20);
+        size_t n = encode(mk(3, 16, 1, nullptr), buf);
+        ck("outfit 16 survives the trip", decode(buf, n, p) && p.outfit == 16);
+        ck("its fifth bit is a spare bit, not a new byte", n == LEN_INDEXED);
+        // What a board from before reads: the low four bits only.
+        const uint16_t w = (uint16_t)(buf[5] | ((uint16_t)buf[6] << 8));
+        ck("an older board sees outfit 0, plain Potsy", ((w >> 8) & 0x0F) == 0);
+        ck("and the rest of the word is unchanged", ((w >> 12) & 0x0F) == 3 && ((w >> 6) & 0x03) == 1);
+        n = encode(mk(3, 15, 1, nullptr), buf);
+        ck("outfit 15 sets no fifth bit", decode(buf, n, p) && p.outfit == 15 && !(buf[5] & 0x10));
+    }
+
+    suite("The eighteenth outfit, and boards from before it");
+    {
+        size_t n = encode(mk(3, 17, 1, nullptr), buf);
+        ck("outfit 17 survives the trip", decode(buf, n, p) && p.outfit == 17);
+        const uint16_t w = (uint16_t)(buf[5] | ((uint16_t)buf[6] << 8));
+        // A board with seventeen outfits sees 16|1 = 17 and clamps 17 % 17 to
+        // 0: plain Potsy, the wrong hat, as the format chose.
+        ck("its low four bits are 1 and the fifth is set", ((w >> 8) & 0x0F) == 1 && (w & 0x10));
+    }
+
+    suite("The nineteenth outfit, and boards from before it");
+    {
+        size_t n = encode(mk(3, 18, 1, nullptr), buf);
+        ck("outfit 18 survives the trip", decode(buf, n, p) && p.outfit == 18);
+        const uint16_t w = (uint16_t)(buf[5] | ((uint16_t)buf[6] << 8));
+        // A board with eighteen outfits sees 16|2 = 18 and clamps 18 % 18 to
+        // 0: plain Potsy again.
+        ck("its low four bits are 2 and the fifth is set", ((w >> 8) & 0x0F) == 2 && (w & 0x10));
+    }
+
+    suite("The aura goes visiting, and boards from before it");
+    {
+        Peer a = mk(3, 16, 1, nullptr);
+        a.aura = true;
+        size_t n = encode(a, buf);
+        ck("a lit aura survives the trip", decode(buf, n, p) && p.aura);
+        ck("it is a spare bit, not a new byte", n == LEN_INDEXED);
+        ck("and the flags byte is still zero, which older boards insist on", buf[7] == 0);
+        // What a board from before reads: every field it knows, unchanged.
+        const uint16_t w = (uint16_t)(buf[5] | ((uint16_t)buf[6] << 8));
+        ck("an older board reads the same nickname, outfit and shades",
+           ((w >> 12) & 0x0F) == 3 && ((w >> 8) & 0x0F) == 0 && (w & 0x10) && ((w >> 6) & 0x03) == 1);
+        ck("and no custom name", !(w & 0x20));
+        n = encode(mk(3, 16, 1, nullptr), buf);
+        ck("no aura sets no bit", decode(buf, n, p) && !p.aura && !(buf[5] & 0x08));
+        Peer c = mk(5, 7, 2, "ZERO COOL");
+        c.aura = true;
+        n = encode(c, buf);
+        ck("it rides with a typed name too",
+           decode(buf, n, p) && p.aura && p.custom && strcmp(p.name, "ZERO COOL") == 0);
+    }
+
+    suite("A rejected payload leaves the output alone");
+    {
+        Peer keep = mk(5, 5, 1, nullptr);
+        Peer probe = keep;
+        size_t n = good(false);
+        buf[4] = 0xEE;                       // bad version
+        ck("decode fails", !decode(buf, n, probe));
+        ck("the caller's peer is untouched",
+           probe.nick == keep.nick && probe.outfit == keep.outfit &&
+           probe.shade == keep.shade && probe.custom == keep.custom);
+    }
+
+    suite("PotsEmit's hand-built payload decodes");
+    {
+        // Byte-for-byte what PotsEmit lays out in firePotsMesh(), typed
+        // out again rather than shared. That duplication IS the test: two
+        // independent implementations agreeing about a format neither owns
+        // proves something, whereas one implementation called from both
+        // sides proves only that it equals itself.
+        //
+        // The company ID prefix is stripped by the receive hook before
+        // decode() sees it, so this starts at the magic.
+        const uint8_t nick = 7, outfit = 12, shade = 2;
+        uint8_t e[20];
+        e[0] = 'S'; e[1] = 'Q'; e[2] = 'M'; e[3] = '1';
+        e[4] = 1;
+        uint16_t w = (uint16_t)((nick & 0x0F) << 12) |
+                     (uint16_t)((outfit & 0x0F) << 8) |
+                     (uint16_t)((shade & 0x03) << 6);
+        w |= (uint16_t)(1u << 5);                 // custom-name bit
+        e[5] = (uint8_t)(w & 0xFF);
+        e[6] = (uint8_t)(w >> 8);
+        e[7] = 0;
+        const char* nm = "ZERO COOL";
+        for (size_t i = 0; i < 12; i++) e[8 + i] = (i < strlen(nm)) ? (uint8_t)nm[i] : 0;
+
+        ck("it decodes", decode(e, 20, p));
+        ck("nickname agrees", p.nick == nick);
+        ck("outfit agrees",   p.outfit == outfit);
+        ck("shades agree",    p.shade == shade);
+        ck("it is custom",    p.custom);
+        ck("the name agrees", strcmp(p.name, "ZERO COOL") == 0);
+
+        // And the indexed form, which is what a device with no typed name
+        // sends -- ten bytes on the wire once the company prefix is off.
+        uint8_t f[8];
+        memcpy(f, e, 8);
+        f[5] = (uint8_t)(f[5] & ~(1u << 5));      // clear the custom bit
+        ck("the indexed form decodes", decode(f, 8, p));
+        ck("and reports no name", !p.custom && p.name[0] == 0);
+    }
+
+    return report();
+}
