@@ -46,11 +46,11 @@ static void rowContent(PowerRow r, char* valBuf, size_t valBufN,
     value = nullptr;
     switch (r) {
         case PowerRow::ENABLED:
-            label = "LOW POWER"; value = Settings::powerSaver() ? "ON" : "OFF";
+            label = Theme::tr("LOW POWER", "ЭКОНОМНЫЙ"); value = Theme::onOff(Settings::powerSaver());
             dimmed = false;
             break;
         case PowerRow::SCREEN_TIMEOUT: {
-            label = "SCREEN TIMEOUT";
+            label = Theme::tr("SCREEN TIMEOUT", "ГАШЕНИЕ ЭКРАНА");
 #if defined(TWATCH_S3)
             dimmed = false;   // the watch times out whatever the master switch says
 #endif
@@ -58,44 +58,44 @@ static void rowContent(PowerRow r, char* valBuf, size_t valBufN,
             // what is configured even while the master switch is off.
             uint16_t sec = Settings::powerSaver() ? Settings::screenTimeoutSec()
                                                   : Settings::screenTimeoutSecRaw();
-            if (!sec)            snprintf(valBuf, valBufN, "NEVER");
+            if (!sec)            snprintf(valBuf, valBufN, "%s", Theme::tr("NEVER", "НИКОГДА"));
             else if (sec < 60)   snprintf(valBuf, valBufN, "%us", (unsigned)sec);
             else                 snprintf(valBuf, valBufN, "%umin", (unsigned)(sec / 60));
             value = valBuf;
             break;
         }
         case PowerRow::DIM_LEVEL:
-            label = "DIM TO -  +";
-            if (!Settings::dimLevel()) snprintf(valBuf, valBufN, "OFF");
+            label = Theme::tr("DIM TO -  +", "ТУСКЛО -  +");
+            if (!Settings::dimLevel()) snprintf(valBuf, valBufN, "%s", Theme::tr("OFF", "ВЫКЛ"));
             else snprintf(valBuf, valBufN, "%u%%", (unsigned)(Settings::dimLevel() * 100 / 255));
             value = valBuf;
             break;
         case PowerRow::IDLE_FPS: {
-            label = "IDLE FRAMES";
+            label = Theme::tr("IDLE FRAMES", "КАДРЫ ПОКОЯ");
             uint8_t f = Settings::powerSaver() ? Settings::idleFps() : Settings::idleFpsRaw();
-            if (!f) snprintf(valBuf, valBufN, "FULL");
+            if (!f) snprintf(valBuf, valBufN, "%s", Theme::tr("FULL", "ПОЛНЫЕ"));
             else    snprintf(valBuf, valBufN, "%u fps", (unsigned)f);
             value = valBuf;
             break;
         }
         case PowerRow::IDLE_AFTER:
-            label = "IDLE AFTER";
+            label = Theme::tr("IDLE AFTER", "ПОКОЙ ЧЕРЕЗ");
             snprintf(valBuf, valBufN, "%us", (unsigned)Settings::idleAfterSec());
             value = valBuf;
             break;
         case PowerRow::CPU_CLOCK: {
-            label = "CPU CLOCK";
+            label = Theme::tr("CPU CLOCK", "ЧАСТОТА ЦПУ");
             uint16_t m = Settings::powerSaver() ? Settings::cpuMhz() : Settings::cpuMhzRaw();
             snprintf(valBuf, valBufN, "%u MHz", (unsigned)m);
             value = valBuf;
             break;
         }
         case PowerRow::WAKE_ON_ALERT:
-            label = "WAKE ON ALERT"; value = Settings::wakeOnAlert() ? "ON" : "OFF";
+            label = Theme::tr("WAKE ON ALERT", "БУДИТЬ ТРЕВОГОЙ"); value = Theme::onOff(Settings::wakeOnAlert());
             break;
 #if defined(TWATCH_S3)
         case PowerRow::RADIO_DUTY:
-            label = "RADIO DUTY"; value = Settings::radioDutyName(Settings::radioDutyRaw());
+            label = Theme::tr("RADIO DUTY", "РЕЖИМ РАДИО"); value = Settings::radioDutyName(Settings::radioDutyRaw());
             break;
 #endif
         default:
@@ -122,17 +122,15 @@ static void drawRow(TFT_eSPI& t, int w, int y, int hgt, PowerRow r, bool compact
     // the rest of the UI already uses for inactive text.
     const uint16_t lab = dimmed ? Theme::blend(Theme::BG, Theme::VAPOR_PURPLE, 110) : Theme::VAPOR_PURPLE;
     t.setTextColor(lab, Theme::BG);
-    t.setCursor(8, y + (hgt - t.fontHeight()) / 2);
-    t.print(label);
+    Theme::rowPrint(t, label, 8, y + (hgt - t.fontHeight()) / 2);
 
     if (value) {
         t.setTextColor(dimmed ? Theme::blend(Theme::BG, Theme::WHITE, 110) : Theme::WHITE,
                        Theme::BG);
-        int vw = t.textWidth(value);
+        int vw = Theme::rowWidth(t, value);
         // 18px reserved on the right, same as Settings: leaves room for the
         // scrollbar without the value running under it.
-        t.setCursor(w - 18 - vw, y + (hgt - t.fontHeight()) / 2);
-        t.print(value);
+        Theme::rowPrint(t, value, w - 18 - vw, y + (hgt - t.fontHeight()) / 2);
     }
     t.setTextFont(1);
 }

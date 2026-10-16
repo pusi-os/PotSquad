@@ -96,6 +96,24 @@ void age(uint32_t now, uint32_t ms, char* out, size_t cap) {
 // `draw`, and returns the number of lines either way. A word too wide for a
 // line on its own is cut where it runs out.
 int wrap(TFT_eSPI& t, const char* text, int x, int y, int maxW, int lineH, int yMax, bool draw) {
+    // LoRa air text may be Cyrillic: the RU face then (wrapTextRU
+    // measures and printRU draws), at size 1 regardless of bubble font.
+    if (Theme::isRu(text)) {
+        char lines[8][48];
+        const uint8_t keepF = t.textfont;
+        t.setTextFont(1);
+        t.setTextSize(1);
+        const uint8_t n = Theme::wrapTextRU(t, text, maxW, lines, 8);
+        if (draw) {
+            for (uint8_t i = 0; i < n; i++) {
+                if (y + i * lineH + lineH > yMax) break;
+                t.setCursor(x, y + i * lineH + Theme::bubbleAscent());
+                Theme::printRU(t, lines[i]);
+            }
+        }
+        t.setTextFont(keepF);
+        return n ? n : 1;
+    }
     char line[64];
     int lines = 0;
     const char* p = text;
@@ -125,10 +143,10 @@ int wrap(TFT_eSPI& t, const char* text, int x, int y, int maxW, int lineH, int y
 
 const char* listenLine() {
     switch (Settings::loraListen()) {
-        case 0:  return "LORA IS OFF (WATCH SETTINGS > LORA)";
-        case 1:  return "LISTENING: MESHTASTIC";
-        case 2:  return "LISTENING: MESHCORE";
-        default: return "LISTENING: BOTH";
+        case 0:  return Theme::tr("LORA IS OFF (WATCH SETTINGS > LORA)", "LORA ВЫКЛ (НАСТРОЙКИ ЧАСОВ > LORA)");
+        case 1:  return Theme::tr("LISTENING: MESHTASTIC", "СЛУШАЮ: MESHTASTIC");
+        case 2:  return Theme::tr("LISTENING: MESHCORE", "СЛУШАЮ: MESHCORE");
+        default: return Theme::tr("LISTENING: BOTH", "СЛУШАЮ: ОБА");
     }
 }
 
@@ -144,12 +162,16 @@ void drawCompose(TFT_eSPI& t, int w, int y, uint32_t now) {
     const int ty = y + (COMPOSE_H - t.fontHeight()) / 2;
     if (s_status[0] && now - s_statusAt < 2500) {
         t.setTextColor(Theme::VAPOR_YELLOW, Theme::blend(Theme::BG, Theme::WHITE, 18));
-        t.setCursor(10, ty); t.print(s_status);
+        t.setCursor(10, ty);
+        if (Theme::isRu(s_status)) Theme::printRU(t, s_status); else t.print(s_status);
         return;
     }
     if (!Settings::loraTxDbm() && !s_composeN) {
         t.setTextColor(Theme::blend(Theme::BG, Theme::WHITE, 120), Theme::blend(Theme::BG, Theme::WHITE, 18));
-        t.setCursor(10, ty); t.print("TYPE HERE  (LORA TX IS OFF: SETTINGS > LORA)");
+        const char* th = Theme::tr("TYPE HERE  (LORA TX IS OFF: SETTINGS > LORA)",
+                                   "ПИШИ СЮДА  (LORA TX ВЫКЛ: НАСТРОЙКИ > LORA)");
+        t.setCursor(10, ty);
+        if (Theme::isRu(th)) Theme::printRU(t, th); else t.print(th);
         return;
     }
     char line[168];
@@ -216,18 +238,24 @@ void uiLoraChatTick(TFT_eSPI& t, uint32_t now) {
 
     int y = tabY + TAB_H + 4;
     t.setTextColor(Theme::blend(Theme::BG, Theme::WHITE, 140), Theme::BG);
-    t.setCursor(6, y);
-    t.print(listenLine());
+    {
+        const char* ll = listenLine();
+        t.setCursor(6, y);
+        if (Theme::isRu(ll)) Theme::printRU(t, ll); else t.print(ll);
+    }
     y += t.fontHeight() + 5;
 
     if (!s_rowN) {
         Theme::bubbleFontOn(t);
         t.setTextColor(Theme::blend(Theme::BG, Theme::WHITE, 170), Theme::BG);
-        const char* msg = s_tab ? "No MeshCore messages yet. Public and hashtag channels show up here."
-                                : "No Meshtastic messages yet. The public LongFast channel shows up here.";
+        const char* msg = s_tab ? Theme::tr("No MeshCore messages yet. Public and hashtag channels show up here.",
+                                            "Сообщений MeshCore пока нет. Здесь видны публичные и хештег-каналы.")
+                                : Theme::tr("No Meshtastic messages yet. The public LongFast channel shows up here.",
+                                            "Сообщений Meshtastic пока нет. Здесь виден публичный канал LongFast.");
+        if (Theme::isRu(msg)) { t.setTextFont(1); t.setTextSize(1); }
         wrap(t, msg, 8, y + 6, w - 16, Theme::bubbleTextH() + 2, bodyBottom, true);
         Theme::bubbleFontOff(t);
-        Theme::drawPinnedBack(t, "[ BACK ]");
+        Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
         return;
     }
 
@@ -259,7 +287,7 @@ void uiLoraChatTick(TFT_eSPI& t, uint32_t now) {
         y += n * lineH + 6;
         if (y < bodyBottom) t.drawFastHLine(6, y - 3, w - 12, Theme::blend(Theme::BG, accent, 60));
     }
-    Theme::drawPinnedBack(t, "[ BACK ]");
+    Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
 }
 
 #if defined(TDECK_PLUS)
@@ -267,12 +295,12 @@ void uiLoraChatKey(char c, uint32_t now) {
     if (c == '\b') { if (s_composeN) s_compose[--s_composeN] = '\0'; return; }
     if (c == '\n') {
         if (!s_composeN) return;
-        if (!Settings::loraTxDbm()) { snprintf(s_status, sizeof s_status, "LORA TX IS OFF: SETTINGS > LORA"); s_statusAt = now; return; }
+        if (!Settings::loraTxDbm()) { snprintf(s_status, sizeof s_status, "%s", Theme::tr("LORA TX IS OFF: SETTINGS > LORA", "LORA TX ВЫКЛ: НАСТРОЙКИ > LORA")); s_statusAt = now; return; }
         const char* nick = Potsy::nickname();
         if (!nick || !*nick) nick = "POTSY";
-        snprintf(s_status, sizeof s_status, "SENDING...");
+        snprintf(s_status, sizeof s_status, "%s", Theme::tr("SENDING...", "ОТПРАВКА..."));
         const bool ok = Lora::sendText(tabProto(s_tab), nick, s_compose, (int8_t)Settings::loraTxDbm());
-        snprintf(s_status, sizeof s_status, ok ? "SENT" : "SEND FAILED");
+        snprintf(s_status, sizeof s_status, "%s", ok ? Theme::tr("SENT", "УШЛО") : Theme::tr("SEND FAILED", "НЕ УШЛО"));
         s_statusAt = now;
         if (ok) { s_composeN = 0; s_compose[0] = '\0'; s_sig = 0xFFFFFFFFu; }
         return;

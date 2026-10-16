@@ -245,11 +245,11 @@ static void drawConfirmPanel(TFT_eSPI& t, int w, int h, const char* label, bool 
         t.setTextColor(Theme::RED, Theme::BG);
         t.setCursor(px + (pw - t.textWidth(nm)) / 2, py + 6);
         t.print(nm);
-        Theme::drawButton(t, wX, wY, wW, wH, watched ? "UNWATCH" : "WATCH", watched, 1);
-        Theme::drawButton(t, huX, huY, huW, huH, hunted ? "STOP HUNT" : "HUNT", hunted, 1);
-        Theme::drawButton(t, igX, igY, igW, igH, ignored ? "UN-IGNORE" : "IGNORE", ignored, 1);
-        Theme::drawButton(t, infX, infY, infW, infH, "MORE INFO", false, 1);
-        Theme::drawButton(t, cnX, cnY, cnW, cnH, "CANCEL", false, 1);
+        Theme::drawButton(t, wX, wY, wW, wH, watched ? Theme::tr("UNWATCH", "НЕ СЛЕДИТЬ") : Theme::tr("WATCH", "СЛЕДИТЬ"), watched, 1);
+        Theme::drawButton(t, huX, huY, huW, huH, hunted ? Theme::tr("STOP HUNT", "ХВАТИТ") : Theme::tr("HUNT", "ОХОТА"), hunted, 1);
+        Theme::drawButton(t, igX, igY, igW, igH, ignored ? Theme::tr("UN-IGNORE", "ВЕРНУТЬ") : Theme::tr("IGNORE", "ИГНОР"), ignored, 1);
+        Theme::drawButton(t, infX, infY, infW, infH, Theme::tr("MORE INFO", "ПОДРОБНЕЕ"), false, 1);
+        Theme::drawButton(t, cnX, cnY, cnW, cnH, Theme::tr("CANCEL", "ОТМЕНА"), false, 1);
         return;
     }
 
@@ -281,14 +281,14 @@ static void drawConfirmPanel(TFT_eSPI& t, int w, int h, const char* label, bool 
 
     // See ui_rawscan.cpp's copy of this panel: toggling, so the label names
     // the next tap rather than the thing already done.
-    Theme::drawButton(t, wX, wY, wW, wH, watched ? "UNWATCH" : "WATCH", watched);
+    Theme::drawButton(t, wX, wY, wW, wH, watched ? Theme::tr("UNWATCH", "НЕ СЛЕДИТЬ") : Theme::tr("WATCH", "СЛЕДИТЬ"), watched);
     // Toggles like WATCH beside it -- see that button's comment.
-    Theme::drawButton(t, huX, huY, huW, huH, hunted ? "STOP HUNT" : "HUNT", hunted);
+    Theme::drawButton(t, huX, huY, huW, huH, hunted ? Theme::tr("STOP HUNT", "ХВАТИТ") : Theme::tr("HUNT", "ОХОТА"), hunted);
     // Toggles too (issue #18): the only way to tell a device was ignored used
     // to be tapping IGNORE again and reading which toast came back.
-    Theme::drawButton(t, igX, igY, igW, igH, ignored ? "UN-IGNORE" : "IGNORE", ignored);
-    Theme::drawButton(t, infX, infY, infW, infH, "MORE INFO", false);
-    Theme::drawButton(t, cnX, cnY, cnW, cnH, "CANCEL", false);
+    Theme::drawButton(t, igX, igY, igW, igH, ignored ? Theme::tr("UN-IGNORE", "ВЕРНУТЬ") : Theme::tr("IGNORE", "ИГНОР"), ignored);
+    Theme::drawButton(t, infX, infY, infW, infH, Theme::tr("MORE INFO", "ПОДРОБНЕЕ"), false);
+    Theme::drawButton(t, cnX, cnY, cnW, cnH, Theme::tr("CANCEL", "ОТМЕНА"), false);
 }
 
 // Row geometry, shared by uiLogTick() (drawing) and uiLogRowAt() (hit
@@ -386,19 +386,34 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
         // Make the empty state impossible to mistake for a broken screen.
         float pulse = 0.55f + 0.45f * sinf((float)(now % 2000) / 2000.0f * 6.2831853f);
         uint16_t col = Theme::blend(Theme::GREEN, Theme::CYAN, (uint16_t)(pulse * 200.0f));
-        t.setTextSize(3);
+        const char* msg = Theme::tr("LOG EMPTY", "ЛОГ ПУСТ");
+        const bool mru = Theme::isRu(msg);
         t.setTextColor(col, Theme::BG);
-        const char* msg = "LOG EMPTY";
-        int mw = t.textWidth(msg);
-        t.setCursor((w - mw) / 2, bodyTop + bodyH / 3);
-        t.print(msg);
+        if (mru) {
+            // The 16px face at size 2: big but smooth, the RU answer to
+            // the size-3 GLCD headline. Measured at size 1 (the 16px
+            // line) and doubled, the way size 2 draws it.
+            t.setTextFont(1);
+            t.setTextSize(1);
+            const int mw1 = Theme::textWidthRU16(t, msg);
+            t.setTextSize(2);
+            t.setCursor((w - mw1 * 2) / 2, bodyTop + bodyH / 3);
+            Theme::printRU16(t, msg);
+            t.setTextSize(1);
+        } else {
+            t.setTextSize(3);
+            int mw = t.textWidth(msg);
+            t.setCursor((w - mw) / 2, bodyTop + bodyH / 3);
+            t.print(msg);
+        }
 
         t.setTextSize(1);
         t.setTextColor(Theme::CYAN, Theme::BG);
-        const char* sub = "no detections yet";
-        int sw = t.textWidth(sub);
+        const char* sub = Theme::tr("no detections yet", "пока ничего не нашли");
+        const bool sru = Theme::isRu(sub);
+        int sw = sru ? Theme::textWidthRU(t, sub) : t.textWidth(sub);
         t.setCursor((w - sw) / 2, bodyTop + bodyH / 3 + 35);
-        t.print(sub);
+        if (sru) Theme::printRU(t, sub); else t.print(sub);
 
         Theme::drawButtonBar(t, ButtonId::LOG, Theme::ButtonBarMode::LOG);
         if (infoPending)        Theme::drawInfoPanel(t, w, h, now, infoTypeName, infoText);

@@ -43,6 +43,11 @@ int visibleRows(TFT_eSPI& t, int top, int rowH) {
     return v > (int)ROW_N ? (int)ROW_N : (v < 1 ? 1 : v);
 }
 
+// Row measure/print lives in Theme; thin aliases keep this file's row
+// calls short.
+static int rowW(TFT_eSPI& t, const char* s) { return Theme::rowWidth(t, s); }
+static void rowS(TFT_eSPI& t, const char* s, int x, int y) { Theme::rowPrint(t, s, x, y); }
+
 void row(TFT_eSPI& t, int w, int y, int hgt, const char* label,
          const char* value, uint16_t valueCol) {
     if (y < 0) return;      // scrolled out of sight
@@ -53,7 +58,7 @@ void row(TFT_eSPI& t, int w, int y, int hgt, const char* label,
     // FONTS > MENUS: a row the bigger size would run off the screen steps
     // back down, label and value together.
     Theme::menuFontOn(t, false);
-    while (t.textWidth(label) + (value ? t.textWidth(value) + 8 : 0) > w - 16 && Theme::menuFontSmaller(t)) {}
+    while (rowW(t, label) + (value ? rowW(t, value) + 8 : 0) > w - 16 && Theme::menuFontSmaller(t)) {}
     t.setTextWrap(false);
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
     // On the large panels the taller heading leaves 31-row rows in landscape,
@@ -61,13 +66,11 @@ void row(TFT_eSPI& t, int w, int y, int hgt, const char* label,
     // bottom edge; centred on the panel (drawListRowPanel's inset) they clear.
     const int ty = Theme::large() ? y + 1 + (hgt - 4 - t.fontHeight()) / 2
                                   : y + (hgt - t.fontHeight()) / 2;
-    t.setCursor(8, ty);
-    t.print(label);
+    rowS(t, label, 8, ty);
     if (value) {
         t.setTextColor(valueCol, Theme::BG);
-        const int vw = t.textWidth(value);
-        t.setCursor(w - 8 - vw, ty);
-        t.print(value);
+        const int vw = rowW(t, value);
+        rowS(t, value, w - 8 - vw, ty);
     }
     t.setTextFont(1);
 }
@@ -106,46 +109,53 @@ void uiMeshMenuTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     // the row with a consequence: green reads as "you are visible to anybody
     // scanning", which is worth being able to see at a glance rather than
     // read.
-    row(t, w, rowY(0), rowH, "DETECT",   Settings::meshDetectLabel(),
+    row(t, w, rowY(0), rowH, Theme::tr("DETECT", "ПОИСК"),   Settings::meshDetectLabel(),
         Settings::meshDetect() ? Theme::GREEN : Theme::W95_SHADOW);
-    row(t, w, rowY(1), rowH, "TRANSMIT", Settings::meshTransmitLabel(),
+    row(t, w, rowY(1), rowH, Theme::tr("TRANSMIT", "ПЕРЕДАЧА"), Settings::meshTransmitLabel(),
         Settings::meshTransmit() ? Theme::AMBER : Theme::W95_SHADOW);
     // MESSAGES says ERR rather than OFF when the crypto self-test failed at
     // boot: a switch that cannot be turned on should not look like one that
     // merely isn't.
     const bool st = MeshTalk::selfTestOk();
-    row(t, w, rowY(2), rowH, "MESSAGES",
-        !st ? "ERR" : (Settings::messagesOn() ? "ON" : "OFF"),
+    row(t, w, rowY(2), rowH, Theme::tr("MESSAGES", "СООБЩЕНИЯ"),
+        !st ? Theme::tr("ERR", "ОШИБКА") : Theme::onOff(Settings::messagesOn()),
         !st ? Theme::RED : (Settings::messagesOn() ? Theme::GREEN : Theme::W95_SHADOW));
     // How many of them may be on the main screen at once. A tap steps it
     // here: it had a page of its own holding only this, and the desk's count
     // lives on the DESK MODE page.
     // Serious catches shared with the squad. Grey when it is on but cannot
     // do anything: no messages, or no phrase to seal them with.
-    row(t, w, rowY(3), rowH, "HEADS-UP", Settings::meshHeadsUp() ? "ON" : "OFF",
+    row(t, w, rowY(3), rowH, Theme::tr("HEADS-UP", "ТРЕВОГИ"), Theme::onOff(Settings::meshHeadsUp()),
         Settings::meshHeadsUp() && MeshTalk::ready() ? Theme::GREEN : Theme::W95_SHADOW);
-    row(t, w, rowY(4), rowH, "CROWD", Settings::meshCrowdLabel(),
+    row(t, w, rowY(4), rowH, Theme::tr("CROWD", "ТОЛПА"), Settings::meshCrowdLabel(),
         Settings::meshCrowd() > 1 ? Theme::GREEN : Settings::meshCrowd() == 0 ? Theme::AMBER : Theme::W95_SHADOW);
     // Everybody who has ever held the phrase, here or not.
-    char sq[12];
+    char sq[16];
     const uint8_t members = MeshTalk::rosterCount();
     if (members) snprintf(sq, sizeof sq, "%u >", (unsigned)members);
-    else         snprintf(sq, sizeof sq, "NONE >");
-    row(t, w, rowY(5), rowH, "SQUAD", sq, members ? Theme::GREEN : Theme::W95_SHADOW);
+    else         snprintf(sq, sizeof sq, "%s", Theme::tr("NONE >", "НИКОГО >"));
+    row(t, w, rowY(5), rowH, Theme::tr("SQUAD", "СКВАД"), sq, members ? Theme::GREEN : Theme::W95_SHADOW);
     // Never the phrase itself. This screen is looked at over shoulders.
-    row(t, w, rowY(6), rowH, "PHRASE",
-        MeshTalk::havePhrase() ? "SET >" : "NONE >",
+    row(t, w, rowY(6), rowH, Theme::tr("PHRASE", "ФРАЗА"),
+        MeshTalk::havePhrase() ? Theme::tr("SET >", "ЕСТЬ >") : Theme::tr("NONE >", "НЕТ >"),
         MeshTalk::havePhrase() ? Theme::VAPOR_YELLOW : Theme::W95_SHADOW);
-    row(t, w, rowY(7), rowH, "NAME",     nm, Theme::VAPOR_YELLOW);
+    row(t, w, rowY(7), rowH, Theme::tr("NAME", "ИМЯ"),     nm, Theme::VAPOR_YELLOW);
 
     // One line saying what the two switches actually mean together, because
     // "DETECT off, TRANSMIT on" is not self-evidently "they can see you but
     // you cannot see them".
     const bool d = Settings::meshDetect(), x = Settings::meshTransmit();
-    const char* note = d && x ? "You see them, they see you."
-                     : d      ? "You see them. They cannot see you."
-                     : x      ? "They see you. You cannot see them."
-                              : "Off. Nothing sent, nothing shown.";
+    // Beside the heading there is room for ~25 glyphs, not a sentence:
+    // the short RU variants say the same thing in a fragment.
+    const bool ru = Settings::lang() == 1;
+    const char* note = d && x ? Theme::tr("You see them, they see you.", "Вы видите их, они видят вас.")
+                     : d      ? Theme::tr("You see them. They cannot see you.", "Вы их видите. Они вас — нет.")
+                     : x      ? Theme::tr("They see you. You cannot see them.", "Они вас видят. Вы их — нет.")
+                              : Theme::tr("Off. Nothing sent, nothing shown.", "Выкл. Ничего не шлём, не показываем.");
+    const char* noteShort = d && x ? Theme::tr("You see them, they see you.", "Видим друг друга.")
+                     : d      ? Theme::tr("You see them. They cannot see you.", "Вы их видите.")
+                     : x      ? Theme::tr("They see you. You cannot see them.", "Они вас видят.")
+                              : Theme::tr("Off. Nothing sent, nothing shown.", "Выключено.");
     Theme::bodyFontOn(t);
     t.setTextColor(Theme::W95_LIGHT, Theme::BG);
     // Seven rows leave no room under them in landscape, so there the one
@@ -160,25 +170,60 @@ void uiMeshMenuTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     // And one for messages, which need both halves: DETECT to hear one,
     // TRANSMIT to answer.
     const char* mnote =
-        !MeshTalk::selfTestOk()      ? "Messages off: crypto self-test failed."
+        !MeshTalk::selfTestOk()      ? Theme::tr("Messages off: crypto self-test failed.", "Сообщения выкл: крипто-тест провален.")
       : !Settings::messagesOn()      ? nullptr
-      : !MeshTalk::havePhrase()      ? "Messages need a phrase to share first."
-      : !Settings::meshDetect()      ? "Messages need DETECT on to be heard."
-      : !Settings::meshTransmit()    ? "Messages: you can read, not reply."
-                                     : "Messages: reading and replying.";
+      : !MeshTalk::havePhrase()      ? Theme::tr("Messages need a phrase to share first.", "Сообщениям нужна общая фраза.")
+      : !Settings::meshDetect()      ? Theme::tr("Messages need DETECT on to be heard.", "Сообщениям нужен включённый ПОИСК.")
+      : !Settings::meshTransmit()    ? Theme::tr("Messages: you can read, not reply.", "Сообщения: читаешь, не отвечаешь.")
+                                     : Theme::tr("Messages: reading and replying.", "Сообщения: читаю и отвечаю.");
+    const char* mnoteShort =
+        !MeshTalk::selfTestOk()      ? Theme::tr("Messages off: crypto self-test failed.", "Крипто-тест провален.")
+      : !Settings::messagesOn()      ? nullptr
+      : !MeshTalk::havePhrase()      ? Theme::tr("Messages need a phrase to share first.", "Нужна фраза.")
+      : !Settings::meshDetect()      ? Theme::tr("Messages need DETECT on to be heard.", "Включи ПОИСК.")
+      : !Settings::meshTransmit()    ? Theme::tr("Messages: you can read, not reply.", "Только чтение.")
+                                     : Theme::tr("Messages: reading and replying.", "Читаю и отвечаю.");
+    // RU goes through the RU face at size 1: the body font's FreeFont
+    // has no Cyrillic. Lines wrap to the width they have.
+    const uint8_t keepF = t.textfont;
+    if (ru) { t.setTextFont(1); t.setTextSize(1); }
+    if (below) {
+        if (ru) {
+            char nl[2][48];
+            const uint8_t nn = Theme::wrapTextRU(t, note, w - 16, nl, 2);
+            for (uint8_t i = 0; i < nn; i++) {
+                t.setCursor(8, top + vis * rowH + 6 + i * 11);
+                Theme::printRU(t, nl[i]);
+            }
+        } else {
+            t.setCursor(8, top + vis * rowH + 6);
+            t.print(note);
+        }
+    }
     if (below && mnote) {
-        t.setCursor(8, top + vis * rowH + 6 + t.fontHeight() + 3);
-        t.print(mnote);
+        if (ru) {
+            char ml[2][48];
+            const uint8_t mn = Theme::wrapTextRU(t, mnote, w - 16, ml, 2);
+            for (uint8_t i = 0; i < mn; i++) {
+                t.setCursor(8, top + vis * rowH + 6 + t.fontHeight() + 3 + i * 11);
+                Theme::printRU(t, ml[i]);
+            }
+        } else {
+            t.setCursor(8, top + vis * rowH + 6 + t.fontHeight() + 3);
+            t.print(mnote);
+        }
     }
     if (!below) {
-        const bool warn = mnote && strcmp(mnote, "Messages: reading and replying.") != 0;
-        const char* one = warn ? mnote : note;
+        const bool warn = mnote && strcmp(mnote, Theme::tr("Messages: reading and replying.", "Сообщения: читаю и отвечаю.")) != 0;
+        const char* one = warn ? (ru ? mnoteShort : mnote) : (ru ? noteShort : note);
         t.setTextColor(warn ? Theme::AMBER : Theme::W95_LIGHT, Theme::BG);
-        t.setCursor(w - 8 - t.textWidth(one), Theme::listHeadingY(t));
-        t.print(one);
+        const int ow = ru ? (Theme::textWidthRU(t, one)) : t.textWidth(one);
+        t.setCursor(w - 8 - ow, Theme::listHeadingY(t));
+        if (ru) Theme::printRU(t, one); else t.print(one);
     }
+    if (ru) { t.setTextFont(keepF); }
     Theme::bodyFontOff(t);
-    Theme::drawPinnedBack(t, "[ BACK ]");
+    Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
 }
 
 MeshMenuRow uiMeshMenuHitTest(TFT_eSPI& t, int x, int y, int screenW, int screenH) {

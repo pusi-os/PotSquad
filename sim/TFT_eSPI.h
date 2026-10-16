@@ -382,6 +382,8 @@ public:
 
     // ---- text ------------------------------------------------------
     void setCursor(int32_t x, int32_t y) { cursor_x = x; cursor_y = y; }
+    int16_t getCursorX() const { return cursor_x; }
+    int16_t getCursorY() const { return cursor_y; }
     void setTextColor(uint16_t fg) { textcolor = fg; textbgcolor = fg; transparent = true; }
     void setTextColor(uint16_t fg, uint16_t bg) { textcolor = fg; textbgcolor = bg; transparent = false; }
     void setTextSize(uint8_t s) { textsize = s ? s : 1; }
@@ -451,8 +453,12 @@ public:
 
     // Public in the real library too (TFT_eSPI.h keeps its text state in the
     // public section), and read by Theme::drawWin95Button to put back the
-    // caller's font after drawing a label in its own.
+    // caller's font after drawing a label in its own. textsize/textcolor
+    // are likewise public there -- the RU renderer reads both -- so they
+    // live here, not in the protected block below.
     uint8_t textfont = 1;
+    uint16_t textcolor = 0xFFFF, textbgcolor = 0x0000;
+    uint8_t textsize = 1;
 
 protected:
     int _w, _h;
@@ -461,8 +467,6 @@ protected:
     int32_t _winX0 = 0, _winY0 = 0, _winX1 = 0, _winY1 = 0, _winCurX = 0, _winCurY = 0;
 
     int32_t cursor_x = 0, cursor_y = 0;
-    uint16_t textcolor = 0xFFFF, textbgcolor = 0x0000;
-    uint8_t textsize = 1;
     const GFXfont* gfxFont = nullptr;
     bool transparent = false;
 

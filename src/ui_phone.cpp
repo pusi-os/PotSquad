@@ -673,7 +673,7 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         // rings. Then the board is yours as usual; a tap meanwhile still
         // types, it just is not shown until the call is over.
         const bool on = ring < 1800u && ((ring / 300u) % 2u) == 0;
-        const char* say = ring < 1800u ? (on ? "RING RING" : "") : "OPERATOR.";
+        const char* say = ring < 1800u ? (on ? Theme::tr("RING RING", "ДЗЫНЬ-ДЗЫНЬ") : "") : Theme::tr("OPERATOR.", "ОПЕРАТОР.");
         t.setCursor(dX + (dW - t.textWidth(say)) / 2, dY + (dH - 14) / 2);
         t.print(say);
         if (on) {
@@ -803,11 +803,11 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     }
 
     // ---- back -------------------------------------------------------------
-    Theme::drawButton(t, BX, s_backY, BW_(), BH, "[ BACK ]", false);
+    Theme::drawButton(t, BX, s_backY, BW_(), BH, Theme::tr("[ BACK ]", "[ НАЗАД ]"), false);
 
     // ---- layout switch ----------------------------------------------------
     toggleRect(w, h, qw);
-    Theme::drawButton(t, s_toggleX, s_toggleY, BW_(), BH, qw ? "[ KEYPAD ]" : "[ QWERTY ]", false);
+    Theme::drawButton(t, s_toggleX, s_toggleY, BW_(), BH, qw ? Theme::tr("[ KEYPAD ]", "[ КНОПКИ ]") : "[ QWERTY ]", false);
     // ---- alphabet switch --------------------------------------------------
     // QWERTY only: beside the layout switch, in the same row, the same size.
     if (qw) {

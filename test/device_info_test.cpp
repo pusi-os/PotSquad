@@ -6,6 +6,8 @@
 // could look at a Flipper Zero's alert without a Flipper Zero. A table that
 // has to agree with three others is only kept in step by a test.
 #include "test_util.h"
+// Theme::tr stub: EN in tests, the way the firmware reads with lang()==0.
+namespace Theme { const char* tr(const char* en, const char*) { return en; } }
 #include "device_info.h"
 #include "signatures.h"
 #include "sim_detections.h"

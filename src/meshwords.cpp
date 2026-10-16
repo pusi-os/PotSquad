@@ -24,6 +24,7 @@
 // THE CANNED LINES are the other way round: a message carries an INDEX, so
 // both ends must agree what index N means. Append only.
 #include "meshmsg.h"
+#include "theme.h"
 
 #if POTS_MESH
 
@@ -155,6 +156,71 @@ const char* const CANNED[] = {
     "Stay potsy.",
 };
 const uint8_t CANNED_N = (uint8_t)(sizeof(CANNED) / sizeof(CANNED[0]));
+
+// Display only: the index goes on the air, each board renders its own
+// language. Same order as CANNED above, forever.
+const char* const CANNED_RU[] = {
+    "Иду.",
+    "Ты где?",
+    "Тут чисто.",
+    "Что-то рядом.",
+    "Выхожу.",
+    "Ща вернусь.",
+    "Да.",
+    "Нет.",
+    "Может.",
+    "Встреча у машины.",
+    "Смотри в оба.",
+    "Камера слева.",
+    "Нашёл камеру Флок.",
+    "Стой на месте.",
+    "Иди ко мне.",
+    "Ухожу.",
+    "Пять минут.",
+    "Опаздываю.",
+    "Ха.",
+    "Хорошо.",
+    "Спасибо.",
+    "Перекус?",
+    "Оно за тобой?",
+    "Ухожу в тень.",
+    "Коп впереди.",
+    "Дрон над головой.",
+    "Распознаватель на столбе.",
+    "Их уже двое.",
+    "Всё, ушёл.",
+    "Я цел.",
+    "Сюда не ходи.",
+    "Разворачивайся.",
+    "За мной следят.",
+    "Ты в порядке?",
+    "Ещё там?",
+    "Говорить можешь?",
+    "Куда?",
+    "Сколько их?",
+    "Подвезти?",
+    "Позвони как сможешь.",
+    "Понял.",
+    "Принято.",
+    "Пока нет.",
+    "Вас понял.",
+    "Сквач на связи.",
+    "Если так, то круто.",
+    "Бип-буп.",
+    "Оставайся потси.",
+};
+
+const char* cannedLine(uint8_t i) {
+    if (i >= CANNED_N) i = 0;
+    return Theme::tr(CANNED[i], CANNED_RU[i]);
+}
+const char* cannedTabName(uint8_t tab) {
+    static const char* const RU[CANNED_TABS] = {
+        "ИДУ", "ВИДЕЛ", "ЦЕЛ", "ВОПРОС", "ОТВЕТ", "ПОТСИ",
+    };
+    if (tab >= CANNED_TABS) tab = 0;
+    return Theme::tr(CANNED_TAB_NAME[tab], RU[tab]);
+}
 
 // ---- the picker's tabs -------------------------------------------------------
 // PRESENTATION ONLY. Unlike the indices above, nothing here goes on the air, so

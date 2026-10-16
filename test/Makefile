@@ -45,7 +45,9 @@ qwerty_test_FLAGS            := -DPOTS_MESH=1
 meshmsg_test_SRCS            := $(SRC)/meshmsg.cpp $(SRC)/meshwords.cpp
 meshmsg_test_FLAGS           := -DPOTS_MESH=1
 # The emote scripts' tables and the setup byte's arithmetic.
-emote_script_test_SRCS       := $(SRC)/emote_script.cpp
+# spokenName() reads TypeNames::display(), the real table; lang() is
+# stubbed to EN, the way the firmware reads with lang()==0.
+emote_script_test_SRCS       := $(SRC)/emote_script.cpp $(SRC)/type_names.cpp
 emote_script_test_FLAGS      := -DPOTS_MESH=1
 # The pages against the signature tables and the emulator's profiles.
 device_info_test_SRCS        := $(SRC)/device_info.cpp $(SRC)/signatures.cpp

@@ -1,6 +1,7 @@
 // PotsSquad-CYD — Potsy's diary screen implementation
 #include "ui_diary.h"
 #include "theme.h"
+#include "type_names.h"
 #include "potsy.h"
 #include <Arduino.h>
 
@@ -31,12 +32,16 @@ static void formatDuration(uint32_t ms, char* buf, size_t n) {
 static void drawStat(TFT_eSPI& t, int w, int y, int h, const char* label, const char* value) {
     Theme::bodyFontOn(t);
     t.setTextColor(Theme::CYAN, Theme::BG);
+    const bool lru = Theme::isRu(label);
+    if (lru) { t.setTextFont(1); t.setTextSize(1); }
     t.setCursor(8, y + (h - t.fontHeight()) / 2);
-    t.print(label);
+    if (lru) Theme::printRU(t, label); else t.print(label);
     t.setTextColor(Theme::WHITE, Theme::BG);
-    int vw = t.textWidth(value);
+    const bool vru = Theme::isRu(value);
+    if (vru && !lru) { t.setTextFont(1); t.setTextSize(1); }
+    int vw = vru ? Theme::textWidthRU(t, value) : t.textWidth(value);
     t.setCursor(w - 8 - vw, y + (h - t.fontHeight()) / 2);
-    t.print(value);
+    if (vru) Theme::printRU(t, value); else t.print(value);
     Theme::bodyFontOff(t);
     t.drawFastHLine(4, y + h - 1, w - 8, Theme::PURPLE);
 }
@@ -45,7 +50,7 @@ void uiDiaryTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     int w = t.width();
 
     char title[32];
-    snprintf(title, sizeof(title), ">> %s'S DIARY <<", Potsy::nickname());
+    snprintf(title, sizeof(title), Theme::tr(">> %s'S DIARY <<", ">> ДНЕВНИК %s <<"), Potsy::nickname());
     Theme::drawTitleBar(t, title);
 
     const int top  = 16;
@@ -58,26 +63,26 @@ void uiDiaryTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     char buf[24];
 
     snprintf(buf, sizeof(buf), "%lu", (unsigned long)eng.lifetimeTotal());
-    drawStat(t, w, top + 0 * rowH, rowH, "LIFETIME CATCHES", buf);
+    drawStat(t, w, top + 0 * rowH, rowH, Theme::tr("LIFETIME CATCHES", "НАХОДОК ВСЕГО"), buf);
 
     snprintf(buf, sizeof(buf), "%lu", (unsigned long)Potsy::bootCount());
-    drawStat(t, w, top + 1 * rowH, rowH, "BOOTS", buf);
+    drawStat(t, w, top + 1 * rowH, rowH, Theme::tr("BOOTS", "ВКЛЮЧЕНИЙ"), buf);
 
     snprintf(buf, sizeof(buf), "%lu", (unsigned long)Potsy::petCount());
-    drawStat(t, w, top + 2 * rowH, rowH, "TIMES PETTED", buf);
+    drawStat(t, w, top + 2 * rowH, rowH, Theme::tr("TIMES PETTED", "РАЗ ПОГЛАДИЛИ"), buf);
 
     formatDuration(Potsy::currentClearStreakMs(), buf, sizeof(buf));
-    drawStat(t, w, top + 3 * rowH, rowH, "CURRENT CLEAR STREAK", buf);
+    drawStat(t, w, top + 3 * rowH, rowH, Theme::tr("CURRENT CLEAR STREAK", "ТИШИНА СЕЙЧАС"), buf);
 
     formatDuration(Potsy::bestClearStreakMs(), buf, sizeof(buf));
-    drawStat(t, w, top + 4 * rowH, rowH, "BEST CLEAR STREAK", buf);
+    drawStat(t, w, top + 4 * rowH, rowH, Theme::tr("BEST CLEAR STREAK", "ЛУЧШАЯ ТИШИНА"), buf);
 
     snprintf(buf, sizeof(buf), "%lu", (unsigned long)Potsy::bestSessionCount());
-    drawStat(t, w, top + 5 * rowH, rowH, "BEST SESSION CATCH", buf);
+    drawStat(t, w, top + 5 * rowH, rowH, Theme::tr("BEST SESSION CATCH", "ЛУЧШАЯ СЕССИЯ"), buf);
 
     DetectionType ft = Potsy::firstDetectionType();
-    drawStat(t, w, top + 6 * rowH, rowH, "FIRST EVER CATCH",
-             ft == DetectionType::UNKNOWN ? "none yet" : detectionTypeName(ft));
+    drawStat(t, w, top + 6 * rowH, rowH, Theme::tr("FIRST EVER CATCH", "ПЕРВАЯ НАХОДКА"),
+             ft == DetectionType::UNKNOWN ? Theme::tr("none yet", "пока никого") : TypeNames::display(ft));
 
     // Whichever type you have logged most, ever. The per-type lifetime
     // counters behind this persist independently of the live counts, which
@@ -91,15 +96,15 @@ void uiDiaryTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
             if (n > bestN) { bestN = n; best = (DetectionType)i; }
         }
         if (bestN == 0) {
-            drawStat(t, w, top + 7 * rowH, rowH, "MOST CAUGHT", "none yet");
+            drawStat(t, w, top + 7 * rowH, rowH, Theme::tr("MOST CAUGHT", "ЧАЩЕ ВСЕХ"), Theme::tr("none yet", "пока никого"));
         } else {
-            snprintf(buf, sizeof(buf), "%s %lu", detectionTypeName(best),
+            snprintf(buf, sizeof(buf), "%s %lu", TypeNames::display(best),
                      (unsigned long)bestN);
-            drawStat(t, w, top + 7 * rowH, rowH, "MOST CAUGHT", buf);
+            drawStat(t, w, top + 7 * rowH, rowH, Theme::tr("MOST CAUGHT", "ЧАЩЕ ВСЕХ"), buf);
         }
     }
 
-    drawStat(t, w, top + 8 * rowH, rowH, "FIRMWARE", FIRMWARE_VERSION);
+    drawStat(t, w, top + 8 * rowH, rowH, Theme::tr("FIRMWARE", "ПРОШИВКА"), FIRMWARE_VERSION);
 
     // Hint, pulsing gently so it doesn't just look like inert label text.
     // Between 65% and 100% of CYAN: the old 10-70% of VAPOR_BLUE rounded to

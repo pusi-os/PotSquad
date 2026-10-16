@@ -52,6 +52,20 @@ bool visiting(const uint8_t* mac) {
 }
 
 void centred(TFT_eSPI& t, const char* s, int cx, int y) {
+    // A nickname may be Cyrillic (typed on the RU phone): the RU face
+    // then, the 16px one at size 2's line.
+    if (Theme::isRu(s)) {
+        const uint8_t sz = t.textsize ? t.textsize : 1;
+        const uint8_t keepF = t.textfont;
+        t.setTextFont(1);
+        t.setTextSize(1);
+        const bool big = sz >= 2;
+        t.setCursor(cx - (big ? Theme::textWidthRU16(t, s) : Theme::textWidthRU(t, s)) / 2, y);
+        if (big) Theme::printRU16(t, s); else Theme::printRU(t, s);
+        t.setTextFont(keepF);
+        t.setTextSize(sz);
+        return;
+    }
     t.setCursor(cx - t.textWidth(s) / 2, y);
     t.print(s);
 }
@@ -131,22 +145,24 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     Theme::dimRegion(t, 0, 0, w, h, 110);
 
     t.setTextWrap(false);
-    t.setTextSize(2);
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
-    t.setCursor(8, 6);
-    t.print("SQUAD");
-    char cnt[24];
+    {
+        const char* hd = Theme::tr("SQUAD", "СКВАД");
+        if (Theme::isRu(hd)) { t.setTextSize(1); t.setCursor(8, 6); Theme::printRU16(t, hd); }
+        else { t.setTextSize(2); t.setCursor(8, 6); t.print(hd); }
+    }
+    char cnt[32];
     if (s_roster) {
         uint8_t here = 0;
         for (uint8_t i = 0; i < s_n; i++) if (s_here[i]) here++;
-        snprintf(cnt, sizeof cnt, "%u MEMBER%s, %u HERE", (unsigned)s_n, s_n == 1 ? "" : "S", (unsigned)here);
+        snprintf(cnt, sizeof cnt, Theme::tr("%u MEMBER%s, %u HERE", "%u УЧАСТНИК, %u ЗДЕСЬ"), (unsigned)s_n, s_n == 1 ? "" : "S", (unsigned)here);
     } else {
-        snprintf(cnt, sizeof cnt, "%u IN RANGE", (unsigned)s_n);
+        snprintf(cnt, sizeof cnt, Theme::tr("%u IN RANGE", "%u РЯДОМ"), (unsigned)s_n);
     }
     Theme::bodyFontOn(t);
     t.setTextColor(Theme::CYAN, Theme::BG);
     t.setCursor(80, Theme::large() ? 6 : 12);   // level with SQUAD
-    t.print(cnt);
+    if (Theme::isRu(cnt)) Theme::printRU(t, cnt); else t.print(cnt);
     Theme::bodyFontOff(t);
 
     // ---- the carousel ---------------------------------------------------
@@ -156,8 +172,8 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     s_prev = s_next = s_invite = s_add = s_forget = s_hunt = { 0, 0, 0, 0 };
     if (s_n == 0) {
         t.setTextColor(Theme::W95_LIGHT, Theme::BG);
-        centred(t, s_roster ? "Nobody in your squad" : "Nobody in range", cx, 84);
-        centred(t, s_roster ? "yet. ADD one nearby." : "right now.", cx, 96);
+        centred(t, s_roster ? Theme::tr("Nobody in your squad", "Сквад пока пуст") : Theme::tr("Nobody in range", "Рядом никого"), cx, 84);
+        centred(t, s_roster ? Theme::tr("yet. ADD one nearby.", "ДОБАВЬ кого-то рядом.") : Theme::tr("right now.", "прямо сейчас."), cx, 96);
     } else {
         const Mesh::SquadMember& m = s_members[s_sel];
         Potsy::setOutfitPreview((int8_t)m.peer.outfit);
@@ -203,9 +219,9 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         s_hunt   = { (int16_t)(cx - 28), (int16_t)by, 56, 22 };
         s_add    = { (int16_t)(cx + 32), (int16_t)by, 56, 22 };
         Theme::drawButton(t, s_invite.x, s_invite.y, s_invite.w, s_invite.h,
-                          !here ? "AWAY" : vis ? "VISITING" : "INVITE", vis || !here);
+                          !here ? Theme::tr("AWAY", "ДАЛЕКО") : vis ? Theme::tr("VISITING", "В ГОСТЯХ") : Theme::tr("INVITE", "ЗОВИ"), vis || !here);
         if (!here) s_invite = { 0, 0, 0, 0 };
-        Theme::drawButton(t, s_hunt.x, s_hunt.y, s_hunt.w, s_hunt.h, hunt ? "HUNTING" : "HUNT", hunt);
+        Theme::drawButton(t, s_hunt.x, s_hunt.y, s_hunt.w, s_hunt.h, hunt ? Theme::tr("HUNTING", "ВЫСЛЕЖИВАЮ") : Theme::tr("HUNT", "СЛЕДИТЬ"), hunt);
         if (s_roster) {
             // FORGET drops them from the roster, after asking once; they come
             // back the next time they are heard with the phrase.
@@ -213,13 +229,13 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
             s_add    = { 0, 0, 0, 0 };
             const bool sure = (int32_t)(s_sureUntil - now) > 0;
             Theme::drawButton(t, s_forget.x, s_forget.y, s_forget.w, s_forget.h,
-                              sure ? "SURE?" : "FORGET", sure);
+                              sure ? Theme::tr("SURE?", "ТОЧНО?") : Theme::tr("FORGET", "ЗАБЫТЬ"), sure);
         } else if (MeshTalk::inSquad(m.mac, now)) {
             // Heard holding our phrase: a member, so nothing to add.
-            Theme::drawButton(t, s_add.x, s_add.y, s_add.w, s_add.h, "MEMBER", true);
+            Theme::drawButton(t, s_add.x, s_add.y, s_add.w, s_add.h, Theme::tr("MEMBER", "СВОЙ"), true);
             s_add = { 0, 0, 0, 0 };
         } else {
-            Theme::drawButton(t, s_add.x, s_add.y, s_add.w, s_add.h, "ADD", false);
+            Theme::drawButton(t, s_add.x, s_add.y, s_add.w, s_add.h, Theme::tr("ADD", "В СКВАД"), false);
         }
     }
 
@@ -235,8 +251,11 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     Theme::bodyFontOn(t);
     const int fh = t.fontHeight();
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
-    t.setCursor(ix + 4, iy + 3);
-    t.print("INBOX");
+    {
+        const char* ib = Theme::tr("INBOX", "ВХОДЯЩИЕ");
+        t.setCursor(ix + 4, iy + 3);
+        if (Theme::isRu(ib)) Theme::printRU(t, ib); else t.print(ib);
+    }
 
     const uint8_t have = MeshTalk::inboxCount();
     const int head = fh + 6;                      // 14 in the system font
@@ -246,8 +265,9 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     s_rowN = 0;
     if (!have) {
         t.setTextColor(Theme::W95_SHADOW, Theme::BG);
+        const char* no = Theme::tr("No messages yet.", "Сообщений пока нет.");
         t.setCursor(ix + 4, iy + fh + 10);
-        t.print("No messages yet.");
+        if (Theme::isRu(no)) Theme::printRU(t, no); else t.print(no);
     }
     for (uint8_t i = 0; i < have && i < rows; i++) {
         const MeshTalk::Message& msg = MeshTalk::inboxAt(i);
@@ -261,31 +281,34 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         t.print(msg.from);
         char ago[8];
         const uint32_t mins = (now - msg.at) / 60000u;
-        if (mins == 0) snprintf(ago, sizeof ago, "now");
+        if (mins == 0) snprintf(ago, sizeof ago, "%s", Theme::tr("now", "щас"));
         else           snprintf(ago, sizeof ago, "%lum", (unsigned long)(mins > 999 ? 999 : mins));
         t.setCursor(ix + iw - 4 - t.textWidth(ago), y);
         t.print(ago);
         char lines[2][48];
         int maxW = iw - 8;
         if (maxW > 47 * t.textWidth("M")) maxW = 47 * t.textWidth("M");
-        const uint8_t n = Theme::wrapText(t, MeshTalk::lineText(msg), maxW, lines, 2);
+        const char* lt = MeshTalk::lineText(msg);
+        const bool lru = Theme::isRu(lt);
+        const uint8_t n = lru ? Theme::wrapTextRU(t, lt, maxW, lines, 2)
+                              : Theme::wrapText(t, lt, maxW, lines, 2);
         t.setTextColor(Theme::WHITE, Theme::BG);
         for (uint8_t k = 0; k < n; k++) {
             t.setCursor(ix + 4, y + fh + 2 + k * (fh + 1));
-            t.print(lines[k]);
+            if (lru) Theme::printRU(t, lines[k]); else t.print(lines[k]);
         }
     }
     Theme::bodyFontOff(t);
 
     s_back = { 4, (int16_t)(h - btnH() - 6), btnW(), btnH() };
-    Theme::drawButton(t, s_back.x, s_back.y, s_back.w, s_back.h, "[ BACK ]", false);
+    Theme::drawButton(t, s_back.x, s_back.y, s_back.w, s_back.h, Theme::tr("[ BACK ]", "[ НАЗАД ]"), false);
     // SEND, bottom right under the inbox: write to the squad from here,
     // rather than only by tapping a message to reply to it. The in-range
     // page only; the roster is for managing members, not talking to them.
     s_send = { 0, 0, 0, 0 };
     if (!s_roster) {
         s_send = { (int16_t)(w - btnW() - 4), (int16_t)(h - btnH() - 6), btnW(), btnH() };
-        Theme::drawButton(t, s_send.x, s_send.y, s_send.w, s_send.h, "[ SEND ]", false);
+        Theme::drawButton(t, s_send.x, s_send.y, s_send.w, s_send.h, Theme::tr("[ SEND ]", "[ ОТПРАВЬ ]"), false);
     }
 }
 

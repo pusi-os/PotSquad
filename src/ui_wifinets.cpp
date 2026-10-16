@@ -49,6 +49,10 @@ int rowsThatFit(TFT_eSPI& t, int barTop) {
 
 void paragraph(TFT_eSPI& t, int y, uint16_t c, const char* s) {
     // Wrapped at the screen width, on the small font, a word at a time.
+    // Words split on ASCII spaces, so UTF-8 sequences stay intact; a RU
+    // paragraph then only needs the RU face for measuring and drawing.
+    const bool ru = Theme::isRu(s);
+    if (ru) { t.setTextFont(1); t.setTextSize(1); }
     const int maxW = t.width() - 16;
     char line[72] = "";
     t.setTextColor(c, Theme::BG);
@@ -60,23 +64,25 @@ void paragraph(TFT_eSPI& t, int y, uint16_t c, const char* s) {
         snprintf(word, sizeof word, "%.*s", (int)(e - s), s);
         char trial[72];
         snprintf(trial, sizeof trial, "%s%s%s", line, line[0] ? " " : "", word);
-        if (line[0] && t.textWidth(trial) > maxW) {
-            t.setCursor(8, y); t.print(line); y += t.fontHeight() + 3;
+        if (line[0] && (ru ? Theme::textWidthRU(t, trial) : t.textWidth(trial)) > maxW) {
+            t.setCursor(8, y);
+            if (ru) Theme::printRU(t, line); else t.print(line);
+            y += t.fontHeight() + 3;
             snprintf(line, sizeof line, "%s", word);
         } else {
             snprintf(line, sizeof line, "%s", trial);
         }
         s = e;
     }
-    if (line[0]) { t.setCursor(8, y); t.print(line); }
+    if (line[0]) { t.setCursor(8, y); if (ru) Theme::printRU(t, line); else t.print(line); }
 }
 
 const char* resultWords(OtaWifi::SavedResult r) {
     switch (r) {
-        case OtaWifi::SavedResult::JOINED:       return "joined at the last boot";
-        case OtaWifi::SavedResult::BAD_PASSWORD: return "wrong password";
-        case OtaWifi::SavedResult::NOT_FOUND:    return "not found at the last boot";
-        default:                                 return "not tried yet";
+        case OtaWifi::SavedResult::JOINED:       return Theme::tr("joined at the last boot", "вошёл при старте");
+        case OtaWifi::SavedResult::BAD_PASSWORD: return Theme::tr("wrong password", "неверный пароль");
+        case OtaWifi::SavedResult::NOT_FOUND:    return Theme::tr("not found at the last boot", "не найдена при старте");
+        default:                                 return Theme::tr("not tried yet", "ещё не пробовал");
     }
 }
 
@@ -119,8 +125,10 @@ void uiWifiNetsTick(TFT_eSPI& t, uint32_t now) {
     const Bar b = bar(t, 4);
     if (!n) {
         paragraph(t, ROW_Y0 + 4, Theme::WHITE,
-                  "No networks saved. ADD picks one from a scan. The password is checked at the next boot, "
-                  "and this list says how that went.");
+                  Theme::tr("No networks saved. ADD picks one from a scan. The password is checked at the next boot, "
+                            "and this list says how that went.",
+                            "Сетей не сохранено. ДОБАВЬ выбирает из поиска. Пароль проверяется при старте, "
+                            "а этот список говорит, как прошло."));
     }
     const int fit = rowsThatFit(t, b.y[0]);
     for (int i = 0; i < n && i < fit; i++) {
@@ -129,8 +137,8 @@ void uiWifiNetsTick(TFT_eSPI& t, uint32_t now) {
         const bool use = i == OtaWifi::savedUse();
         t.fillRect(8, y, w - 16, rowH(), Theme::TASKBAR);
         t.drawRect(8, y, w - 16, rowH(), sel ? Theme::VAPOR_PINK : Theme::VAPOR_PURPLE);
-        const char* tag  = use ? "USE" : "";
-        const int   tagW = tag[0] ? t.textWidth(tag) + 6 : 0;
+        const char* tag  = use ? Theme::tr("USE", "ВЗЯТЬ") : "";
+        const int   tagW = tag[0] ? (Theme::isRu(tag) ? Theme::textWidthRU(t, tag) : t.textWidth(tag)) + 6 : 0;
         const int maxChars = (w - 16 - 12 - tagW) / t.textWidth("M");
         char name[40];
         char pv[40];
@@ -141,19 +149,19 @@ void uiWifiNetsTick(TFT_eSPI& t, uint32_t now) {
         if (tag[0]) {
             t.setTextColor(Theme::CYAN, Theme::TASKBAR);
             t.setCursor(w - 16 - tagW, y + 4);
-            t.print(tag);
+            if (Theme::isRu(tag)) Theme::printRU(t, tag); else t.print(tag);
         }
         const OtaWifi::SavedResult r = OtaWifi::savedResult((uint8_t)i);
         t.setTextColor(resultColour(r), Theme::TASKBAR);
         t.setCursor(14, y + (Theme::large() ? 21 : 15));
-        t.print(resultWords(r));
+        if (Theme::isRu(resultWords(r))) Theme::printRU(t, resultWords(r)); else t.print(resultWords(r));
     }
     const bool haveSel = s_selected >= 0 && s_selected < n;
     const bool full    = n >= OtaWifi::SAVED_MAX;
-    Theme::drawWin95Button(t, b.x[0], b.y[0], b.w, btnH(), "USE",    !haveSel || s_selected == OtaWifi::savedUse());
-    Theme::drawWin95Button(t, b.x[1], b.y[1], b.w, btnH(), "REMOVE", !haveSel);
-    Theme::drawWin95Button(t, b.x[2], b.y[2], b.w, btnH(), full ? "FULL" : "ADD", full);
-    Theme::drawWin95Button(t, b.x[3], b.y[3], b.w, btnH(), "BACK",   false);
+    Theme::drawWin95Button(t, b.x[0], b.y[0], b.w, btnH(), Theme::tr("USE", "ВЗЯТЬ"),    !haveSel || s_selected == OtaWifi::savedUse());
+    Theme::drawWin95Button(t, b.x[1], b.y[1], b.w, btnH(), Theme::tr("REMOVE", "УБРАТЬ"), !haveSel);
+    Theme::drawWin95Button(t, b.x[2], b.y[2], b.w, btnH(), full ? Theme::tr("FULL", "ПОЛНО") : Theme::tr("ADD", "ДОБАВЬ"), full);
+    Theme::drawWin95Button(t, b.x[3], b.y[3], b.w, btnH(), Theme::tr("BACK", "НАЗАД"),   false);
     Theme::bodyFontOff(t);
     Theme::drawToast(t, now);
 }
@@ -191,12 +199,12 @@ void uiWifiAddTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     const Bar b = bar(t, 2);
     const int fit = rowsThatFit(t, b.y[0]);
     if (!eng.rawWifiScanDone()) {
-        const char* dots[] = { "SCANNING", "SCANNING.", "SCANNING..", "SCANNING..." };
+        const char* dots[] = { Theme::tr("SCANNING", "СКАНИРУЮ"), Theme::tr("SCANNING.", "СКАНИРУЮ."), Theme::tr("SCANNING..", "СКАНИРУЮ.."), Theme::tr("SCANNING...", "СКАНИРУЮ...") };
         t.setTextColor(Theme::CYAN, Theme::BG);
         t.setCursor(8, ROW_Y0 + 4);
         t.print(dots[(now / 400) % 4]);
     } else if (!eng.rawWifiCount()) {
-        paragraph(t, ROW_Y0 + 4, Theme::WHITE, "No networks found. Move closer to the router and press RESCAN.");
+        paragraph(t, ROW_Y0 + 4, Theme::WHITE, Theme::tr("No networks found. Move closer to the router and press RESCAN.", "Сетей нет. Подойди ближе к роутеру и жми ПОИСК."));
     }
     const uint8_t n = eng.rawWifiCount();
     for (int i = 0; i < n && i < fit; i++) {
@@ -206,8 +214,8 @@ void uiWifiAddTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
         const bool open  = eng.rawWifiOpen((uint8_t)i);
         t.fillRect(8, y, w - 16, rowH(), Theme::TASKBAR);
         t.drawRect(8, y, w - 16, rowH(), Theme::VAPOR_PURPLE);
-        const char* tag  = saved ? "SAVED" : (open ? "OPEN" : "");
-        const int   tagW = tag[0] ? t.textWidth(tag) + 6 : 0;
+        const char* tag  = saved ? Theme::tr("SAVED", "СОХР") : (open ? Theme::tr("OPEN", "ОТКРЫТА") : "");
+        const int   tagW = tag[0] ? (Theme::isRu(tag) ? Theme::textWidthRU(t, tag) : t.textWidth(tag)) + 6 : 0;
         const int maxChars = (w - 16 - 12 - 20 - tagW) / t.textWidth("M");
         char name[40];
         char pv[40];
@@ -218,7 +226,7 @@ void uiWifiAddTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
         if (tag[0]) {
             t.setTextColor(saved ? Theme::CYAN : Theme::AMBER, Theme::TASKBAR);
             t.setCursor(w - 16 - 20 - tagW, y + (rowH() - t.fontHeight()) / 2);
-            t.print(tag);
+            if (Theme::isRu(tag)) Theme::printRU(t, tag); else t.print(tag);
         }
         signalBars(t, w - 16 - 16, y + rowH() - 5, eng.rawWifiRssi((uint8_t)i));
     }

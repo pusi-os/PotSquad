@@ -43,28 +43,28 @@ static void rowContent(LightRow r, char* valBuf, size_t valBufN,
     value = nullptr;
     switch (r) {
         case LightRow::ENABLED:
-            label = "LIGHT"; value = Settings::lightOn() ? "ON" : "OFF";
+            label = Theme::tr("LIGHT", "СВЕТ"); value = Theme::onOff(Settings::lightOn());
             dimmed = false;
             break;
         case LightRow::ALERTS:
-            label = "ALERTS"; value = Settings::lightAlerts() ? "ON" : "OFF";
+            label = Theme::tr("ALERTS", "ТРЕВОГИ"); value = Theme::onOff(Settings::lightAlerts());
             break;
         case LightRow::MESSAGES:
-            label = "MESSAGES"; value = Settings::lightMessages() ? "ON" : "OFF";
+            label = Theme::tr("MESSAGES", "СООБЩЕНИЯ"); value = Theme::onOff(Settings::lightMessages());
             break;
         case LightRow::IDLE:
-            label = "IDLE"; value = Settings::lightIdleName();
+            label = Theme::tr("IDLE", "ПОКОЙ"); value = Settings::lightIdleName();
             break;
         case LightRow::IDLE_COLOR:
-            label = "IDLE COLOR"; value = Settings::lightColorName();
+            label = Theme::tr("IDLE COLOR", "ЦВЕТ ПОКОЯ"); value = Settings::lightColorName();
             break;
         case LightRow::BRIGHTNESS:
-            label = "BRIGHTNESS";
+            label = Theme::tr("BRIGHTNESS", "ЯРКОСТЬ");
             snprintf(valBuf, valBufN, "%u/7", (unsigned)Settings::lightBrightness());
             value = valBuf;
             break;
         case LightRow::TEST:
-            label = "TEST"; value = "PLAY";
+            label = Theme::tr("TEST", "ТЕСТ"); value = Theme::tr("PLAY", "ЖМИ");
             break;
         default:
             label = "?";
@@ -84,15 +84,13 @@ static void drawRow(TFT_eSPI& t, int w, int y, int hgt, LightRow r, bool compact
     Theme::subListTextSize(t, compact, label, value, w);   // FONTS > MENUS
     const uint16_t lab = dimmed ? Theme::blend(Theme::BG, Theme::CYAN, 110) : Theme::CYAN;
     t.setTextColor(lab, Theme::BG);
-    t.setCursor(8, y + (hgt - t.fontHeight()) / 2);
-    t.print(label);
+    Theme::rowPrint(t, label, 8, y + (hgt - t.fontHeight()) / 2);
 
     if (value) {
         t.setTextColor(dimmed ? Theme::blend(Theme::BG, Theme::WHITE, 110) : Theme::WHITE,
                        Theme::BG);
-        int vw = t.textWidth(value);
-        t.setCursor(w - 18 - vw, y + (hgt - t.fontHeight()) / 2);
-        t.print(value);
+        int vw = Theme::rowWidth(t, value);
+        Theme::rowPrint(t, value, w - 18 - vw, y + (hgt - t.fontHeight()) / 2);
     }
     t.setTextFont(1);
 }

@@ -11,6 +11,11 @@
 #include <cstring>
 #include <cstdio>
 
+// Firmware stubs for the host: EN text, no display names beyond the
+// protocol ones (lang()==0 reads EN everywhere on device too).
+namespace Theme { const char* tr(const char* en, const char*) { return en; } }
+namespace Settings { uint8_t lang() { return 0; } }
+
 using namespace EmoteScript;
 using E = MeshMsg::Emote;
 

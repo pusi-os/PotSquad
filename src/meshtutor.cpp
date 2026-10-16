@@ -25,24 +25,36 @@ PotsMesh::Peer s_demo = { 0, 12, 1, true, "DEMO" };
 const char* body(Step s) {
     switch (s) {
         case Step::VISIT:
-            return "When another PotsSquad is near, its Potsy comes to visit. "
-                   "This one is a demo: nothing you do here goes on the air.";
+            return Theme::tr("When another PotsSquad is near, its Potsy comes to visit. "
+                             "This one is a demo: nothing you do here goes on the air.",
+                             "Когда рядом другой ПотСквад, его Потси приходит в гости. "
+                             "Это демо: ничто здесь не выходит в эфир.");
         case Step::TAP_ICON:
-            return "To send a message, tap the speech bubble beside your visitor.";
+            return Theme::tr("To send a message, tap the speech bubble beside your visitor.",
+                             "Чтобы отправить сообщение, жми облачко рядом с гостем.");
         case Step::PICK_LINE:
-            return "Tap a ready-made line here, or TYPE your own, up to 48 characters.";
+            return Theme::tr("Tap a ready-made line here, or TYPE your own, up to 48 characters.",
+                             "Жми готовую строку или НАБЕРИ свою, до 48 знаков.");
         case Step::PRESS_SEND:
-            return "It asks first, so a wrong tap costs nothing. Check the line, then press SEND.";
+            return Theme::tr("It asks first, so a wrong tap costs nothing. Check the line, then press SEND.",
+                             "Сначала спросит, так что случайный тап ничего не стоит. Проверь строку и жми ОТПРАВЬ.");
         case Step::REPLY:
-            return "It answered. A message from a person is red and carries their name. "
-                   "The other chat is just the two Potsys.";
+            return Theme::tr("It answered. A message from a person is red and carries their name. "
+                             "The other chat is just the two Potsys.",
+                             "Он ответил. Сообщение от человека красное, с именем. "
+                             "Другой чат — лишь болтовня двух Потси.");
         case Step::PHRASE:
-            return "Only boards that share a five-word phrase can read each other. One of you "
-                   "ROLLs a phrase and reads it out; the other ENTERs the same words. "
-                   "POTSMESH > PHRASE.";
+            return Theme::tr("Only boards that share a five-word phrase can read each other. One of you "
+                             "ROLLs a phrase and reads it out; the other ENTERs the same words. "
+                             "POTSMESH > PHRASE.",
+                             "Читать друг друга могут лишь платы с общей фразой из пяти слов. Один "
+                             "КИДАЕТ фразу и зачитывает; другой ВВОДИТ те же слова. "
+                             "ПОТСМЕШ > ФРАЗА.");
         case Step::PRIVACY:
-            return "Messages are encrypted, but anyone scanning can see that you sent one. "
-                   "Reading needs DETECT; sending needs TRANSMIT.";
+            return Theme::tr("Messages are encrypted, but anyone scanning can see that you sent one. "
+                             "Reading needs DETECT; sending needs TRANSMIT.",
+                             "Сообщения шифруются, но сканер рядом видит сам факт отправки. "
+                             "Чтение требует ПОИСК, отправка — ПЕРЕДАЧУ.");
         default:
             return "";
     }
@@ -52,8 +64,8 @@ const char* hint(Step s) {
     switch (s) {
         case Step::VISIT:
         case Step::REPLY:
-        case Step::PHRASE:  return "TAP TO CONTINUE";
-        case Step::PRIVACY: return "TAP TO FINISH";
+        case Step::PHRASE:  return Theme::tr("TAP TO CONTINUE", "ЖМИ ДЛЯ ПРОДОЛЖЕНИЯ");
+        case Step::PRIVACY: return Theme::tr("TAP TO FINISH", "ЖМИ ЧТОБ ЗАКОНЧИТЬ");
         default:            return nullptr;          // the arrow says what to tap
     }
 }
@@ -97,7 +109,10 @@ void drawCard(TFT_eSPI& t, bool atTop) {
     int maxW = cw - 16;
     if (maxW > 47 * charW) maxW = 47 * charW;
     char lines[6][48];
-    const uint8_t n = Theme::wrapText(t, body(s_step), maxW, lines, 6);
+    const char* bd = body(s_step);
+    const bool ru = Theme::isRu(bd);
+    const uint8_t n = ru ? Theme::wrapTextRU(t, bd, maxW, lines, 6)
+                         : Theme::wrapText(t, bd, maxW, lines, 6);
     const char* hn = hint(s_step);
     const int lh = t.fontHeight() + 1;
     const int ch = 16 + n * lh + (hn ? lh + 2 : 0) + 4;
@@ -107,15 +122,16 @@ void drawCard(TFT_eSPI& t, bool atTop) {
     t.drawRect(cx, cy, cw, ch, Theme::VAPOR_PINK);
     t.drawRect(cx + 1, cy + 1, cw - 2, ch - 2, Theme::PURPLE);
 
-    char hd[20];
-    snprintf(hd, sizeof hd, "MESSAGES %u/%u", (unsigned)s_step, (unsigned)STEPS);
+    char hd[24];
+    snprintf(hd, sizeof hd, Theme::tr("MESSAGES %u/%u", "СООБЩЕНИЯ %u/%u"), (unsigned)s_step, (unsigned)STEPS);
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
-    t.setCursor(cx + 6, cy + 5);
-    t.print(hd);
-    const int kw = t.textWidth("SKIP");
+    if (ru) { t.setCursor(cx + 6, cy + 5); Theme::printRU(t, hd); }
+    else { t.setCursor(cx + 6, cy + 5); t.print(hd); }
+    const char* skip = Theme::tr("SKIP", "ДАЛЬШЕ");
+    const int kw = ru ? Theme::textWidthRU(t, skip) : t.textWidth(skip);
     t.setTextColor(Theme::W95_LIGHT, Theme::BG);
     t.setCursor(cx + cw - 6 - kw, cy + 5);
-    t.print("SKIP");
+    if (ru) Theme::printRU(t, skip); else t.print(skip);
     // A finger-sized corner rather than the four letters.
     s_kx = (int16_t)(cx + cw - kw - 22);
     s_ky = (int16_t)cy;
@@ -126,13 +142,18 @@ void drawCard(TFT_eSPI& t, bool atTop) {
     t.setTextColor(Theme::WHITE, Theme::BG);
     for (uint8_t i = 0; i < n; i++) {
         t.setCursor(cx + 6, y);
-        t.print(lines[i]);
+        if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
         y += lh;
     }
     if (hn) {
         t.setTextColor(Theme::CYAN, Theme::BG);
-        t.setCursor(cx + cw - 6 - t.textWidth(hn), y + 2);
-        t.print(hn);
+        if (ru) {
+            t.setCursor(cx + cw - 6 - Theme::textWidthRU(t, hn), y + 2);
+            Theme::printRU(t, hn);
+        } else {
+            t.setCursor(cx + cw - 6 - t.textWidth(hn), y + 2);
+            t.print(hn);
+        }
     }
     s_cx = (int16_t)cx; s_cy = (int16_t)cy; s_cw = (int16_t)cw; s_ch = (int16_t)ch;
     s_cardOn = true;

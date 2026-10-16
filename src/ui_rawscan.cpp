@@ -134,11 +134,11 @@ static void drawConfirmPanel(TFT_eSPI& t, int w, int h, const char* label, bool 
     // Toggling, so the button names the next tap: "WATCH" on something
     // already being watched would be a lie, and pressed state is how every
     // other button in this app says "this one is on".
-    Theme::drawButton(t, wX, wY, wW, wH, watched ? "UNWATCH" : "WATCH", watched);
+    Theme::drawButton(t, wX, wY, wW, wH, watched ? Theme::tr("UNWATCH", "НЕ СЛЕДИТЬ") : Theme::tr("WATCH", "СЛЕДИТЬ"), watched);
     // Toggles like WATCH beside it -- see that button's comment.
-    Theme::drawButton(t, huX, huY, huW, huH, hunted ? "STOP HUNT" : "HUNT", hunted);
-    Theme::drawButton(t, igX, igY, igW, igH, ignored ? "UN-IGNORE" : "IGNORE", ignored);
-    Theme::drawButton(t, cnX, cnY, cnW, cnH, "CANCEL", false);
+    Theme::drawButton(t, huX, huY, huW, huH, hunted ? Theme::tr("STOP HUNT", "ХВАТИТ") : Theme::tr("HUNT", "ОХОТА"), hunted);
+    Theme::drawButton(t, igX, igY, igW, igH, ignored ? Theme::tr("UN-IGNORE", "ВЕРНУТЬ") : Theme::tr("IGNORE", "ИГНОР"), ignored);
+    Theme::drawButton(t, cnX, cnY, cnW, cnH, Theme::tr("CANCEL", "ОТМЕНА"), false);
 }
 
 // Shared by uiRawScanTick() (drawing) and uiRawScanRowAt() (hit
@@ -175,9 +175,9 @@ static void drawTargetFlags(TFT_eSPI& t, int x, int y,
         t.print(label);
         x += t.textWidth(label) + 8;
     };
-    if (watched) flag("WATCH",  Theme::CYAN);
-    if (hunted)  flag("HUNT",   Theme::VAPOR_PINK);
-    if (ignored) flag("IGNORE", Theme::AMBER);
+    if (watched) flag(Theme::tr("WATCH", "СЛЕЖУ"),  Theme::CYAN);
+    if (hunted)  flag(Theme::tr("HUNT", "ОХОЧУСЬ"),   Theme::VAPOR_PINK);
+    if (ignored) flag(Theme::tr("IGNORE", "ИГНОР"), Theme::AMBER);
 }
 
 // Row index (0 = topmost visible, adjusted for current scroll) a tap
@@ -272,7 +272,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     }
     Theme::restorePalette(saved);
     char title[32];
-    snprintf(title, sizeof(title), ">> %s SCAN <<", isBle ? "BLE" : "WIFI");
+    snprintf(title, sizeof(title), Theme::tr(">> %s SCAN <<", ">> %s ПОИСК <<"), isBle ? "BLE" : "WIFI");
     Theme::drawTitleBar(t, title);
 
     // No viewport needed now that the background above already covers
@@ -312,7 +312,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     if (count == 0) {
         t.setTextSize(3);
         t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
-        const char* msg = "NOTHING FOUND";
+        const char* msg = Theme::tr("NOTHING FOUND", "НИЧЕГО НЕТ");
         int mw = t.textWidth(msg);
         t.setCursor((w - mw) / 2, bodyTop + bodyH / 3);
         t.print(msg);
@@ -390,11 +390,11 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
 #if SQW_WIFI_5G
             if (eng.rawWifiChannel(idx) > 14)
                 snprintf(line, sizeof(line), "5G CH%u  %s", (unsigned)eng.rawWifiChannel(idx),
-                         eng.rawWifiOpen(idx) ? "OPEN" : "LOCKED");
+                         eng.rawWifiOpen(idx) ? Theme::tr("OPEN", "ОТКРЫТА") : Theme::tr("LOCKED", "ЗАКРЫТА"));
             else
 #endif
             snprintf(line, sizeof(line), "CH%u  %s", (unsigned)eng.rawWifiChannel(idx),
-                     eng.rawWifiOpen(idx) ? "OPEN" : "LOCKED");
+                     eng.rawWifiOpen(idx) ? Theme::tr("OPEN", "ОТКРЫТА") : Theme::tr("LOCKED", "ЗАКРЫТА"));
             t.setCursor(4, y + detailY);
             t.print(line);
             const uint8_t* bssid = eng.rawWifiBssid(idx);

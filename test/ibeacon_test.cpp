@@ -7,6 +7,9 @@
 #include "test_util.h"
 #include <cstring>
 
+// Theme::tr stub: EN in tests, the way the firmware reads with lang()==0.
+namespace Theme { const char* tr(const char* en, const char*) { return en; } }
+
 int main() {
     // A textbook advert: Apple, type 02, length 15, then 21 bytes.
     uint8_t ib[25] = {

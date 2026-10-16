@@ -1,6 +1,7 @@
 // PotsSquad-CYD — watched-target alert screen implementation
 #include "ui_watchalert.h"
 #include "theme.h"
+#include "ru_text.h"
 #include "privacy.h"
 #include "potsy.h"
 #include <Arduino.h>
@@ -25,7 +26,7 @@ static void removeRect(TFT_eSPI& t, int& x, int& y, int& w, int& h) {
 // cannot hold it. Shortened rather than shrunk: size-1 is already the
 // smallest the built-in font offers.
 static const char* removeLabel(TFT_eSPI& t, int w) {
-    const char* full = "REMOVE FROM WATCH LIST";
+    const char* full = Theme::tr("REMOVE FROM WATCH LIST", "УБРАТЬ ИЗ СПИСКА");
     // At the size this button will actually be drawn. On a wide panel that is
     // size 2, where the full label wants 270 px in a 240 px box -- so it takes
     // the short word and keeps the bigger letters, rather than keeping all
@@ -33,7 +34,7 @@ static const char* removeLabel(TFT_eSPI& t, int w) {
     t.setTextSize(Theme::uiTextSize(t, 1));
     const bool fits = t.textWidth(full) <= w - 8;
     t.setTextSize(1);
-    return fits ? full : "UNWATCH";
+    return fits ? full : Theme::tr("UNWATCH", "НЕ СЛЕДИТЬ");
 }
 
 // ---- LOCKED ON (2026-09-27) ---------------------------------------------------
@@ -78,7 +79,7 @@ WatchView gather(const DetectionEngine& eng) {
             break;
         }
     }
-    if (!v.label || !v.label[0]) v.label = "UNKNOWN DEVICE";
+    if (!v.label || !v.label[0]) v.label = Theme::tr("UNKNOWN DEVICE", "НЕИЗВЕСТНОЕ УСТРОЙСТВО");
     // Every line this screen draws or has Potsy say goes through v.label.
     static char pv[40];
     v.label = Privacy::name(v.label, pv, sizeof pv);
@@ -101,12 +102,34 @@ WatchView gather(const DetectionEngine& eng) {
 void fitPrint(TFT_eSPI& t, int x, int y, const char* s, int w, uint8_t size, uint16_t col, bool centre) {
     char buf[28];
     snprintf(buf, sizeof buf, "%s", s);
+    t.setTextColor(col);
+    if (Theme::isRu(buf)) {
+        // Truncate by glyphs, not bytes, so an ellipsis never lands
+        // mid-character; then the 16px face at size 1.
+        const uint8_t keepS = t.textsize ? t.textsize : 1;
+        t.setTextFont(1);
+        t.setTextSize(1);
+        while (Theme::textWidthRU(t, buf) > w) {
+            const char* p = buf;
+            int glyphs = 0;
+            while (*p) { const char* q = p; (void)RuText::next(&q); glyphs++; p = q; }
+            if (glyphs <= 4) break;
+            // walk to the (glyphs-3)rd glyph and end the string with "..."
+            p = buf;
+            for (int g = 0; g < glyphs - 3; g++) { const char* q = p; (void)RuText::next(&q); p = q; }
+            if (p - buf + 3 >= (int)sizeof buf) break;
+            memmove((void*)p, "...", 4);
+        }
+        t.setCursor(centre ? x + (w - Theme::textWidthRU(t, buf)) / 2 : x, y);
+        Theme::printRU(t, buf);
+        t.setTextSize(keepS);
+        return;
+    }
     t.setTextSize(size);
     while (strlen(buf) > 3 && t.textWidth(buf) > w) {
         const size_t n = strlen(buf);
         buf[n - 3] = '.'; buf[n - 2] = '.'; buf[n - 1] = 0;
     }
-    t.setTextColor(col);
     const int tw = t.textWidth(buf);
     t.setCursor(centre ? x + (w - tw) / 2 : x, y);
     t.print(buf);
@@ -114,15 +137,16 @@ void fitPrint(TFT_eSPI& t, int x, int y, const char* s, int w, uint8_t size, uin
 
 // Ten blocks, cold on the left and hot on the right: how close, at a glance.
 void trendLine(TFT_eSPI& t, int x, int y, const WatchView& v, uint16_t col, bool centreIn, int w) {
-    char buf[32];
-    const char* word = v.trend > 0 ? "CLOSER" : v.trend < 0 ? "FURTHER" : "HOLDING";
+    char buf[40];
+    const char* word = v.trend > 0 ? Theme::tr("CLOSER", "БЛИЖЕ") : v.trend < 0 ? Theme::tr("FURTHER", "ДАЛЬШЕ") : Theme::tr("HOLDING", "СТОИМ");
     snprintf(buf, sizeof buf, "%d dBm  %s", (int)v.rssi, word);
     t.setTextSize(1);
     t.setTextColor(col);
-    const int tw = t.textWidth(buf) + 10;
+    const bool tru = Theme::isRu(buf);
+    const int tw = (tru ? Theme::textWidthRU(t, buf) : t.textWidth(buf)) + 10;
     const int x0 = centreIn ? x + (w - tw) / 2 : x;
     t.setCursor(x0 + 10, y);
-    t.print(buf);
+    if (tru) Theme::printRU(t, buf); else t.print(buf);
     const uint16_t ac = v.trend > 0 ? (uint16_t)0xF920 : v.trend < 0 ? (uint16_t)0x06C0 : col;
     if (v.trend > 0)      t.fillTriangle(x0, y + 7, x0 + 6, y + 7, x0 + 3, y, ac);
     else if (v.trend < 0) t.fillTriangle(x0, y, x0 + 6, y, x0 + 3, y + 7, ac);
@@ -130,6 +154,21 @@ void trendLine(TFT_eSPI& t, int x, int y, const WatchView& v, uint16_t col, bool
 }
 
 void headline(TFT_eSPI& t, int cx, int y, const char* msg, uint16_t col) {
+    // A RU headline takes the 16px face at size 2 in one pass (the NEARBY
+    // rule): the Bangers renderer has no Cyrillic, and 24 outline passes
+    // of the RU face every frame would cost what the outline grid was
+    // removed to save.
+    if (Theme::isRu(msg)) {
+        t.setTextFont(1);
+        t.setTextSize(1);
+        const int tw = Theme::textWidthRU16(t, msg) * 2;
+        t.setTextSize(2);
+        t.setTextColor(col, Theme::BG);
+        t.setCursor(cx - tw / 2, y);
+        Theme::printRU16(t, msg);
+        t.setTextSize(1);
+        return;
+    }
     const int tw = Theme::bangersTextWidth(msg, Theme::BangersSize::MD);
     Theme::drawBangersOutline(t, cx - tw / 2, y, msg, Theme::BLACK, Theme::BangersSize::MD, 2);
     Theme::drawBangersText(t, cx - tw / 2, y, msg, col, Theme::BangersSize::MD);
@@ -231,7 +270,7 @@ void drawOperator(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, int hin
         t.setTextSize(2);
         t.setTextColor(g3);
         t.setCursor(x0, 6);
-        t.print("LOCKED ON");
+        if (Theme::isRu(Theme::tr("LOCKED ON", "НА ПРИЦЕЛЕ"))) { t.setTextFont(1); t.setTextSize(1); Theme::printRU16(t, Theme::tr("LOCKED ON", "НА ПРИЦЕЛЕ")); } else t.print(Theme::tr("LOCKED ON", "НА ПРИЦЕЛЕ"));
         fitPrint(t, x0, 28, v.label, cw, 1, (uint16_t)0xB7F5, false);
         if (v.haveRssi) trendLine(t, x0, 40, v, g3, false, cw);
         (void)advance; (void)hintY;
@@ -270,10 +309,16 @@ void drawOperator(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, int hin
     Potsy::setHeadset(true);
     Potsy::drawWaving(t, sx, feet, now, sc, s_line, now - s_lineAt < 2500, 0, false);
     Potsy::setHeadset(false);
-    headline(t, rcx, bandBot + 2, "LOCKED ON", g3);
+    headline(t, rcx, bandBot + 2, Theme::tr("LOCKED ON", "НА ПРИЦЕЛЕ"), g3);
 
     // Beside the headline: what it is and how strong, then which way.
-    const int nx = rcx + Theme::bangersTextWidth("LOCKED ON", Theme::BangersSize::MD) / 2 + 10;
+    // A RU headline is the 16px face at size 2, measured that way too.
+    const char* hlm = Theme::tr("LOCKED ON", "НА ПРИЦЕЛЕ");
+    t.setTextFont(1);
+    t.setTextSize(1);
+    const int hlw = Theme::isRu(hlm) ? Theme::textWidthRU16(t, hlm) * 2
+                                     : Theme::bangersTextWidth(hlm, Theme::BangersSize::MD);
+    const int nx = rcx + hlw / 2 + 10;
     const int nw = w - nx - 6;
     char nb[40];
     if (v.haveRssi) snprintf(nb, sizeof nb, "%s  %d dBm", v.label, (int)v.rssi);
@@ -281,7 +326,7 @@ void drawOperator(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, int hin
     Theme::bodyFontOn(t);
     fitPrint(t, nx, bandBot + 4, nb, nw, 1, (uint16_t)0xB7F5, false);
     if (v.haveRssi) {
-        const char* word = v.trend > 0 ? "CLOSER" : v.trend < 0 ? "FURTHER" : "HOLDING";
+        const char* word = v.trend > 0 ? Theme::tr("CLOSER", "БЛИЖЕ") : v.trend < 0 ? Theme::tr("FURTHER", "ДАЛЬШЕ") : Theme::tr("HOLDING", "СТОИМ");
         const uint16_t ac = v.trend > 0 ? (uint16_t)0xF920 : v.trend < 0 ? g3 : (uint16_t)0xB7F5;
         const int ay = bandBot + 8 + t.fontHeight();
         if (v.trend > 0)      t.fillTriangle(nx, ay + 7, nx + 6, ay + 7, nx + 3, ay, ac);

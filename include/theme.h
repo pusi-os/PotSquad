@@ -789,12 +789,37 @@ namespace Theme {
     int     textWidthRU(TFT_eSPI& t, const char* s);
     uint8_t wrapTextRU(TFT_eSPI& t, const char* text, int maxW,
                        char lines[][48], uint8_t maxLines);
+    // The same, 80 letters to a row: running RU text on the large panels.
+    uint8_t wrapTextRU(TFT_eSPI& t, const char* text, int maxW,
+                       char lines[][80], uint8_t maxLines);
+    // The heading face: the same mixed output but with Cyrillic from
+    // RuCyr16 (include/ru_font16.h, 16px Liberation Bold, same codepoints)
+    // and ASCII through the GLCD at size 2, so both scripts stand 16px
+    // tall on one line. For headings that used to be RuCyr8 at size 2
+    // (18px of chunky 2x pixels); the 16px face reads notably smoother.
+    // Call with the text size at 1; ASCII is bumped internally.
+    void    printRU16(TFT_eSPI& t, const char* s);
+    int     textWidthRU16(TFT_eSPI& t, const char* s);
 
     // Pick the EN or RU string by Settings::lang() (0 EN, 1 RU). All
     // PotSquad UI translation goes through this one function, so the
     // language switch lives in exactly one place. Both pointers must be
     // valid statics; the return is used (never stored) within the frame.
     const char* tr(const char* en, const char* ru);
+    // True when the string holds Cyrillic: it must go through the RU
+    // face (printRU/textWidthRU), because the GLCD and the button
+    // FreeFonts have no glyphs for it.
+    bool isRu(const char* s);
+    // Row-list measure/print: GLCD sizes 2+ render Cyrillic through the
+    // 16px RU face at size 1 (the same 16px line), size 1 through the 9px
+    // face. ASCII-only strings keep the exact path they always had, so EN
+    // rendering is pixel-identical. Every settings-style row list uses
+    // these, so a translated label never needs its own branch.
+    int  rowWidth(TFT_eSPI& t, const char* s);
+    void rowPrint(TFT_eSPI& t, const char* s, int x, int y);
+    // The ON/OFF value word, translated. Rows say the state, not the
+    // action, so one helper covers all of them.
+    const char* onOff(bool on);
 
     // Modal "MORE INFO" explanation panel -- shared by LOG's confirm
     // panel and ALERT's own MORE INFO button (the two screens are never

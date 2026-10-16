@@ -633,6 +633,7 @@ static uint32_t s_bestSessionCount = 0;  // most detections seen in one boot
 static uint8_t  s_firstType        = (uint8_t)DetectionType::UNKNOWN;
 static uint8_t  s_shadeIdx         = 0;
 static bool     s_glassesOn        = true;   // removable shades layer; Simpson eyes show when off
+static bool     s_godsMode         = false;  // one-way: everything unlocked, see enableGodsMode()
 #if POTS_MESH
 // Declared here with the other persisted prefs rather than beside its
 // accessors: ensurePrefsLoaded() reads it far earlier in the file.
@@ -1085,9 +1086,11 @@ static const uint8_t NICKNAMES_N = sizeof(NICKNAMES) / sizeof(NICKNAMES[0]);
 // Shades lens tint options — unlockedShadeCount() below gates how many
 // of these cycleShadesColor() can actually reach, based on pet count.
 static const char* const SHADE_NAMES[] = { "CYAN", "PINK", "GREEN", "PURPLE" };
+static const char* const SHADE_RU[] = { "ГОЛУБЫЕ", "РОЗОВЫЕ", "ЗЕЛЁНЫЕ", "ФИОЛЕТ" };
 static const uint8_t SHADE_NAMES_N = sizeof(SHADE_NAMES) / sizeof(SHADE_NAMES[0]);
 
 static uint8_t unlockedShadeCount() {
+    if (s_godsMode) return 4;
     if (s_petCount >= 50) return 4;
     if (s_petCount >= 25) return 3;
     if (s_petCount >= 10) return 2;
@@ -1315,6 +1318,7 @@ void previewLegend(bool on) { s_legendPreview = on; }
 bool legendPreview() { return s_legendPreview; }
 
 static GrowthStage currentStage() {
+    if (s_godsMode) return GrowthStage::LEGEND;
     if (s_legendPreview) return GrowthStage::LEGEND;
     if (s_cachedLifetimeTotal >= 500) return GrowthStage::LEGEND;
     if (s_cachedLifetimeTotal >= 100) return GrowthStage::VETERAN;
@@ -1516,6 +1520,7 @@ static void ensurePrefsLoaded() {
     s_firstType       = s_petPrefs.getUChar("firstType", (uint8_t)DetectionType::UNKNOWN);
     s_shadeIdx        = s_petPrefs.getUChar("shadeIdx", 0);
     s_glassesOn       = s_petPrefs.getBool("glasses", true);
+    s_godsMode        = s_petPrefs.getBool("gods", false);
 #if POTS_MESH
     s_petPrefs.getString("cname", s_customName, sizeof(s_customName));
 #endif
@@ -2491,7 +2496,8 @@ void cycleNickname() {
 
 const char* shadesColorName() {
     ensurePrefsLoaded();
-    return SHADE_NAMES[s_shadeIdx % SHADE_NAMES_N];
+    const uint8_t i = s_shadeIdx % SHADE_NAMES_N;
+    return Theme::tr(SHADE_NAMES[i], SHADE_RU[i]);
 }
 
 void cycleShadesColor() {
@@ -2504,6 +2510,17 @@ void cycleShadesColor() {
 bool glassesOn() { ensurePrefsLoaded(); return s_glassesOn; }
 void toggleGlasses() { ensurePrefsLoaded(); s_glassesOn = !s_glassesOn; s_petPrefs.putBool("glasses", s_glassesOn); }
 void setGlasses(bool on) { ensurePrefsLoaded(); s_glassesOn = on; s_petPrefs.putBool("glasses", s_glassesOn); }
+
+bool godsMode() { ensurePrefsLoaded(); return s_godsMode; }
+void unlockAllOutfits();   // defined with the outfit unlocks below
+void enableGodsMode() {
+    ensurePrefsLoaded();
+    if (s_godsMode) return;
+    unlockAllOutfits();   // every outfit and pet, with its own tell
+    s_godsMode = true;
+    s_petPrefs.putBool("gods", true);
+    say(Theme::tr("GODS MODE. SHADES, STAGES, ALL OF IT.", "РЕЖИМ БОГА. ОЧКИ, СТУПЕНИ, ВСЁ СРАЗУ."), 5000);
+}
 
 const char* outfitName() {
     ensurePrefsLoaded();
@@ -7301,10 +7318,13 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         }
     }
 
-    // Head — broader jaw than before, brow ridge over the eyes.
+    // Head — broader jaw than before, brow ridge over the eyes. The face
+    // patch runs cheek to cheek: Springfield cheeks are wide, and the
+    // patch ending at the eyes' outer corners left the grin floating on
+    // plain fur either side of it.
     t.fillRoundRect(cx2 - S(15), hh, S(30), S(24), S(7), furLight);
     t.fillRoundRect(cx2 - S(12), hh + S(2), S(24), S(19), S(5), furMain);
-    t.fillRoundRect(cx2 - S(9),  hh + S(7), S(18), S(11), S(4),
+    t.fillRoundRect(cx2 - S(10),  hh + S(7), S(20), S(11), S(4),
                     outfitNow == OutfitId::SHAMBLER ? SH_SKIN : SKIN_TAN);
 
     // A cowlick, plus a couple of smaller shaggy fringe tufts either side.
@@ -7362,18 +7382,24 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         t.fillTriangle(cx2 + S(5),  hh + S(3), cx2 + S(9), hh - S(4), cx2 + S(13),hh + S(3), furLight);
     }
 
-    // Ears — small and tucked close, like a real Sapots rather than
-    // a cartoon animal's.
-    t.fillCircle(cx2 - S(15), hh + S(13), S(3), furMain);
-    t.fillCircle(cx2 + S(15), hh + S(13), S(3), furMain);
-    t.fillCircle(cx2 - S(15), hh + S(13), S(1), SKIN_DARK);
-    t.fillCircle(cx2 + S(15), hh + S(13), S(1), SKIN_DARK);
+    // Ears — rounder and a touch bigger than the tucked nubs he had:
+    // Springfield ears are simple C-curves standing off the head, and
+    // the headset cups are sized to sit on them either way.
+    t.fillCircle(cx2 - S(15), hh + S(13), S(4), furMain);
+    t.fillCircle(cx2 + S(15), hh + S(13), S(4), furMain);
+    t.fillCircle(cx2 - S(15), hh + S(13), S(2), SKIN_DARK);
+    t.fillCircle(cx2 + S(15), hh + S(13), S(2), SKIN_DARK);
 
     // Blush. Not on SHAMBLER: nothing about him is rosy.
     if (outfitNow != OutfitId::SHAMBLER) {
         t.fillCircle(cx2 - S(8), hh + S(15), S(2), VAPOR_PINK);
         t.fillCircle(cx2 + S(8), hh + S(15), S(2), VAPOR_PINK);
     }
+
+    // Nose — one small bump between the eyes and the grin, the way the
+    // reference draws it: a darker-yellow knob, not a black dot. Hidden
+    // behind the shades while they are on, like the rest of the muzzle.
+    t.fillCircle(cx2, hh + S(12), S(1) + 1, furMain);
 
     // Where the shades are, for the scouter's tap. Our own Potsy only.
     if (s_outfitOverride < 0) {
@@ -7413,9 +7439,10 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         }
     } else if (act == VisitPose::SAD) {
         // No shades for this one: eyes you can see, brows up in the middle, a
-        // frown, and a tear on its way down.
-        wideLine(t, cx2 - S(10), hh + S(6), cx2 - S(3), hh + S(4), S(1) + 1, furLight);
-        wideLine(t, cx2 + S(10), hh + S(6), cx2 + S(3), hh + S(4), S(1) + 1, furLight);
+        // frown, and a tear on its way down. Black, not furLight: on the
+        // yellow face the light brows vanished into the fur.
+        wideLine(t, cx2 - S(10), hh + S(6), cx2 - S(3), hh + S(4), S(1) + 1, BLACK);
+        wideLine(t, cx2 + S(10), hh + S(6), cx2 + S(3), hh + S(4), S(1) + 1, BLACK);
         t.fillCircle(cx2 - S(6), hh + S(9), S(1) + 1, BLACK);
         t.fillCircle(cx2 + S(6), hh + S(9), S(1) + 1, BLACK);
         if (!noMouth) {
@@ -7502,7 +7529,13 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         // sd slides the whole pair down the bridge of his nose during a
         // double-take, so he ends up looking over the top of them.
         const int sd = (int)s_shadeDrop;
-        if (!glassesOn()) {
+        if (t3) {
+            // TH3 0N3: his shades made round, the code inside them. The
+            // shades are PART of this outfit -- its round lenses and the
+            // falling code are the costume -- so the GLASSES switch does
+            // not touch them. Only the plain-issue shades come off.
+            t3Shades(t, cx2, hh + sd, blink, scale);
+        } else if (!glassesOn()) {
             // Simpson base face: big bare eyes under the (removed) shades.
             // The shades above are the separate sprite layer; with them off
             // the same blink/wink cycle drives real eyes instead of lenses.
@@ -7522,9 +7555,6 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
                     t.fillCircle(cx2 + S(5) + 1, hh + S(9), 1, WHITE);
                 }
             }
-        } else if (t3) {
-            // TH3 0N3: his shades made round, the code inside them.
-            t3Shades(t, cx2, hh + sd, blink, scale);
         } else {
         t.fillRoundRect(cx2 - S(12), hh + S(6) + sd, S(10), S(7), 2, BLACK);
         t.fillRoundRect(cx2 + S(2),  hh + S(6) + sd, S(10), S(7), 2, BLACK);

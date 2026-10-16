@@ -94,13 +94,18 @@ int lineH(TFT_eSPI& t) { return t.fontHeight() + 2; }
 void label(TFT_eSPI& t, int y, uint16_t c, const char* s) {
     t.setTextColor(c, Theme::BG);
     t.setCursor(8, y);
-    t.print(s);
+    if (Theme::isRu(s)) Theme::printRU(t, s); else t.print(s);
 }
 
 void centred(TFT_eSPI& t, int y, uint16_t c, const char* s) {
     t.setTextColor(c, Theme::BG);
-    t.setCursor((t.width() - t.textWidth(s)) / 2, y);
-    t.print(s);
+    if (Theme::isRu(s)) {
+        t.setCursor((t.width() - Theme::textWidthRU(t, s)) / 2, y);
+        Theme::printRU(t, s);
+    } else {
+        t.setCursor((t.width() - t.textWidth(s)) / 2, y);
+        t.print(s);
+    }
 }
 
 // Wrapped paragraph, left-aligned. Returns the y below it.
@@ -109,11 +114,13 @@ int para(TFT_eSPI& t, int y, uint16_t c, const char* s) {
     int maxW = t.width() - 16;
     if (maxW > 47 * charW) maxW = 47 * charW;
     char lines[6][48];
-    const uint8_t n = Theme::wrapText(t, s, maxW, lines, 6);
+    const bool ru = Theme::isRu(s);
+    const uint8_t n = ru ? Theme::wrapTextRU(t, s, maxW, lines, 6)
+                         : Theme::wrapText(t, s, maxW, lines, 6);
     t.setTextColor(c, Theme::BG);
     for (uint8_t i = 0; i < n; i++) {
         t.setCursor(8, y);
-        t.print(lines[i]);
+        if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
         y += lineH(t);
     }
     return y;
@@ -122,10 +129,10 @@ int para(TFT_eSPI& t, int y, uint16_t c, const char* s) {
 void pair(TFT_eSPI& t, int y, const char* k, const char* v) {
     t.setTextColor(Theme::CYAN, Theme::BG);
     t.setCursor(8, y);
-    t.print(k);
+    if (Theme::isRu(k)) Theme::printRU(t, k); else t.print(k);
     t.setTextColor(Theme::WHITE, Theme::BG);
     t.setCursor(8 + t.textWidth("OTHER SLOT ") + 4, y);
-    t.print(v);
+    if (Theme::isRu(v)) Theme::printRU(t, v); else t.print(v);
 }
 
 void backButton(TFT_eSPI& t, const char* lab) {
@@ -146,25 +153,25 @@ void drawBar(TFT_eSPI& t, int y, uint8_t pct) {
 void drawMenu(TFT_eSPI& t) {
     const Geom g = geom(t);
     int y = 22;
-    label(t, y, Theme::VAPOR_PINK, "UPDATE FIRMWARE");
+    label(t, y, Theme::VAPOR_PINK, Theme::tr("UPDATE FIRMWARE", "ОБНОВЛЕНИЕ ПРОШИВКИ"));
     y += lineH(t) + 4;
-    pair(t, y, "RUNNING", OtaCore::runningVersion());
+    pair(t, y, Theme::tr("RUNNING", "ТЕКУЩАЯ"), OtaCore::runningVersion());
     y += lineH(t);
     const char* other = OtaCore::otherVersion();
-    pair(t, y, "OTHER SLOT", other ? other : "nothing to switch to");
+    pair(t, y, Theme::tr("OTHER SLOT", "ДРУГОЙ СЛОТ"), other ? other : Theme::tr("nothing to switch to", "переключать не на что"));
 
-    Theme::drawWin95Button(t, g.x, g.wifiY, g.w, btnH(), "UPDATE OVER WIFI", false);
+    Theme::drawWin95Button(t, g.x, g.wifiY, g.w, btnH(), Theme::tr("UPDATE OVER WIFI", "ОБНОВА ПО WIFI"), false);
     if (OtaBle::available())
         Theme::drawWin95Button(t, g.x, g.btY,   g.w, btnH(), "UPDATE OVER BLUETOOTH (BETA)", false);
 #if POTS_MESH
-    Theme::drawWin95Button(t, g.x, g.squadY, g.w, btnH(), "UPDATE SQUAD", false);
+    Theme::drawWin95Button(t, g.x, g.squadY, g.w, btnH(), Theme::tr("UPDATE SQUAD", "ОБНОВИТЬ СКВАД"), false);
 #endif
     if (other) {
         char b[40];
         snprintf(b, sizeof b, "SWITCH TO %.20s", other);
         Theme::drawWin95Button(t, g.x, g.switchY, g.w, btnH(), b, false);
     }
-    backButton(t, "BACK");
+    backButton(t, Theme::tr("BACK", "НАЗАД"));
 }
 
 void drawSwitchPanel(TFT_eSPI& t) {
@@ -217,7 +224,7 @@ void drawProgress(TFT_eSPI& t, const char* head, uint32_t got, uint32_t total, u
     int y = progressLive(t, got, total, pct);
     y += lineH(t) + 8;
     para(t, y, Theme::WHITE, note);
-    backButton(t, "CANCEL");
+    backButton(t, Theme::tr("CANCEL", "ОТМЕНА"));
 }
 
 void drawFinishing(TFT_eSPI& t, const char* head, uint16_t c, bool restarting) {
@@ -227,10 +234,10 @@ void drawFinishing(TFT_eSPI& t, const char* head, uint16_t c, bool restarting) {
     drawBar(t, y, 100);
     y += 26;
     if (restarting) {
-        label(t, y, Theme::WHITE, "Restarting now.");
+        label(t, y, Theme::WHITE, Theme::tr("Restarting now.", "Перезапускаюсь."));
         y += lineH(t) + 4;
         para(t, y, Theme::AMBER,
-             "When it comes back, leave it on for 30 seconds so it can confirm the new version.");
+             Theme::tr("When it comes back, leave it on for 30 seconds so it can confirm the new version.", "Как вернётся — не выключай 30 секунд, пусть подтвердит новую версию."));
     }
 }
 
@@ -239,8 +246,8 @@ void drawFinishing(TFT_eSPI& t, const char* head, uint16_t c, bool restarting) {
 void drawBtWaiting(TFT_eSPI& t, bool connected) {
     const Geom g = geom(t);
     int y = 22;
-    if (!connected)                  label(t, y, Theme::AMBER, "WAITING FOR YOUR BROWSER");
-    else if (OtaBle::codeAccepted()) label(t, y, Theme::CYAN,  "CODE ACCEPTED - GETTING READY");
+    if (!connected)                  label(t, y, Theme::AMBER, Theme::tr("WAITING FOR YOUR BROWSER", "ЖДУ ТВОЙ БРАУЗЕР"));
+    else if (OtaBle::codeAccepted()) label(t, y, Theme::CYAN,  Theme::tr("CODE ACCEPTED - GETTING READY", "КОД ПРИНЯТ - ГОТОВЛЮСЬ"));
     else                             label(t, y, Theme::CYAN,  "CONNECTED - TYPE THE CODE");
     y += lineH(t) + 4;
     label(t, y, Theme::WHITE, "On a computer or Android phone,");
@@ -263,21 +270,21 @@ void drawBtWaiting(TFT_eSPI& t, bool connected) {
     centred(t, y, Theme::VAPOR_PINK, code);
     y += t.fontHeight() + 6;
     Theme::bodyFontOn(t);
-    if (y < g.backY - lineH(t) - 2) centred(t, y, Theme::W95_SHADOW, "Detection is paused on this screen.");
-    backButton(t, "CANCEL");
+    if (y < g.backY - lineH(t) - 2) centred(t, y, Theme::W95_SHADOW, Theme::tr("Detection is paused on this screen.", "Поиск на этом экране приостановлен."));
+    backButton(t, Theme::tr("CANCEL", "ОТМЕНА"));
 }
 
 void drawFailed(TFT_eSPI& t, const char* words, bool canRetry) {
     int y = 24;
-    label(t, y, Theme::VAPOR_PINK, "UPDATE STOPPED");
+    label(t, y, Theme::VAPOR_PINK, Theme::tr("UPDATE STOPPED", "ОБНОВЛЕНИЕ СТОП"));
     y += lineH(t) + 8;
     para(t, y, Theme::WHITE, words);
     if (canRetry) {
         const Row r = bottomRow(t, 2);
-        Theme::drawWin95Button(t, r.x[0], r.y, r.w, btnH(), "TRY AGAIN", false);
-        Theme::drawWin95Button(t, r.x[1], r.y, r.w, btnH(), "DONE", false);
+        Theme::drawWin95Button(t, r.x[0], r.y, r.w, btnH(), Theme::tr("TRY AGAIN", "ЕЩЁ РАЗ"), false);
+        Theme::drawWin95Button(t, r.x[1], r.y, r.w, btnH(), Theme::tr("DONE", "ГОТОВО"), false);
     } else {
-        backButton(t, "OK");
+        backButton(t, Theme::tr("OK", "ОК"));
     }
 }
 
@@ -286,11 +293,11 @@ void drawBt(TFT_eSPI& t) {
         case OtaBle::State::WAITING:   drawBtWaiting(t, false); break;
         case OtaBle::State::CONNECTED: drawBtWaiting(t, true);  break;
         case OtaBle::State::RECEIVING:
-            drawProgress(t, "INSTALLING UPDATE", OtaBle::bytesReceived(), OtaBle::bytesExpected(),
+            drawProgress(t, Theme::tr("INSTALLING UPDATE", "СТАВЛЮ ОБНОВУ"), OtaBle::bytesReceived(), OtaBle::bytesExpected(),
                          OtaBle::percent(), "Keep the board powered and close by, and leave the browser tab open.");
             break;
-        case OtaBle::State::VERIFYING: drawFinishing(t, "CHECKING SIGNATURE...", Theme::AMBER, false); break;
-        case OtaBle::State::DONE:      drawFinishing(t, "UPDATE INSTALLED", Theme::CYAN, true); break;
+        case OtaBle::State::VERIFYING: drawFinishing(t, Theme::tr("CHECKING SIGNATURE...", "ПРОВЕРЯЮ ПОДПИСЬ..."), Theme::AMBER, false); break;
+        case OtaBle::State::DONE:      drawFinishing(t, Theme::tr("UPDATE INSTALLED", "ОБНОВА ВСТАЛА"), Theme::CYAN, true); break;
         case OtaBle::State::FAILED:    drawFailed(t, OtaBle::failureText(), false); break;
         default: break;
     }
@@ -315,10 +322,10 @@ void signalBars(TFT_eSPI& t, int x, int yBottom, int8_t rssi) {
 
 void drawPick(TFT_eSPI& t) {
     const int w = t.width();
-    label(t, 22, Theme::VAPOR_PINK, "PICK YOUR WIFI");
+    label(t, 22, Theme::VAPOR_PINK, Theme::tr("PICK YOUR WIFI", "ВЫБЕРИ WIFI"));
     const int n = pickRowCount(t);
     if (!OtaWifi::netCount()) {
-        para(t, rowY0() + 4, Theme::WHITE, "No networks found. Move closer to the router and press RESCAN.");
+        para(t, rowY0() + 4, Theme::WHITE, Theme::tr("No networks found. Move closer to the router and press RESCAN.", "Сетей нет. Подойди ближе к роутеру и жми ПОИСК."));
     }
     for (int i = 0; i < n; i++) {
         const OtaWifi::Net* net = OtaWifi::net((uint8_t)i);
@@ -355,20 +362,20 @@ void drawReady(TFT_eSPI& t) {
     y += lineH(t) + 6;
     pair(t, y, "LATEST", OtaWifi::latestVersion());
     y += lineH(t);
-    pair(t, y, "RUNNING", OtaCore::runningVersion());
+    pair(t, y, Theme::tr("RUNNING", "ТЕКУЩАЯ"), OtaCore::runningVersion());
     y += lineH(t) + 6;
-    para(t, y, Theme::W95_SHADOW, "Bluetooth and detection stay off until the board restarts.");
+    para(t, y, Theme::W95_SHADOW, Theme::tr("Bluetooth and detection stay off until the board restarts.", "Блютус и поиск спят до перезапуска платы."));
     char b[40];
     snprintf(b, sizeof b, "%s %.20s", same ? "REINSTALL" : "INSTALL", OtaWifi::latestVersion());
     Theme::drawWin95Button(t, g.x, g.switchY, g.w, btnH(), b, false);
-    backButton(t, "CANCEL");
+    backButton(t, Theme::tr("CANCEL", "ОТМЕНА"));
 }
 
 void drawWifi(TFT_eSPI& t) {
     switch (OtaWifi::state()) {
         case OtaWifi::State::SCANNING:
             label(t, 24, Theme::AMBER, "LOOKING FOR WIFI...");
-            backButton(t, "CANCEL");
+            backButton(t, Theme::tr("CANCEL", "ОТМЕНА"));
             break;
         case OtaWifi::State::PICK:
             drawPick(t);
@@ -379,22 +386,22 @@ void drawWifi(TFT_eSPI& t) {
             label(t, 24, Theme::AMBER, b);
             para(t, 24 + lineH(t) + 8, Theme::WHITE,
                  "Bluetooth and detection are off until the board restarts, to make room for the download.");
-            backButton(t, "CANCEL");
+            backButton(t, Theme::tr("CANCEL", "ОТМЕНА"));
             break;
         }
         case OtaWifi::State::CHECKING:
             label(t, 24, Theme::AMBER, "CHECKING FOR UPDATES...");
-            backButton(t, "CANCEL");
+            backButton(t, Theme::tr("CANCEL", "ОТМЕНА"));
             break;
         case OtaWifi::State::READY:
             drawReady(t);
             break;
         case OtaWifi::State::DOWNLOADING:
-            drawProgress(t, "DOWNLOADING UPDATE", OtaWifi::bytesReceived(), OtaWifi::bytesExpected(),
+            drawProgress(t, Theme::tr("DOWNLOADING UPDATE", "КАЧАЮ ОБНОВУ"), OtaWifi::bytesReceived(), OtaWifi::bytesExpected(),
                          OtaWifi::percent(), "Keep the board powered and in range of your WiFi.");
             break;
-        case OtaWifi::State::VERIFYING: drawFinishing(t, "CHECKING SIGNATURE...", Theme::AMBER, false); break;
-        case OtaWifi::State::DONE:      drawFinishing(t, "UPDATE INSTALLED", Theme::CYAN, true); break;
+        case OtaWifi::State::VERIFYING: drawFinishing(t, Theme::tr("CHECKING SIGNATURE...", "ПРОВЕРЯЮ ПОДПИСЬ..."), Theme::AMBER, false); break;
+        case OtaWifi::State::DONE:      drawFinishing(t, Theme::tr("UPDATE INSTALLED", "ОБНОВА ВСТАЛА"), Theme::CYAN, true); break;
         case OtaWifi::State::FAILED:    drawFailed(t, OtaWifi::failureText(), OtaWifi::canTryAgain()); break;
         default: break;
     }
@@ -441,11 +448,11 @@ static void tickBody(TFT_eSPI& t, bool full) {
                                  OtaWifi::state() != OtaWifi::State::FAILED) ||
                                 (btOn && OtaBle::state() == OtaBle::State::DONE);
     if (OtaCore::restartPending() && !busyInstalling) {
-        label(t, 24, Theme::CYAN, "RESTARTING");
+        label(t, 24, Theme::CYAN, Theme::tr("RESTARTING", "ПЕРЕЗАПУСК"));
         para(t, 24 + lineH(t) + 8, Theme::WHITE,
              OtaCore::otherVersion() && !wifiOn && !btOn
-                 ? "Switching to the other version. Leave it on for 30 seconds after it comes back."
-                 : "Detection and Bluetooth come back after the restart.");
+                 ? Theme::tr("Switching to the other version. Leave it on for 30 seconds after it comes back.", "Переключаюсь на другую версию. Не выключай 30 секунд после возврата.")
+                 : Theme::tr("Detection and Bluetooth come back after the restart.", "Поиск и блютус вернутся после перезапуска."));
         return;
     }
     if (wifiOn) { drawWifi(t); return; }

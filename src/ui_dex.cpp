@@ -243,7 +243,7 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
 
     Theme::bodyFontOff(t);
     Theme::drawButton(t, bar.x[0], bar.y, bar.w[0], bar.h, "[ < ]", false);
-    Theme::drawButton(t, bar.x[1], bar.y, bar.w[1], bar.h, "[ DEX ]", false);
+    Theme::drawButton(t, bar.x[1], bar.y, bar.w[1], bar.h, Theme::tr("[ DEX ]", "[ ДЕКС ]"), false);
     Theme::drawButton(t, bar.x[2], bar.y, bar.w[2], bar.h, "[ > ]", false);
 }
 

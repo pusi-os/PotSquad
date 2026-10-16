@@ -520,11 +520,14 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
         // line below, where the four fields together ran 174px into a 168px
         // plate and pushed the sighting count off the edge.
         t.setCursor(PLATE_X + 8, BAR_Y - LABEL_DY);
-        if (!tiny) t.print("SIGNAL");
+        if (!tiny) {
+            const char* sg = Theme::tr("SIGNAL", "СИГНАЛ");
+            if (Theme::isRu(sg)) Theme::printRU(t, sg); else t.print(sg);
+        }
         t.setTextColor(confColor, Theme::BG);
         const char* cl = confidenceLabel(conf);
-        t.setCursor(PLATE_X + PLATE_W - 8 - t.textWidth(cl), BAR_Y - LABEL_DY);
-        if (!tiny) t.print(cl);
+        t.setCursor(PLATE_X + PLATE_W - 8 - (Theme::isRu(cl) ? Theme::textWidthRU(t, cl) : t.textWidth(cl)), BAR_Y - LABEL_DY);
+        if (!tiny) { if (Theme::isRu(cl)) Theme::printRU(t, cl); else t.print(cl); }
         int v = s_last.rssi;
         if (v < -90) v = -90;
         if (v > -40) v = -40;
@@ -683,23 +686,28 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
         moreInfoBtnRect(w, h, bx, by, bw, bh);
         t.fillRect(bx, by, bw, bh, Theme::BG);
         t.drawRect(bx, by, bw, bh, Theme::PURPLE);
-        t.setTextSize(2);
         t.setTextColor(Theme::CYAN, Theme::BG);
         t.setTextWrap(false);
-        int lineH = t.fontHeight();
+        // A RU label takes the 16px face at size 1: the same 16px line
+        // the size-2 GLCD label stands.
+        const char* m1 = Theme::tr("MORE", "ЕЩЁ"), *m2 = Theme::tr("INFO", "ИНФО");
+        const bool mru = Theme::isRu(m1);
+        if (mru) { t.setTextFont(1); t.setTextSize(1); } else t.setTextSize(2);
+        int lineH = mru ? 17 : t.fontHeight();
         const int lineGap = 3;
-        int iw = t.textWidth("INFO");
+        int iw = mru ? Theme::textWidthRU16(t, m2) : t.textWidth(m2);
         if (tinyAlert(h)) {
             t.setCursor(bx + (bw - iw) / 2, by + (bh - lineH) / 2);
-            t.print("INFO");
+            if (mru) Theme::printRU16(t, m2); else t.print(m2);
         } else {
         int ty = by + (bh - (lineH * 2 + lineGap)) / 2;
-        int mw = t.textWidth("MORE");
+        int mw = mru ? Theme::textWidthRU16(t, m1) : t.textWidth(m1);
         t.setCursor(bx + (bw - mw) / 2, ty);
-        t.print("MORE");
+        if (mru) Theme::printRU16(t, m1); else t.print(m1);
         t.setCursor(bx + (bw - iw) / 2, ty + lineH + lineGap);
-        t.print("INFO");
+        if (mru) Theme::printRU16(t, m2); else t.print(m2);
         }
+        t.setTextSize(1);
     }
 
     // HUNT -- starts tracking this exact device straight from the alert,
@@ -715,18 +723,21 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
         huntBtnRect(w, h, bx, by, bw, bh);
         t.fillRect(bx, by, bw, bh, Theme::BG);
         t.drawRect(bx, by, bw, bh, Theme::PURPLE);
-        t.setTextSize(2);
         t.setTextColor(Theme::AMBER, Theme::BG);
         t.setTextWrap(false);
-        int hw = t.textWidth("HUNT");
-        t.setCursor(bx + (bw - hw) / 2, by + (bh - t.fontHeight()) / 2);
-        t.print("HUNT");
+        const char* hu = Theme::tr("HUNT", "ОХОТА");
+        const bool hru = Theme::isRu(hu);
+        if (hru) { t.setTextFont(1); t.setTextSize(1); } else t.setTextSize(2);
+        int hw = hru ? Theme::textWidthRU16(t, hu) : t.textWidth(hu);
+        t.setCursor(bx + (bw - hw) / 2, by + (bh - (hru ? 16 : t.fontHeight())) / 2);
+        if (hru) Theme::printRU16(t, hu); else t.print(hu);
+        t.setTextSize(1);
     }
     // SNOOZE between the two: this device, quiet until the board restarts.
     {
         int bx, by, bw, bh;
         snoozeBtnRect(w, h, bx, by, bw, bh);
-        Theme::drawButton(t, bx, by, bw, bh, "SNOOZE", false);
+        Theme::drawButton(t, bx, by, bw, bh, Theme::tr("SNOOZE", "ПОЗЖЕ"), false);
     }
 
     // TV-static snow over the whole screen during the same random burst

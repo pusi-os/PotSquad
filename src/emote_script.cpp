@@ -2,6 +2,9 @@
 #include "emote_script.h"
 
 #if POTS_MESH
+#include "theme.h"
+#include "type_names.h"
+#include "settings.h"
 #include "state.h"
 #include <stdio.h>
 #include <string.h>
@@ -92,9 +95,70 @@ static const char* const LINES[L_COUNT][VARIANTS] = {
 
 uint8_t lineCount() { return L_COUNT; }
 
+// Display only: emote speech is picked by pool/variant indices that both
+// ends already agree on, so each board renders its own language.
+static const char* const LINES_RU[L_COUNT][VARIANTS] = {
+    { "", "", "" },
+    { "Дай кулак!",      "Стукни!",           "Кулачки!" },
+    { "...Бум.",         "Пшшш!",             "Взрыв!" },
+    { "Как обычно?",    "Тайный знак!",       "Знаешь же." },
+    { "В точку.",        "Ещё могу.",          "Безупречно." },
+    { "На связи!",       "Так точно!",        "Отряд Потси!" },
+    { "Вольно.",         "Продолжай.",        "Ура!" },
+    { "После тебя.",    "Твоё потсейшество.", "Милорд." },
+    { "Нет, после ТЕБЯ.", "Ну спасибо.",      "Польщён." },
+    { "Обнимашки!",      "Пора обняться!",    "Иди сюда!" },
+    { "Ууу.",            "Как надо.",         "Лучшие друзья." },
+    { "Кидай!",          "Орёл или решка?",   "Подбрось!" },
+    { "Кубики!",         "Давай, шестёрки!",  "По-крупному!" },
+    { "Армрестлинг. Ща.", "Сильнее меня?",    "Давай решим." },
+    { "Непобедим!",      "Чуешь жар?",        "Чистая мощь." },
+    { "Канат!",          "Хватай верёвку!",   "Тяни!" },
+    { "Победа!",         "Моё!",              "Слишком силён!" },
+    { "Чехарда!",        "Не двигайся!",      "Лечу!" },
+    { "Ква.",            "Приземлился!",      "Режим жабы!" },
+    { "Время пирога!",   "Доставка!",         "Лови!" },
+    { "...Банановый.",   "СЕРЬЁЗНО?!",       "Ммм. Кокос." },
+    { "Водяная бомба!",  "Берегись!",         "Зона брызг!" },
+    { "Я МОКРЫЙ!",       "Холодно! Холодно!", "Ну всё, держись." },
+    { "Авиапочта!",      "Входящее!",         "Рейс 404!" },
+    { "Ай! Порезался!",  "Вернуть автору.",   "И что там?" },
+    { "Бой подушками!",  "Ан гард!",          "Перья наружу!" },
+    { "Получи!",         "Месть!",            "Ну ты попал." },
+    { "Мир?",            "Перья повсюду!",    "Лучший бой!" },
+    { "Это тебе!",       "Для тебя!",         "Открывай!" },
+    { "Мне?! ",          "Не стоило!",        "О, блестяшка!" },
+    { "Кусочек?",        "Перерыв на пиццу!", "Поделишься?" },
+    { "Ном-ном-ном.",    "Ананас? Смело.",    "Лучший. Друг." },
+    { "Ура!",            "За нас!",           "До дна!" },
+    { "Слышу-слышу!",    "За дозор!",         "Салют!" },
+    { "Веселимся!",      "Сюрприз!",          "Празднуем!" },
+    { "Смотри вверх!",   "Оооох!",            "Салют!" },
+    { "Аааах.",          "Красота.",          "Ещё! Ещё!" },
+    { "Люблю тебя, друг.", "Ты лучший.",      "Друзья навек." },
+    { "Ой, да ладно.",   "Взаимно.",          "Прекрати." },
+    { "ХАХАХА!",         "Хехехе!",           "БВАХАХА!" },
+    { "Чё смешного?!",     "ХАХАХА!",           "Дышать не могу!" },
+    { "Тяжёлый день...", "*шмыг*",            "Носок потерял." },
+    { "Ну-ну.",          "Я с тобой.",        "Выше нос, друг." },
+    { "ГРРРР!",          "Хмф!",              "Грр. Аргх." },
+    { "Ого, полегче!",   "Кто тебя обидел?",  "Дыши глубже!" },
+    { "*зевооок*",       "Так спать...",      "Пора вздремнуть?" },
+    { "Ещё пять минут.", "Я храпел?",         "А? Чего?" },
+    { "Шапки надеть!",   "Нас слушают.",      "Фольгу вверх." },
+    { "Не отследят.",    "От лучей защита.",  "Сигнал забит." },
+    { "ФОТО!",           "Флок, на 12!",      "Улыбнись, снимают." },
+    { "Заметила?",       "Веди себя обычно.", "...Всё норм." },
+    { "Где?!",           "Да ладно!",         "Ничего не видел." },
+    { "АУУУУ!",          "Клич сквача!",      "УУУУУП!" },
+    { "АУУУУУУ!",        "УП-УП-УП!",          "...уп?" },
+    { "Селфи!",          "Влезай в кадр!",    "Скажи сыр!" },
+    { "Выложи!",         "Я моргнул!",        "В рамку!" },
+};
+
 const char* line(uint8_t pool, uint8_t variant) {
     if (pool == L_NONE || pool >= L_COUNT) return nullptr;
-    return LINES[pool][variant % VARIANTS];
+    return Theme::tr(LINES[pool][variant % VARIANTS], LINES_RU[pool][variant % VARIANTS]);
 }
 
 bool isDyn(uint8_t code) { return code >= DYN_COIN_CALL && code <= DYN_SPOTTED; }
@@ -360,7 +424,15 @@ Result outcome(E e, uint8_t setup) {
 
 // What a detection is called out loud. Short: it has to fit a bubble.
 const char* spokenName(uint8_t t) {
-    switch ((DetectionType)t) {
+    // Both callers speak to the screen (an emote's bubble, a banter %s),
+    // so the SHORT name in the board's language is the right word: the
+    // bubble holds twenty glyphs, and the full display names do not fit.
+    // UNKNOWN stays silent (nullptr), as before: "nothing caught yet"
+    // has its own line, and a banter %s never sees it.
+    if (t == (uint8_t)DetectionType::UNKNOWN || t >= (uint8_t)DetectionType::COUNT) return nullptr;
+    const DetectionType dt = (DetectionType)t;
+    if (Settings::lang() == 1) return TypeNames::cellRu(dt);
+    switch (dt) {
         case DetectionType::FLOCK:       return "FLOCK";
         case DetectionType::AXON:        return "AXON";
         case DetectionType::META:        return "GLASSES";
@@ -389,25 +461,25 @@ void dynLine(uint8_t code, E e, uint8_t setup, char* out, size_t cap) {
         case DYN_COIN_CALL: {
             // The receiver's call: right means it matches how it lands.
             const bool side = setup & 1, right = setup & 2;
-            snprintf(out, cap, "%s!", (right ? side : !side) ? "TAILS" : "HEADS");
+            snprintf(out, cap, "%s!", (right ? side : !side) ? Theme::tr("TAILS", "РЕШКА") : Theme::tr("HEADS", "ОРЁЛ"));
             break;
         }
         case DYN_COIN_SIDE:
             // Said by whoever won: the caller if they called it, else the flipper.
-            snprintf(out, cap, "%s! %s", (setup & 1) ? "TAILS" : "HEADS",
-                     (setup & 2) ? "Called it!" : "Ha!");
+            snprintf(out, cap, "%s! %s", (setup & 1) ? Theme::tr("TAILS", "РЕШКА") : Theme::tr("HEADS", "ОРЁЛ"),
+                     (setup & 2) ? Theme::tr("Called it!", "Угадал!") : Theme::tr("Ha!", "Ха!"));
             break;
         case DYN_DICE: {
             const uint8_t a = die(setup, 0), b = die(setup, 1);
-            if (a == b) snprintf(out, cap, "Tie! %u and %u.", (unsigned)a, (unsigned)b);
-            else        snprintf(out, cap, "%u beats %u!", (unsigned)(a > b ? a : b),
+            if (a == b) snprintf(out, cap, Theme::tr("Tie! %u and %u.", "Ничья! %u и %u."), (unsigned)a, (unsigned)b);
+            else        snprintf(out, cap, Theme::tr("%u beats %u!", "%u бьёт %u!"), (unsigned)(a > b ? a : b),
                                  (unsigned)(a > b ? b : a));
             break;
         }
         case DYN_SPOTTED: {
             const char* n = spokenName(setup);
-            if (n) snprintf(out, cap, "See that %s?!", n);
-            else   snprintf(out, cap, "Did you see that?!");
+            if (n) snprintf(out, cap, Theme::tr("See that %s?!", "Видишь %s?!"), n);
+            else   snprintf(out, cap, "%s", Theme::tr("Did you see that?!", "Видел?!"));
             break;
         }
         default: break;
@@ -421,6 +493,11 @@ void dynLine(uint8_t code, E e, uint8_t setup, char* out, size_t cap) {
 // ones". A slot holding E::COUNT is an EMPTY tile -- the picker draws nothing
 // there and nothing there can be tapped. PRANK has one, where the tickle was.
 const char* const TAB_NAME[TABS] = { "HI", "PLAY", "PRANK", "PARTY", "MOOD", "WATCH" };
+const char* tabName(uint8_t tab) {
+    static const char* const RU[TABS] = { "ПРИВЕТ", "ИГРА", "ШАЛОСТЬ", "ВЕЧЕРИНКА", "НАСТРОЕНИЕ", "ДОЗОР" };
+    if (tab >= TABS) tab = 0;
+    return Theme::tr(TAB_NAME[tab], RU[tab]);
+}
 static const E TAB[TABS][PER_TAB] = {
     { E::WAVE,     E::HIGH_FIVE, E::FIST_BUMP, E::HANDSHAKE,   E::SALUTE,   E::BOW },
     { E::RPS,      E::COIN,      E::DICE,      E::ARM_WRESTLE, E::TUG,      E::LEAPFROG },
@@ -445,8 +522,27 @@ static const char* const NAME[(size_t)E::COUNT][2] = {
     { "SELFIE", "" },
 };
 
-const char* name(E e) { return (uint8_t)e < (uint8_t)E::COUNT ? NAME[(uint8_t)e][0] : ""; }
-const char* sub(E e)  { return (uint8_t)e < (uint8_t)E::COUNT ? NAME[(uint8_t)e][1] : ""; }
+static const char* const NAME_RU[(size_t)E::COUNT][2] = {
+    { "ВЗМАХ", "" }, { "ДАЙ ПЯТЬ", "" }, { "БАТТЛ", "" }, { "КАМЕНЬ", "НОЖНИЦЫ" },
+    { "СНЕЖОК", "" }, { "БУ!", "" },
+    { "КУЛАК", "" }, { "ТАЙНОЕ", "РУКОПОЖАТИЕ" }, { "САЛЮТ", "" }, { "ПОКЛОН", "" }, { "ОБЪЯТИЯ", "" },
+    { "МОНЕТКА", "" }, { "КУБИКИ", "" }, { "АРМ", "РЕСТЛИНГ" }, { "КАНАТ", "" },
+    { "ЧЕХАРДА", "" },
+    { "ТОРТ", "" }, { "ВОДЯНАЯ", "БОМБОЧКА" }, { "БУМАЖНЫЙ", "САМОЛЁТ" }, { "БОЙ", "ПОДУШКАМИ" },
+    { "ПОДАРОК", "" }, { "ВКУСНЯШКА", "" }, { "УРА", "" }, { "КОНФЕТТИ", "" }, { "САЛЮТ", "" },
+    { "СЕРДЕЧКО", "" }, { "СМЕХ", "" }, { "ГРУСТЬ", "" }, { "РЫК", "" }, { "СПЛЮ", "" },
+    { "ШАПОЧКИ", "ИЗ ФОЛЬГИ" }, { "ФОТО!", "" }, { "ВИДЕЛ?", "" }, { "ВОЙ", "" },
+    { "СЕЛФИ", "" },
+};
+
+const char* name(E e) {
+    if ((uint8_t)e >= (uint8_t)E::COUNT) return "";
+    return Theme::tr(NAME[(uint8_t)e][0], NAME_RU[(uint8_t)e][0]);
+}
+const char* sub(E e)  {
+    if ((uint8_t)e >= (uint8_t)E::COUNT) return "";
+    return Theme::tr(NAME[(uint8_t)e][1], NAME_RU[(uint8_t)e][1]);
+}
 
 } // namespace EmoteScript
 #endif // POTS_MESH

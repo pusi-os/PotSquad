@@ -15,6 +15,9 @@
 #include "test_util.h"
 #include <cstring>
 
+// Theme::tr stub: EN in tests, the way the firmware reads with lang()==0.
+namespace Theme { const char* tr(const char* en, const char*) { return en; } }
+
 static DetectionType lookup(uint8_t a, uint8_t b, uint8_t c, Confidence* conf) {
     const uint8_t mac[6] = { a, b, c, 0x11, 0x22, 0x33 };
     return lookupOui(mac, conf);

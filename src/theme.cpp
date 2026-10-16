@@ -8,6 +8,7 @@
 #include "bangers_font.h"
 #include "type_names.h"
 #include "ru_font.h"
+#include "ru_font16.h"
 #include "ru_text.h"
 #include "potsy.h"
 #include "settings.h"
@@ -377,10 +378,19 @@ int listHeadingY(TFT_eSPI& t) {
 }
 
 void drawListHeading(TFT_eSPI& t, const char* text, uint16_t color) {
-    t.setTextSize(large() && fontDelta(Settings::FontKind::TEXT) >= 0 ? 2 : 1);
     t.setTextColor(color, BG);
-    t.setCursor(8, listHeadingY(t));
-    t.print(text);
+    if (text && isRu(text)) {
+        // RU headings take the 16px face at size 1: the same 16px line
+        // the size-2 GLCD heading stands.
+        t.setTextFont(1);
+        t.setTextSize(1);
+        t.setCursor(8, listHeadingY(t));
+        printRU16(t, text);
+    } else {
+        t.setTextSize(large() && fontDelta(Settings::FontKind::TEXT) >= 0 ? 2 : 1);
+        t.setCursor(8, listHeadingY(t));
+        t.print(text);
+    }
     t.setTextSize(1);
 }
 
@@ -514,8 +524,10 @@ void fontRange(TFT_eSPI& t, Settings::FontKind k, int8_t& lo, int8_t& hi) {
     }
 }
 const char* fontStepName(int8_t step) {
-    static const char* const N[5] = { "TINY", "SMALLER", "NORMAL", "BIGGER", "HUGE" };
-    return N[(step < -2 ? -2 : step > 2 ? 2 : step) + 2];
+    static const char* const EN[5] = { "TINY", "SMALLER", "NORMAL", "BIGGER", "HUGE" };
+    static const char* const RU[5] = { "КРОХА", "МЕНЬШЕ", "ОБЫЧНО", "БОЛЬШЕ", "ОГРОМ" };
+    const int i = (step < -2 ? -2 : step > 2 ? 2 : step) + 2;
+    return tr(EN[i], RU[i]);
 }
 void setFontDelta(TFT_eSPI& t, Settings::FontKind k, int step) {
     int8_t lo, hi;
@@ -590,7 +602,7 @@ void subListTextSize(TFT_eSPI& t, bool compact, const char* label, const char* v
     if (ts < 1) ts = 1;
     if (ts > 4) ts = 4;
     menuFontSized(t, ts);
-    while (ts > base && t.textWidth(label) + (value ? t.textWidth(value) + 8 : 0) > w - 26) menuFontSized(t, --ts);
+    while (ts > base && rowWidth(t, label) + (value ? rowWidth(t, value) + 8 : 0) > w - 26) menuFontSized(t, --ts);
 }
 bool menuFontSmaller(TFT_eSPI& t) {
     if (s_menuFont == 4) { s_menuFont = 2; t.setTextFont(2); return true; }
@@ -706,12 +718,32 @@ static void labelFaceStep(TFT_eSPI& t, const char* label, uint8_t& font, uint8_t
     t.setTextSize(size);
 }
 
+// Forward: defined beside drawInfoPanel below. True when the string
+// holds Cyrillic, i.e. it must go through the RU face -- the GLCD and
+// the button FreeFonts have no glyphs for it.
+static bool hasCyr(const char* s);
+
 void drawButton(TFT_eSPI& t, int x, int y, int w, int h,
                 const char* label, bool pressed, uint8_t textSize) {
     uint16_t fill = pressed ? PURPLE : BG;
     uint16_t fg   = pressed ? labelOn(PURPLE) : CYAN;
     t.fillRect(x, y, w, h, fill);
     t.drawRect(x, y, w, h, PURPLE);
+    // The GLCD has no Cyrillic and neither do the FreeFonts on the
+    // ladder below, so a RU label takes the RU face instead: size-2
+    // buttons get the 16px face at size 1 (the same 16px line, keeping
+    // the translated button's weight), small ones the 9px face.
+    if (label && hasCyr(label)) {
+        const bool big = textSize >= 2 && h >= 20;
+        t.setTextFont(1);
+        t.setTextSize(1);
+        t.setTextColor(fg, fill);
+        const int tw = big ? textWidthRU16(t, label) : textWidthRU(t, label);
+        const int th = big ? 16 : 8;
+        t.setCursor(x + (w - tw) / 2, y + (h - th) / 2);
+        if (big) printRU16(t, label); else printRU(t, label);
+        return;
+    }
     // Button labels are short and their boxes grew with the panel, so this is
     // the safest place for the step-up. But not every button is a third of the
     // screen: the phone screen's QWERTY and BACK sit in boxes sized for size-1
@@ -792,6 +824,21 @@ void drawWin95Button(TFT_eSPI& t, int x, int y, int w, int h,
         if (t.textWidth(label) > w - 8) t.setTextFont(1);
         else font = 2;
     }
+    // A RU label takes the 9px RU face at size 1: the FreeFonts above
+    // have no Cyrillic either, and the Win95 buttons are small.
+    if (label && hasCyr(label)) {
+        t.setTextFont(1);
+        t.setTextSize(1);
+        const int tw = textWidthRU(t, label);
+        const int ox = sunken ? 1 : 0;
+        const int lx = x + 2 + (w - 4 - tw) / 2 + ox, ly = y + 2 + (h - 4 - 8) / 2 + ox;
+        if (bold) t.setTextColor(BLACK);
+        t.setCursor(lx, ly);
+        printRU(t, label);
+        if (bold) { t.setCursor(lx + 1, ly); printRU(t, label); }
+        t.setTextSize(1); t.setTextFont(callerFont);
+        return;
+    }
     // FONTS > BUTTONS moves the face, measured against the button's face.
     labelFaceStep(t, label, font, size, w - 8, h - 4);
     const int tw = t.textWidth(label) + (bold ? 1 : 0);
@@ -822,12 +869,21 @@ int drawWin95Window(TFT_eSPI& t, int x, int y, int w, int h, const char* title) 
     t.drawFastVLine(x + w - 2, y + 1, h - 2, W95_SHADOW);
     t.fillRect(x + 3, y + 3, w - 6, TB, NAVY);
     const uint8_t callerFont = t.textfont;
-    t.setTextFont(2);
-    t.setTextSize(1);
     t.setTextWrap(false);
     t.setTextColor(WHITE, NAVY);
-    t.setCursor(x + 8, y + 3 + (TB - 16) / 2);
-    t.print(title);
+    // The navy bar fits font 2; a RU title takes the 16px RU face at the
+    // same 16px line instead.
+    if (title && isRu(title)) {
+        t.setTextFont(1);
+        t.setTextSize(1);
+        t.setCursor(x + 8, y + 3 + (TB - 16) / 2);
+        printRU16(t, title);
+    } else {
+        t.setTextFont(2);
+        t.setTextSize(1);
+        t.setCursor(x + 8, y + 3 + (TB - 16) / 2);
+        t.print(title);
+    }
     t.setTextFont(callerFont);
     const int cx = x + w - 6 - 18, cy = y + 6;
     drawWin95Button(t, cx, cy, 18, TB - 6, "", false);
@@ -860,12 +916,12 @@ void drawButtonBar(TFT_eSPI& t, ButtonId highlighted, ButtonBarMode mode) {
     if (mode == ButtonBarMode::SCAN_PICKER) {
         drawButton(t, g.x[0], g.y, g.w[0], g.h, "[ BLE ]",  highlighted == ButtonId::SCAN);
         drawButton(t, g.x[1], g.y, g.w[1], g.h, "[ WIFI ]", highlighted == ButtonId::LOG);
-        drawButton(t, g.x[2], g.y, g.w[2], g.h, "[ BACK ]", highlighted == ButtonId::CLR);
+        drawButton(t, g.x[2], g.y, g.w[2], g.h, tr("[ BACK ]", "[ НАЗАД ]"), highlighted == ButtonId::CLR);
         return;
     }
-    drawButton(t, g.x[0], g.y, g.w[0], g.h, "[ SCAN ]", highlighted == ButtonId::SCAN);
-    drawButton(t, g.x[1], g.y, g.w[1], g.h, "[ LOG ]",  highlighted == ButtonId::LOG);
-    drawButton(t, g.x[2], g.y, g.w[2], g.h, mode == ButtonBarMode::LOG ? "[ CLR ]" : "[ DESK ]",
+    drawButton(t, g.x[0], g.y, g.w[0], g.h, tr("[ SCAN ]", "[ ПОИСК ]"), highlighted == ButtonId::SCAN);
+    drawButton(t, g.x[1], g.y, g.w[1], g.h, tr("[ LOG ]", "[ ЛОГ ]"),  highlighted == ButtonId::LOG);
+    drawButton(t, g.x[2], g.y, g.w[2], g.h, mode == ButtonBarMode::LOG ? tr("[ CLR ]", "[ ОЧИСТКА ]") : tr("[ DESK ]", "[ ЧАСЫ ]"),
                highlighted == ButtonId::CLR);
 }
 
@@ -4795,12 +4851,17 @@ void drawToast(TFT_eSPI& t, uint32_t now) {
     if (!s_toastUntil) return;
     if ((int32_t)(now - s_toastUntil) >= 0) { s_toastUntil = 0; return; }
 
+    // A RU head goes in the 16px RU face at size 1 (same 16px line the
+    // size-2 GLCD head stands); a RU sub goes through printRU at the
+    // body size. EN keeps the exact path it always had.
+    const bool headCyr = hasCyr(s_toastHead);
+    const bool subCyr = hasCyr(s_toastSub);
     const int w = t.width(), h = t.height();
-    t.setTextSize(2);
-    int bw = t.textWidth(s_toastHead) + 30;
+    t.setTextSize(headCyr ? 1 : 2);
+    int bw = (headCyr ? textWidthRU16(t, s_toastHead) : t.textWidth(s_toastHead)) + 30;
     if (s_toastSub[0]) {
         bodyFontOn(t);
-        const int sw = t.textWidth(s_toastSub) + 30;
+        const int sw = (subCyr ? textWidthRU(t, s_toastSub) : t.textWidth(s_toastSub)) + 30;
         if (sw > bw) bw = sw;
         bodyFontOff(t);
     }
@@ -4812,15 +4873,26 @@ void drawToast(TFT_eSPI& t, uint32_t now) {
     t.drawRect(bx, by, bw, bh, s_toastAccent);
     t.drawRect(bx + 1, by + 1, bw - 2, bh - 2, blend(s_toastAccent, BG, 160));
 
-    t.setTextSize(2);
     t.setTextColor(s_toastAccent, BG);
-    t.setCursor(bx + (bw - t.textWidth(s_toastHead)) / 2, by + 8);
-    t.print(s_toastHead);
+    if (headCyr) {
+        t.setTextSize(1);
+        t.setCursor(bx + (bw - textWidthRU16(t, s_toastHead)) / 2, by + 8);
+        printRU16(t, s_toastHead);
+    } else {
+        t.setTextSize(2);
+        t.setCursor(bx + (bw - t.textWidth(s_toastHead)) / 2, by + 8);
+        t.print(s_toastHead);
+    }
     if (s_toastSub[0]) {
         bodyFontOn(t);
         t.setTextColor(WHITE, BG);
-        t.setCursor(bx + (bw - t.textWidth(s_toastSub)) / 2, by + 31);
-        t.print(s_toastSub);
+        if (subCyr) {
+            t.setCursor(bx + (bw - textWidthRU(t, s_toastSub)) / 2, by + 31);
+            printRU(t, s_toastSub);
+        } else {
+            t.setCursor(bx + (bw - t.textWidth(s_toastSub)) / 2, by + 31);
+            t.print(s_toastSub);
+        }
         bodyFontOff(t);
     }
 }
@@ -10301,6 +10373,19 @@ bool infoPanelHitDismiss(int x, int y, int screenW, int screenH) {
     return true;
 }
 
+// True when the string holds Cyrillic: it must go through the RU face
+// (wrapTextRU measures it, printRU draws it) because the GLCD has no
+// glyphs for it -- byte-measuring Cyrillic with t.textWidth() breaks
+// every other line and t.print() draws blanks.
+static bool hasCyr(const char* s) { // (forward-declared above drawToast)
+
+    if (!s) return false;
+    for (const char* p = s; *p; ) {
+        if (RuText::isCyrillic(RuText::next(&p))) return true;
+    }
+    return false;
+}
+
 void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
                    const char* typeName, const char* text) {
     if (s_compact) {
@@ -10314,28 +10399,37 @@ void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
         if (typeName) {
             t.setTextSize(1);
             t.setTextColor(VAPOR_PINK, BG);
-            t.setCursor(px + (pw - t.textWidth(typeName)) / 2, ly);
-            t.print(typeName);
-            ly += 12;
+            if (hasCyr(typeName)) {
+                const int tw = textWidthRU16(t, typeName);
+                t.setCursor(px + (pw - tw) / 2, ly);
+                printRU16(t, typeName);
+                ly += 20;
+            } else {
+                t.setCursor(px + (pw - t.textWidth(typeName)) / 2, ly);
+                t.print(typeName);
+                ly += 12;
+            }
         }
         const int btnH = 18, btnY = py + ph - btnH - 4;
         const int per = (btnY - 3 - ly) / 10;
         static const uint8_t MAXL = 24;
         static char lines[MAXL][48];
         t.setTextSize(1);
-        const uint8_t n = wrapText(t, text, pw - 10, lines, MAXL);
+        const bool bodyCyr = hasCyr(text);
+        const uint8_t n = bodyCyr ? wrapTextRU(t, text, pw - 10, lines, MAXL)
+                                  : wrapText(t, text, pw - 10, lines, MAXL);
         s_infoPages = (uint8_t)(per > 0 ? (n + per - 1) / per : 1);
         if (!s_infoPages) s_infoPages = 1;
         if (s_infoPage >= s_infoPages) s_infoPage = 0;
         t.setTextColor(WHITE, BG);
         for (int i = s_infoPage * per; i < n && i < (s_infoPage + 1) * per; i++) {
             t.setCursor(px + 5, ly);
-            t.print(lines[i]);
+            if (bodyCyr) printRU(t, lines[i]); else t.print(lines[i]);
             ly += 10;
         }
         char lbl[24];
         if (s_infoPage + 1 < s_infoPages) snprintf(lbl, sizeof lbl, "[ MORE %u/%u ]", s_infoPage + 1, s_infoPages);
-        else                              snprintf(lbl, sizeof lbl, "[ GOT IT ]");
+        else                              snprintf(lbl, sizeof lbl, "%s", tr("[ GOT IT ]", "[ ПОНЯЛ ]"));
         drawButton(t, px + 10, btnY, pw - 20, btnH, lbl, false, 1);
         return;
     }
@@ -10350,28 +10444,47 @@ void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
     // No heading during the one-time RSSI/confidence primer page --
     // typeName is null then since that page isn't about any one type.
     if (typeName) {
-        int tw = bangersTextWidth(typeName, BangersSize::MD);
-        int maxTw = pw - 16;
-        if (tw > maxTw) tw = maxTw; // clipped, not shrunk -- every real type name fits comfortably as-is
-        drawBangersText(t, px + (pw - tw) / 2, headingY, typeName, VAPOR_PINK, BangersSize::MD);
+        // Bangers has no Cyrillic: a RU heading (the type display name)
+        // goes in the 16px RU face instead -- the same fallback the
+        // compact path above uses. Pure-ASCII headings (device product
+        // names) keep the Bangers face.
+        if (hasCyr(typeName)) {
+            t.setTextSize(1);
+            t.setTextColor(VAPOR_PINK, BG);
+            int tw = textWidthRU16(t, typeName);
+            const int maxTw = pw - 16;
+            if (tw > maxTw) tw = maxTw; // clipped, not shrunk -- every real type name fits comfortably as-is
+            t.setCursor(px + (pw - tw) / 2, headingY);
+            printRU16(t, typeName);
+        } else {
+            int tw = bangersTextWidth(typeName, BangersSize::MD);
+            const int maxTw = pw - 16;
+            if (tw > maxTw) tw = maxTw; // clipped, not shrunk -- every real type name fits comfortably as-is
+            drawBangersText(t, px + (pw - tw) / 2, headingY, typeName, VAPOR_PINK, BangersSize::MD);
+        }
     }
 
     Potsy::drawWaving(t, potsyCx, potsyBaseY, now, potsyScale, nullptr, true, potsyWander);
 
     // The large panels set it at size 2, a page of as many lines as fit
     // above the button; everywhere else the size-1 seven it always had.
-    // TEXT smaller sets it at size 1 there too, still paged.
-    t.setTextSize(s_large && fontDelta(Settings::FontKind::TEXT) >= 0 ? 2 : 1);
+    // TEXT smaller sets it at size 1 there too, still paged. RU body
+    // stays size 1 everywhere: the 9px RU face has no size-2 form (the
+    // heading above uses the 16px face instead), and 9px reads fine.
+    const bool bodyCyr = hasCyr(text);
+    t.setTextSize(!bodyCyr && s_large && fontDelta(Settings::FontKind::TEXT) >= 0 ? 2 : 1);
     t.setTextWrap(false);
     t.setTextColor(WHITE, BG);
-    const int step = s_large ? t.fontHeight() + 3 : 12;
+    const int step = !bodyCyr && s_large ? t.fontHeight() + 3 : 12;
     static const uint8_t WIDE_MAX = 32;
     static char wide[WIDE_MAX][80];
     char narrow[INFO_MAX_LINES][48];
     int per = (btnY - 4 - textTop) / step;
     if (per < 1) per = 1;
-    const uint8_t n = s_large ? wrapText(t, text, textMaxW, wide, WIDE_MAX)
-                              : wrapText(t, text, textMaxW, narrow, INFO_MAX_LINES);
+    const uint8_t n = s_large ? (bodyCyr ? wrapTextRU(t, text, textMaxW, wide, WIDE_MAX)
+                                         : wrapText(t, text, textMaxW, wide, WIDE_MAX))
+                              : (bodyCyr ? wrapTextRU(t, text, textMaxW, narrow, INFO_MAX_LINES)
+                                         : wrapText(t, text, textMaxW, narrow, INFO_MAX_LINES));
     int first = 0, last = n;
     if (s_large) {
         if (now - s_infoDrawnAt > 400) s_infoPage = 0;   // a new panel opens on page one
@@ -10385,81 +10498,137 @@ void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
     int ly = textTop;
     for (int i = first; i < last; i++) {
         const char* line = s_large ? wide[i] : narrow[i];
-        int lw = t.textWidth(line);
+        int lw = bodyCyr ? textWidthRU(t, line) : t.textWidth(line);
         t.setCursor(px + (pw - lw) / 2, ly);
-        t.print(line);
+        if (bodyCyr) printRU(t, line); else t.print(line);
         ly += step;
     }
     t.setTextSize(1);
 
     char lbl[24];
     if (s_large && s_infoPage + 1 < s_infoPages) snprintf(lbl, sizeof lbl, "[ MORE %u/%u ]", s_infoPage + 1, s_infoPages);
-    else                                         snprintf(lbl, sizeof lbl, "[ GOT IT ]");
+    else                                         snprintf(lbl, sizeof lbl, "%s", tr("[ GOT IT ]", "[ ПОНЯЛ ]"));
     drawButton(t, btnX, btnY, btnW, btnH, lbl, false, 2);
 }
 
 // ---- Russian text (PotSquad) -----------------------------------------------
+// One entry per RU face: the GFX font, its bitmaps, the baseline shift
+// that lands the face's caps on the GLCD caps line, and the size the
+// ASCII fallback renders at (GLCD has no Cyrillic, so ASCII always goes
+// through t.write -- at 2x in the 16px face so both scripts stand 16px
+// tall on one heading line).
+struct RuFace {
+    const GFXfont*  gfx;
+    const uint8_t*  bitmaps;
+    int             yShift;
+    uint8_t         glcdSize;
+};
+static const RuFace RU_BODY = { &RuCyr8, RuCyr8Bitmaps, 6, 1 };
+static const RuFace RU_HEAD = { &RuCyr16, RuCyr16Bitmaps, 12, 2 };
+
 // Ink extent of one Cyrillic glyph at the current text size: advances the
 // pen and reports the furthest ink pixel. Liberation's caps overhang their
 // advance, so summing advances alone puts right-aligned text under the
 // panel edge -- measure the ink instead, the way the renderer draws it.
-static void ruInk(TFT_eSPI& t, uint16_t cp, int& pen, int& right) {
+static void ruInkFace(TFT_eSPI& t, uint16_t cp, int& pen, int& right, const RuFace& f) {
     const uint8_t sz = t.textsize ? t.textsize : 1;
-    if (cp >= 0x20 && cp < 0x7F) { pen += 6 * sz; right = pen; return; }
-    if (RuText::isCyrillic(cp)) {
-        const uint16_t i = cp - RuCyr8.first;
-        const uint8_t adv = pgm_read_byte(&RuCyr8.glyph[i].xAdvance);
+    if (cp >= 0x20 && cp < 0x7F) { pen += 6 * f.glcdSize; right = pen; return; }
+    if (cp >= f.gfx->first && cp <= f.gfx->last) {
+        const uint16_t i = cp - f.gfx->first;
+        const uint8_t adv = pgm_read_byte(&f.gfx->glyph[i].xAdvance);
         if (adv) {
-            const int8_t xo = (int8_t)pgm_read_byte(&RuCyr8.glyph[i].xOffset);
-            const uint8_t gw = pgm_read_byte(&RuCyr8.glyph[i].width);
+            const int8_t xo = (int8_t)pgm_read_byte(&f.gfx->glyph[i].xOffset);
+            const uint8_t gw = pgm_read_byte(&f.gfx->glyph[i].width);
             const int edge = pen + (adv > (int)(xo + gw) ? adv : (xo + gw)) * sz;
             if (edge > right) right = edge;
             pen += adv * sz;
             return;
         }
     }
-    pen += 6 * sz; right = pen;
+    pen += 6 * f.glcdSize; right = pen;
+}
+static void ruInk(TFT_eSPI& t, uint16_t cp, int& pen, int& right) {
+    ruInkFace(t, cp, pen, right, RU_BODY);
 }
 
 const char* tr(const char* en, const char* ru) {
     return (Settings::lang() == 1) ? ru : en;
 }
 
-static const int RU_YSHIFT = 6;
-static void drawRuGlyph(TFT_eSPI& t, int x, int y, uint16_t cp) {
-    const uint16_t i = cp - RuCyr8.first;
+const char* onOff(bool on) {
+    return on ? tr("ON", "ВКЛ") : tr("OFF", "ВЫКЛ");
+}
+
+bool isRu(const char* s) {
+    return hasCyr(s);
+}
+
+int rowWidth(TFT_eSPI& t, const char* s) {
+    if (s && isRu(s)) {
+        const uint8_t sz = t.textsize ? t.textsize : 1;
+        t.setTextSize(1);
+        const int w = sz >= 2 ? textWidthRU16(t, s) : textWidthRU(t, s);
+        t.setTextSize(sz);
+        return w;
+    }
+    return t.textWidth(s);
+}
+
+void rowPrint(TFT_eSPI& t, const char* s, int x, int y) {
+    t.setCursor(x, y);
+    if (s && isRu(s)) {
+        const uint8_t sz = t.textsize ? t.textsize : 1;
+        const uint8_t keepF = t.textfont;
+        t.setTextFont(1);
+        t.setTextSize(1);
+        if (sz >= 2) printRU16(t, s); else printRU(t, s);
+        t.setTextSize(sz);
+        t.setTextFont(keepF);
+        return;
+    }
+    t.print(s);
+}
+
+static void drawRuGlyphFace(TFT_eSPI& t, int x, int y, uint16_t cp, const RuFace& f) {
+    const uint16_t i = cp - f.gfx->first;
     const uint8_t sz = t.textsize ? t.textsize : 1;
-    const uint8_t gw = pgm_read_byte(&RuCyr8.glyph[i].width);
-    const uint8_t gh = pgm_read_byte(&RuCyr8.glyph[i].height);
-    const int8_t xo = (int8_t)pgm_read_byte(&RuCyr8.glyph[i].xOffset);
-    const int8_t yo = (int8_t)pgm_read_byte(&RuCyr8.glyph[i].yOffset);
-    const uint8_t* bm = RuCyr8Bitmaps + RuCyr8.glyph[i].bitmapOffset;
+    const uint8_t gw = pgm_read_byte(&f.gfx->glyph[i].width);
+    const uint8_t gh = pgm_read_byte(&f.gfx->glyph[i].height);
+    const int8_t xo = (int8_t)pgm_read_byte(&f.gfx->glyph[i].xOffset);
+    const int8_t yo = (int8_t)pgm_read_byte(&f.gfx->glyph[i].yOffset);
+    const uint8_t* bm = f.bitmaps + f.gfx->glyph[i].bitmapOffset;
     const uint16_t fg = t.textcolor;
     uint32_t bit = 0;
     for (uint8_t yy = 0; yy < gh; yy++) {
         for (uint8_t xx = 0; xx < gw; xx++, bit++) {
             if (!((pgm_read_byte(&bm[bit >> 3]) >> (7 - (bit & 7))) & 1)) continue;
-            const int px = x + (xo + xx) * sz, py = y + (yo + RU_YSHIFT + yy) * sz;
+            const int px = x + (xo + xx) * sz, py = y + (yo + f.yShift + yy) * sz;
             if (sz == 1) t.drawPixel(px, py, fg);
             else         t.fillRect(px, py, sz, sz, fg);
         }
     }
 }
+static void drawRuGlyph(TFT_eSPI& t, int x, int y, uint16_t cp) {
+    drawRuGlyphFace(t, x, y, cp, RU_BODY);
+}
 
-void printRU(TFT_eSPI& t, const char* s) {
+static void printRUFace(TFT_eSPI& t, const char* s, const RuFace& f) {
     const char* p = s;
     while (p && *p) {
         const uint16_t cp = RuText::next(&p);
         if (cp == '\n' || cp == '\r' || cp == '\t') {
             t.write((uint8_t)cp);
         } else if (cp >= 0x20 && cp < 0x7F) {
+            const uint8_t keep = t.textsize ? t.textsize : 1;
+            if (keep != f.glcdSize) t.setTextSize(f.glcdSize);
             t.write((uint8_t)cp);
-        } else if (RuText::isCyrillic(cp)) {
-            const uint16_t i = cp - RuCyr8.first;
-            if (pgm_read_byte(&RuCyr8.glyph[i].xAdvance)) {
-                drawRuGlyph(t, t.getCursorX(), t.getCursorY(), cp);
+            if (keep != f.glcdSize) t.setTextSize(keep);
+        } else if (cp >= f.gfx->first && cp <= f.gfx->last) {
+            const uint16_t i = cp - f.gfx->first;
+            if (pgm_read_byte(&f.gfx->glyph[i].xAdvance)) {
+                drawRuGlyphFace(t, t.getCursorX(), t.getCursorY(), cp, f);
                 const uint8_t sz = t.textsize ? t.textsize : 1;
-                t.setCursor(t.getCursorX() + (int16_t)pgm_read_byte(&RuCyr8.glyph[i].xAdvance) * sz,
+                t.setCursor(t.getCursorX() + (int16_t)pgm_read_byte(&f.gfx->glyph[i].xAdvance) * sz,
                             t.getCursorY());
             } else {
                 t.write('?');
@@ -10469,6 +10638,12 @@ void printRU(TFT_eSPI& t, const char* s) {
         }
     }
 }
+void printRU(TFT_eSPI& t, const char* s) {
+    printRUFace(t, s, RU_BODY);
+}
+void printRU16(TFT_eSPI& t, const char* s) {
+    printRUFace(t, s, RU_HEAD);
+}
 
 int textWidthRU(TFT_eSPI& t, const char* s) {
     int pen = 0, right = 0;
@@ -10476,18 +10651,27 @@ int textWidthRU(TFT_eSPI& t, const char* s) {
     while (p && *p) ruInk(t, RuText::next(&p), pen, right);
     return right;
 }
+int textWidthRU16(TFT_eSPI& t, const char* s) {
+    int pen = 0, right = 0;
+    const char* p = s;
+    while (p && *p) ruInkFace(t, RuText::next(&p), pen, right, RU_HEAD);
+    return right;
+}
 
-uint8_t wrapTextRU(TFT_eSPI& t, const char* text, int maxW,
-                   char lines[][48], uint8_t maxLines) {
-    char buf[320];
+template <size_t N>
+static uint8_t wrapIntoRU(TFT_eSPI& t, const char* text, int maxW,
+                          char lines[][N], uint8_t maxLines) {
+    // 320 for the compact 48-letter rows; the large panels' 80-letter
+    // form takes 640, the same split wrapInto() uses for the EN face.
+    char buf[N == 80 ? 640 : 320];
     strncpy(buf, text, sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = 0;
 
     uint8_t n = 0;
-    char lineBuf[48] = "";
+    char lineBuf[N] = "";
     char* word = strtok(buf, " ");
     while (word) {
-        char trial[48];
+        char trial[N];
         if (lineBuf[0]) snprintf(trial, sizeof(trial), "%s %s", lineBuf, word);
         else            snprintf(trial, sizeof(trial), "%s", word);
         bool tooWide = lineBuf[0] &&
@@ -10505,6 +10689,14 @@ uint8_t wrapTextRU(TFT_eSPI& t, const char* text, int maxW,
         strncpy(lines[n], lineBuf, sizeof(lines[n]) - 1); lines[n][sizeof(lines[n]) - 1] = 0; n++;
     }
     return n;
+}
+uint8_t wrapTextRU(TFT_eSPI& t, const char* text, int maxW,
+                   char lines[][48], uint8_t maxLines) {
+    return wrapIntoRU<48>(t, text, maxW, lines, maxLines);
+}
+uint8_t wrapTextRU(TFT_eSPI& t, const char* text, int maxW,
+                   char lines[][80], uint8_t maxLines) {
+    return wrapIntoRU<80>(t, text, maxW, lines, maxLines);
 }
 
 }  // namespace Theme

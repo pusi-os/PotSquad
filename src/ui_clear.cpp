@@ -1452,16 +1452,19 @@ static void drawScriptFx(TFT_eSPI& t, uint32_t now, int hx, int gx, int headTop,
         }
         break;
     }
-    case Fx::HAHA:
+    case Fx::HAHA: {
+        const char* ha = Theme::tr("HA", "ХА");
+        const bool haru = Theme::isRu(ha);
         for (int i = 0; i < 3; i++) {
             const float p = (float)((be + (uint32_t)i * 400u) % 1200u) / 1200.0f;
             t.setTextColor(Theme::blend(Theme::BG, Theme::VAPOR_YELLOW, (uint16_t)(255 * (1.0f - p))));
             // Off the side of his head away from the other one, rising --
             // above it they ran into his bubble.
             t.setCursor(cx - dir * (U(24) + i * U(5)) - 6, headTop + U(16) - (int)(p * U(18)));
-            t.print("HA");
+            if (haru) Theme::printRU(t, ha); else t.print(ha);
         }
         break;
+    }
     case Fx::BONK:
         for (int i = 0; i < 3; i++) {
             const float a = (float)be / 150.0f + (float)i * 2.0943951f;
@@ -3718,7 +3721,7 @@ void uiClearTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         // NEARBY said nothing the counters do not say better; NEARBY is the
         // half that carries the meaning, and dropping the other one is what
         // buys the bigger face above.
-        const char* msg = "NEARBY";
+        const char* msg = Theme::tr("NEARBY", "РЯДОМ");
         // 2px black outline: draw the same text at every offset in a
         // 5x5 grid around the real position (minus the center) in
         // black first, then the real color on top. A full grid, not
@@ -3733,14 +3736,30 @@ void uiClearTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
             {-2, 1},{-1, 1},{0, 1},{1, 1},{2, 1},
             {-2, 2},{-1, 2},{0, 2},{1, 2},{2, 2},
         };
-        int tw = Theme::bangersTextWidth(msg, HEADLINE_SIZE);
+        const bool mru = Theme::isRu(msg);
+        // A RU headline takes the 16px face at size 2 (a 32px line, the
+        // LG Bangers' 33) in one pass, no outline: 24 outline passes of
+        // the RU face every frame would cost what the outline grid was
+        // removed to save.
+        int tw;
+        if (mru) { t.setTextFont(1); t.setTextSize(1); tw = Theme::textWidthRU16(t, msg) * 2; }
+        else tw = Theme::bangersTextWidth(msg, HEADLINE_SIZE);
         int ty = headlineTop;
         if (tw <= w - 8) {
             int tx = (w - tw) / 2;
             // One pass, not twenty-four: this was 14.8 ms of every frame.
             if (DrawBand::has(ty, ty + HEADLINE_H)) {
-                Theme::drawBangersOutline(t, tx, ty, msg, Theme::BLACK, HEADLINE_SIZE, 2);
-                Theme::drawBangersText(t, tx, ty, msg, col, HEADLINE_SIZE);
+                if (mru) {
+                    t.setTextFont(1);
+                    t.setTextSize(2);
+                    t.setTextColor(col, Theme::BG);
+                    t.setCursor(tx, ty);
+                    Theme::printRU16(t, msg);
+                    t.setTextSize(1);
+                } else {
+                    Theme::drawBangersOutline(t, tx, ty, msg, Theme::BLACK, HEADLINE_SIZE, 2);
+                    Theme::drawBangersText(t, tx, ty, msg, col, HEADLINE_SIZE);
+                }
             }
             // Padded well past the ink: the word is only 33px tall and it is
             // pressed with a thumb, over a moving Potsy.

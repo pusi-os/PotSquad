@@ -162,9 +162,16 @@ void uiOutfitUnlockTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     // Bangers MD face does not shrink, so a portrait screen needs the
     // two-line form. Measured rather than assumed so a font change
     // cannot silently push it off the edge.
-    const char* headOne = s_petCard ? "PET UNLOCKED" : "OUTFIT UNLOCKED";
-    const char* headTwo = s_petCard ? "PET"          : "OUTFIT";
-    const int oneLineW = Theme::bangersTextWidth(headOne, Theme::BangersSize::MD);
+    const char* headOne = s_petCard ? Theme::tr("PET UNLOCKED", "ПИТОМЕЦ РАЗБЛОКИРОВАН") : Theme::tr("OUTFIT UNLOCKED", "КОСТЮМ РАЗБЛОКИРОВАН");
+    const char* headTwo = s_petCard ? Theme::tr("PET", "ПИТОМЕЦ") : Theme::tr("OUTFIT", "КОСТЮМ");
+    const char* headUnl = Theme::tr("UNLOCKED", "РАЗБЛОКИРОВАН");
+    // A RU headline takes the 16px face in VAPOR_PINK instead of the
+    // per-letter rainbow: Bangers has no Cyrillic to rainbow with.
+    const bool hru = Theme::isRu(headOne);
+    t.setTextFont(1);
+    t.setTextSize(1);
+    const int oneLineW = hru ? Theme::textWidthRU16(t, headOne)
+                             : Theme::bangersTextWidth(headOne, Theme::BangersSize::MD);
     const bool stacked = oneLineW > (w - 16);
     const int  headTop = panelY + 10;
     const int  lineH   = 30;
@@ -175,13 +182,23 @@ void uiOutfitUnlockTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     {
         const int plateH = (stacked ? lineH * 2 : lineH) + 12;
         const int plateW = (stacked
-                            ? Theme::bangersTextWidth("UNLOCKED", Theme::BangersSize::MD)
+                            ? (hru ? Theme::textWidthRU16(t, headUnl)
+                                   : Theme::bangersTextWidth("UNLOCKED", Theme::BangersSize::MD))
                             : oneLineW) + 18;
         t.fillRect((w - plateW) / 2, headTop - 6, plateW, plateH, Theme::BG);
         t.drawRect((w - plateW) / 2, headTop - 6, plateW, plateH,
                    Theme::blend(Theme::BG, Theme::VAPOR_PURPLE, 140));
     }
-    if (stacked) {
+    if (hru) {
+        t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
+        const char* l1 = stacked ? headTwo : headOne;
+        t.setCursor(w / 2 - Theme::textWidthRU16(t, l1) / 2, headTop);
+        Theme::printRU16(t, l1);
+        if (stacked) {
+            t.setCursor(w / 2 - Theme::textWidthRU16(t, headUnl) / 2, headTop + lineH);
+            Theme::printRU16(t, headUnl);
+        }
+    } else if (stacked) {
         drawRainbowHeadline(t, w / 2, headTop,         headTwo,    now, reveal);
         drawRainbowHeadline(t, w / 2, headTop + lineH, "UNLOCKED", now, reveal);
     } else {
@@ -252,22 +269,32 @@ void uiOutfitUnlockTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     // WHERE TO FIND THEM, because the row it points at did not exist until
     // this moment -- SettingsRow::PET is skipped entirely while the pet is
     // locked, so earning it makes a new row appear with nothing to say so.
-    const char* name = s_petCard ? "SETTINGS > PET"
+    const char* name = s_petCard ? Theme::tr("SETTINGS > PET", "НАСТРОЙКИ > ПИТОМЕЦ")
                                  : Potsy::outfitNameAt(s_outfitIdx);
-    t.setTextSize(2);
+    const bool nru = Theme::isRu(name);
     t.setTextColor(Theme::VAPOR_YELLOW);
-    int nw = t.textWidth(name);
-    t.setCursor((w - nw) / 2, footerTop + 2);
-    t.print(name);
+    if (nru) {
+        t.setTextFont(1);
+        t.setTextSize(1);
+        int nw = Theme::textWidthRU16(t, name);
+        t.setCursor((w - nw) / 2, footerTop + 2);
+        Theme::printRU16(t, name);
+    } else {
+        t.setTextSize(2);
+        int nw = t.textWidth(name);
+        t.setCursor((w - nw) / 2, footerTop + 2);
+        t.print(name);
+    }
 
     // Blinks, so it reads as a prompt rather than a label.
     if (((now / 500) % 2) == 0) {
-        const char* hint = "TAP TO CONTINUE";
+        const char* hint = Theme::tr("TAP TO CONTINUE", "ЖМИ ЧТОБ ПРОДОЛЖИТЬ");
         Theme::bodyFontOn(t);
         t.setTextColor(Theme::CYAN);
-        int hw = t.textWidth(hint);
+        if (Theme::isRu(hint)) { t.setTextFont(1); t.setTextSize(1); }
+        int hw = Theme::isRu(hint) ? Theme::textWidthRU(t, hint) : t.textWidth(hint);
         t.setCursor((w - hw) / 2, footerTop + 22);
-        t.print(hint);
+        if (Theme::isRu(hint)) Theme::printRU(t, hint); else t.print(hint);
         Theme::bodyFontOff(t);
     }
 

@@ -180,6 +180,12 @@ namespace Potsy {
     bool        glassesOn();
     void        toggleGlasses();
     void        setGlasses(bool on);
+    // Gods Mode: the one-way unlock. Every outfit and pet (unlockAllOutfits
+    // below), all four shade tints, the Legend stage and its aura. Nothing
+    // here re-locks: a relock could not tell granted unlocks from earned
+    // ones, so the flag only ever goes on.
+    bool        godsMode();
+    void        enableGodsMode();
 
     // Outfits: NONE (no costume), RACCOON and UNICORN are free/always
     // unlocked; the rest unlock progressively with lifetime detection

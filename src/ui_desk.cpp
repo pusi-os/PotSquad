@@ -130,10 +130,10 @@ void drawGear(TFT_eSPI& t, int cx, int cy, int r, uint16_t col, uint16_t bg) {
 }
 
 void timerLabel(char* out, size_t n, uint32_t now) {
-    if (s_timer == Timer::IDLE) { snprintf(out, n, "FOCUS 25"); return; }
+    if (s_timer == Timer::IDLE) { snprintf(out, n, "%s", Theme::tr("FOCUS 25", "РАБОТА 25")); return; }
     const uint32_t left = s_timerEnd > now ? s_timerEnd - now : 0;
     const uint32_t sec  = (left + 999) / 1000;
-    snprintf(out, n, "%s %lu:%02lu", s_timer == Timer::FOCUS ? "FOCUS" : "BREAK",
+    snprintf(out, n, "%s %lu:%02lu", s_timer == Timer::FOCUS ? Theme::tr("FOCUS", "РАБОТА") : Theme::tr("BREAK", "ПЕРЕРЫВ"),
              (unsigned long)(sec / 60), (unsigned long)(sec % 60));
 }
 
@@ -258,7 +258,7 @@ static void drawMessageBox(TFT_eSPI& t, int restTop, float p, uint32_t now) {
     t.drawLine(bx + 5, by + 5, bx + 9, by + 9, XP_BLUE);
     t.drawLine(bx + 13, by + 5, bx + 9, by + 9, XP_BLUE);
     t.setCursor(bx + 18, by + 4);
-    t.print("MESSAGE");
+    t.print(Theme::tr("MESSAGE", "СООБЩЕНИЕ"));
     t.fillRoundRect(bx + bw - 15, by + 2, 12, 11, 2, XP_CLOSE);
     t.setTextColor(Theme::WHITE, XP_CLOSE);
     t.setCursor(bx + bw - 12, by + 4);
@@ -620,8 +620,10 @@ void uiDeskTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
     }
 
     if (!set) {
-        const char* m = Clock::guessed() ? "NOT SINCE THE POWER WENT. WIFI AT BOOT SETS IT"
-                                         : "SET BY WIFI AT BOOT, OR TIME <EPOCH> ON SERIAL";
+        const char* m = Clock::guessed() ? Theme::tr("NOT SINCE THE POWER WENT. WIFI AT BOOT SETS IT",
+                                                     "НЕ С МОМЕНТА ВКЛЮЧЕНИЯ. WIFI ПРИ СТАРТЕ ВЫСТАВИТ")
+                                         : Theme::tr("SET BY WIFI AT BOOT, OR TIME <EPOCH> ON SERIAL",
+                                                     "WIFI ПРИ СТАРТЕ, ЛИБО TIME <EPOCH> В ПОРТ");
         t.setTextColor(Theme::W95_SHADOW, Theme::BG);
         t.setCursor((w - t.textWidth(m)) / 2, y + dh + 4);
         t.print(m);
@@ -729,7 +731,7 @@ void uiDeskTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
     char lbl[16];
     timerLabel(lbl, sizeof lbl, now);
     Theme::drawButton(t, tx, ty, tw, tth, lbl, s_timer != Timer::IDLE);
-    Theme::drawButton(t, bx, ty, bw, tth, "BACK", false);
+    Theme::drawButton(t, bx, ty, bw, tth, Theme::tr("BACK", "НАЗАД"), false);
     {
         int gx, gy, gs;
         gearRect(w, h, gx, gy, gs);

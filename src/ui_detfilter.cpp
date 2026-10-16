@@ -2,6 +2,7 @@
 #include "ui_detfilter.h"
 #include "ui_scroll.h"
 #include "theme.h"
+#include "type_names.h"
 #include "settings.h"
 #include <Arduino.h>
 
@@ -41,14 +42,12 @@ static void drawRow(TFT_eSPI& t, int w, int y, int hgt, DetectionType type) {
     Theme::drawListRowPanel(t, w, y, hgt);
     Theme::menuFontOn(t, false);   // FONTS > MENUS
     t.setTextColor(Theme::AMBER, Theme::BG);
-    t.setCursor(8, y + (hgt - t.fontHeight()) / 2);
-    t.print(detectionTypeName(type));
+    Theme::rowPrint(t, TypeNames::display(type), 8, y + (hgt - t.fontHeight()) / 2);
 
-    const char* value = on ? "ON" : "OFF";
+    const char* value = Theme::onOff(on);
     t.setTextColor(on ? Theme::WHITE : Theme::RED, Theme::BG);
-    int vw = t.textWidth(value);
-    t.setCursor(w - 18 - vw, y + (hgt - t.fontHeight()) / 2);
-    t.print(value);
+    int vw = Theme::rowWidth(t, value);
+    Theme::rowPrint(t, value, w - 18 - vw, y + (hgt - t.fontHeight()) / 2);
     t.setTextFont(1);
 }
 
@@ -92,7 +91,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     Theme::restorePalette(saved);
 
     Theme::drawTitleBar(t, ">> DETECTION FILTER <<");
-    Theme::drawListHeading(t, "TYPE FILTER", Theme::AMBER);
+    Theme::drawListHeading(t, Theme::tr("TYPE FILTER", "ФИЛЬТР ТИПОВ"), Theme::AMBER);
 
     uint8_t n = rowCount();
     uiClampScroll(g_scroll, n, bodyBottom - top, rowH);

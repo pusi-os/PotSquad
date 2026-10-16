@@ -3,6 +3,7 @@
 #include "bingo.h"
 #include "theme.h"
 #include "detection_info.h"
+#include "type_names.h"
 #include "clock.h"
 #include <Arduino.h>
 
@@ -208,8 +209,8 @@ void drawConfirm(TFT_eSPI& t, int w, int h) {
         ly += 12;
     }
 
-    Theme::drawButton(t, yesX, yesY, yesW, yesH, "DEAL A NEW ONE", false);
-    Theme::drawButton(t, noX,  noY,  noW,  noH,  "KEEP THIS ONE",  false);
+    Theme::drawButton(t, yesX, yesY, yesW, yesH, Theme::tr("DEAL A NEW ONE", "РАЗДАЙ НОВУЮ"), false);
+    Theme::drawButton(t, noX,  noY,  noW,  noH,  Theme::tr("KEEP THIS ONE", "ОСТАВЬ ЭТУ"),  false);
 }
 
 }  // namespace
@@ -233,17 +234,17 @@ void uiBingoTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     if (s_stats) drawStats(t, w, h);
     else         drawCard(t, w, h);
 
-    Theme::drawButton(t, bar.x[0], bar.y, bar.w[0], bar.h, s_stats ? "[ CARD ]" : "[ STATS ]", false);
-    Theme::drawButton(t, bar.x[1], bar.y, bar.w[1], bar.h, "[ NEW ]", s_confirm);
+    Theme::drawButton(t, bar.x[0], bar.y, bar.w[0], bar.h, s_stats ? Theme::tr("[ CARD ]", "[ КАРТА ]") : Theme::tr("[ STATS ]", "[ СТАТА ]"), false);
+    Theme::drawButton(t, bar.x[1], bar.y, bar.w[1], bar.h, Theme::tr("[ NEW ]", "[ НОВАЯ ]"), s_confirm);
     // OK, not BACK: this leaves for the screen the board lives on, the way
     // Settings' own OK does, rather than stepping back into the menu.
-    Theme::drawButton(t, bar.x[2], bar.y, bar.w[2], bar.h, "[ OK ]", false);
+    Theme::drawButton(t, bar.x[2], bar.y, bar.w[2], bar.h, Theme::tr("[ OK ]", "[ ОК ]"), false);
 
     // Over everything else, and last: the panel that was asked for.
     if (s_confirm) drawConfirm(t, w, h);
     else if (s_openCell >= 0) {
         const DetectionType type = Bingo::typeAt((uint8_t)s_openCell);
-        Theme::drawInfoPanel(t, w, h, now, detectionTypeName(type), DetectionInfo::explain(type));
+        Theme::drawInfoPanel(t, w, h, now, TypeNames::display(type), DetectionInfo::explain(type));
         // The panel covers the card, so the veil above it does not matter here.
     }
 }

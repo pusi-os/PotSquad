@@ -39,18 +39,18 @@ void uiZoneCardDraw(TFT_eSPI& t, uint32_t now) {
     t.drawRoundRect(x + 1, y + 1, cardW() - 2, cardH() - 2, 5, Theme::VAPOR_PURPLE);
     t.setTextSize(Theme::uiTextSize(t, 1));
     t.setTextWrap(false);
-    const char* head = "WHICH TIME ZONE?";
+    const char* head = Theme::tr("WHICH TIME ZONE?", "ЧАСОВОЙ ПОЯС?");
     t.setTextColor(Theme::CYAN, Theme::BG);
-    t.setCursor(x + (cardW() - t.textWidth(head)) / 2, y + 7);
-    t.print(head);
+    if (Theme::isRu(head)) { t.setCursor(x + (cardW() - Theme::textWidthRU(t, head)) / 2, y + 7); Theme::printRU(t, head); }
+    else { t.setCursor(x + (cardW() - t.textWidth(head)) / 2, y + 7); t.print(head); }
     int ly = y + 7 + t.fontHeight() + 7;          // 22 in the system font
     // The zone, large, and the time it makes of right now: the second line
     // is how you know the first is right without knowing the names.
     t.setTextSize(Theme::upSize(2));
     const char* zn = Settings::timeZoneName();
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
-    t.setCursor(x + (cardW() - t.textWidth(zn)) / 2, ly);
-    t.print(zn);
+    if (Theme::isRu(zn)) { t.setCursor(x + (cardW() - Theme::textWidthRU(t, zn)) / 2, ly); Theme::printRU(t, zn); }
+    else { t.setCursor(x + (cardW() - t.textWidth(zn)) / 2, ly); t.print(zn); }
     ly += t.fontHeight() + 6;                       // 44 in the system font
     Theme::bodyFontOn(t);
     char tm[8], date[20], line[32];
@@ -61,13 +61,13 @@ void uiZoneCardDraw(TFT_eSPI& t, uint32_t now) {
     if (twelveHour) snprintf(line, sizeof line, "%s %s  %s", tm, pm ? "PM" : "AM", date);
     else            snprintf(line, sizeof line, "%s  %s", tm, date);
     t.setTextColor(Theme::VAPOR_YELLOW, Theme::BG);
-    t.setCursor(x + (cardW() - t.textWidth(line)) / 2, ly);
-    t.print(line);
+    if (Theme::isRu(line)) { t.setCursor(x + (cardW() - Theme::textWidthRU(t, line)) / 2, ly); Theme::printRU(t, line); }
+    else { t.setCursor(x + (cardW() - t.textWidth(line)) / 2, ly); t.print(line); }
     Theme::bodyFontOff(t);
     int px, okx, okw, nx, by;
     buttonRects(x, y, px, okx, okw, nx, by);
     Theme::drawButton(t, px,  by, 34,  btnH(), "<", false);
-    Theme::drawButton(t, okx, by, okw, btnH(), "THIS IS RIGHT", false);
+    Theme::drawButton(t, okx, by, okw, btnH(), Theme::tr("THIS IS RIGHT", "ВСЁ ВЕРНО"), false);
     Theme::drawButton(t, nx,  by, 34,  btnH(), ">", false);
 }
 

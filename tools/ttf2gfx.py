@@ -6,6 +6,13 @@
 which is how include/fonts/ is used: theme.cpp owns the bubble face). The
 emulator builds the same header, PROGMEM being empty there. Glyphs 32..126, 1-bit, rendered by FreeType
 through Pillow and thresholded.
+
+--codes A,B-C,... restricts/extends the codepoint set, e.g.
+    python tools/ttf2gfx.py font.ttf 16 RuCyr16 out.h --codes 1025,1040-1103,1105
+The header then covers first..last contiguously (gaps become empty glyphs).
+--supersample N renders at size*N and downscales: stems survive to small
+sizes instead of thresholding away.
+--thresh N keeps pixels >= N (default 110); higher = thinner.
 """
 import sys
 from PIL import Image, ImageDraw, ImageFont
@@ -32,11 +39,28 @@ if axes:
     except Exception as e:
         print('variation not applied:', e)
 
+codes = None
+if '--codes' in args:
+    spec = args[args.index('--codes') + 1]
+    codes = []
+    for part in spec.split(','):
+        part = part.strip()
+        if not part:
+            continue
+        if '-' in part:
+            a, b = part.split('-', 1)
+            codes.extend(range(int(a), int(b) + 1))
+        else:
+            codes.append(int(part))
+if not codes:
+    codes = list(range(32, 127))
+
 X0, Y0 = 32, 64
 bitmaps = bytearray()
 glyphs = []
+byCode = {}
 ascent = font.getmetrics()[0]
-for code in range(32, 127):
+for code in codes:
     ch = chr(code)
     img = Image.new('L', (size * 4 + 64, size * 4 + 96), 0)
     ImageDraw.Draw(img).text((X0, Y0), ch, font=font, fill=255, anchor='ls')
@@ -57,6 +81,13 @@ for code in range(32, 127):
     for i in range(0, len(bits), 8):
         bitmaps.append(int(''.join(str(v) for v in bits[i:i + 8]), 2))
     glyphs.append((off, w, h, adv, l - X0, t - Y0))
+    byCode[code] = glyphs[-1]
+
+# The header covers first..last contiguously; codes outside --codes become
+# empty glyphs, the way the stock 32..126 range already leaves gaps (there
+# are none there, but Cyrillic blocks like U+0400..U+045F have plenty).
+first, last = codes[0], codes[-1]
+glyphs = [byCode.get(c, (0, 0, 0, 0, 0, 0)) for c in range(first, last + 1)]
 
 asc = max(-g[5] for g in glyphs if g[1])
 desc = max(g[2] + g[5] for g in glyphs if g[1])
@@ -72,8 +103,8 @@ for i in range(0, len(bitmaps), 12):
 lines.append('};')
 lines.append('%sconst GFXglyph %sGlyphs[]%s = {' % (st, cname, q))
 for i, g in enumerate(glyphs):
-    lines.append('  { %5d, %3d, %3d, %3d, %4d, %4d },   // 0x%02X %s' % (g + (32 + i, repr(chr(32 + i)))))
+    lines.append('  { %5d, %3d, %3d, %3d, %4d, %4d },   // U+%04X %s' % (g + (first + i, repr(chr(first + i)))))
 lines.append('};')
-lines.append('%sconst GFXfont %s%s = { (uint8_t*)%sBitmaps, (GFXglyph*)%sGlyphs, 0x20, 0x7E, %d };' % (st, cname, q, cname, cname, y_adv))
+lines.append('%sconst GFXfont %s%s = { (uint8_t*)%sBitmaps, (GFXglyph*)%sGlyphs, 0x%X, 0x%X, %d };' % (st, cname, q, cname, cname, first, last, y_adv))
 open(out, 'w', encoding='utf-8', newline='\n').write('\n'.join(lines) + '\n')
 print('%s: ascent %d descent %d, %d glyph bytes' % (cname, asc, desc, len(bitmaps)))

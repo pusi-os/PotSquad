@@ -35,6 +35,7 @@ enum class SettingsRow : uint8_t {
     SHOW_OFF,
     SHADES_COLOR,
     GLASSES,         // Simpson restyle: removable shades layer, ON/OFF (default ON)
+    GODS_MODE,       // one-way unlock: every outfit/pet/shade/stage open
     POTSY_SIZE,
     OUTFIT,
     PET,

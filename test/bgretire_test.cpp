@@ -16,7 +16,9 @@
 #include <cstdlib>
 
 // The two things settings.cpp reaches for that are not under test.
-namespace Theme { void applyPalette(uint8_t) {} }
+namespace Theme { void applyPalette(uint8_t) {} 
+const char* tr(const char* en, const char*) { return en; }
+const char* onOff(bool on) { return on ? "ON" : "OFF"; } }
 namespace Clock {
 uint8_t     zoneCount()        { return 1; }
 uint8_t     zoneStep(uint8_t, int) { return 0; }

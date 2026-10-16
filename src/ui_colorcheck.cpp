@@ -89,24 +89,35 @@ void uiColorCheckTick(TFT_eSPI& t, uint32_t now) {
     Theme::bodyFontOff(t);
 
     t.setTextSize(Theme::upSize(3));
-    const char* words[3] = { "RED", "GREEN", "BLUE" };
+    const char* words[3] = { Theme::tr("RED", "КРАСНЫЙ"), Theme::tr("GREEN", "ЗЕЛЁНЫЙ"), Theme::tr("BLUE", "СИНИЙ") };
     uint16_t cols[3] = { PURE_RED, PURE_GREEN, PURE_BLUE };
     int y = wordsTop;
     for (int i = 0; i < 3; i++) {
         t.setTextColor(cols[i], Theme::BG);
-        int tw = t.textWidth(words[i]);
-        t.setCursor((w - tw) / 2, y);
-        t.print(words[i]);
+        if (Theme::isRu(words[i])) {
+            // The 16px face: smooth at a size the GLCD cannot do in
+            // Cyrillic at all.
+            t.setTextFont(1);
+            t.setTextSize(1);
+            int tw = Theme::textWidthRU16(t, words[i]);
+            t.setCursor((w - tw) / 2, y);
+            Theme::printRU16(t, words[i]);
+            t.setTextSize(Theme::upSize(3));
+        } else {
+            int tw = t.textWidth(words[i]);
+            t.setCursor((w - tw) / 2, y);
+            t.print(words[i]);
+        }
         y += wordRowH;
     }
 
     char invLabel[16];
-    snprintf(invLabel, sizeof(invLabel), "INVERT: %s", Settings::inverted() ? "ON" : "OFF");
+    snprintf(invLabel, sizeof(invLabel), Theme::tr("INVERT: %s", "ИНВЕРСИЯ: %s"), Theme::onOff(Settings::inverted()));
     char ordLabel[20];
-    snprintf(ordLabel, sizeof(ordLabel), "ORDER: %s", Settings::rgbSwapped() ? "SWAP" : "NORM");
+    snprintf(ordLabel, sizeof(ordLabel), Theme::tr("ORDER: %s", "ПОРЯДОК: %s"), Settings::rgbSwapped() ? Theme::tr("SWAP", "ОБРАТ") : Theme::tr("NORM", "НОРМ"));
     Theme::drawButton(t, invX, invY, invW, invH, invLabel, false);
     Theme::drawButton(t, ordX, ordY, ordW, ordH, ordLabel, false);
-    Theme::drawButton(t, doneX, doneY, doneW, doneH, "[ LOOKS GOOD ]", false);
+    Theme::drawButton(t, doneX, doneY, doneW, doneH, Theme::tr("[ LOOKS GOOD ]", "[ ВСЁ ХОРОШО ]"), false);
 }
 
 ColorCheckTap uiColorCheckHitTest(int x, int y, int screenW, int screenH) {

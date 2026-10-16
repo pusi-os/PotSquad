@@ -6,3 +6,6 @@
 
 # Host test binaries (test/Makefile builds into here)
 test/out/
+
+# Local codebase-memory graph cache (5MB+ binary, regenerable via re-index)
+.codebase-memory/

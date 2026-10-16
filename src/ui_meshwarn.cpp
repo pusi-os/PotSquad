@@ -25,14 +25,23 @@ namespace {
 // rides in a scan response anyone can see for thirty seconds (SEND_MS in
 // meshtalk.cpp). That is a real disclosure and it goes on this screen, not in
 // a menu note somebody may never read.
-const char* const PARAS[] = {
+const char* const PARAS_EN[] = {
     "TRANSMIT broadcasts a Bluetooth advert every 1.5 seconds, carrying a fixed address that never changes and your Potsy's name and outfit.",
     "Anyone nearby with a scanner can log that address with a time and a place. Because it never changes, those sightings join up into a record of where you have been.",
     "The same trick this device warns you about.",
     "Messages are encrypted. That you sent one is not.",
     "DETECT only listens. It broadcasts nothing.",
 };
-const uint8_t PARA_N = sizeof(PARAS) / sizeof(PARAS[0]);
+// Shorter than the EN originals: the RU face is wider per line and the
+// paragraphs share the screen with the buttons below them.
+const char* const PARAS_RU[] = {
+    "ПЕРЕДАЧА шлёт Bluetooth-рекламу каждые 1.5 сек с нестираемым адресом, именем и костюмом твоего Потси.",
+    "Любой со сканером рядом запишет адрес со временем и местом. Адрес не меняется — точки сложатся в маршрут.",
+    "Тот же трюк, от которого плата тебя и защищает.",
+    "Сообщения шифруются. Сам факт отправки — нет.",
+    "ПОИСК лишь слушает. Сам он не шлёт ничего.",
+};
+const uint8_t PARA_N = sizeof(PARAS_EN) / sizeof(PARAS_EN[0]);
 
 const int BTN_GAP = 18;
 // Bigger on the large panels, where the rest of the screen grew with them.
@@ -64,24 +73,38 @@ void drawAsWindow(TFT_eSPI& t) {
     const int tx = wx + 12, tw = ww - 24;
     t.setTextWrap(false);
 
-    t.setTextFont(1);
-    t.setTextSize(2);
-    t.setTextColor(WARN_RED, Theme::W95_FACE);
-    t.setCursor(tx, y);
-    t.print("THIS MAKES YOU TRACKABLE");
-    y += t.fontHeight() + 8;
+    const bool ru = Settings::lang() == 1;
+    const char* warn = Theme::tr("THIS MAKES YOU TRACKABLE", "ТЫ СТАНЕШЬ ОТСЛЕЖИВАЕМ");
+    if (ru) {
+        t.setTextFont(1);
+        t.setTextSize(1);
+        t.setTextColor(WARN_RED, Theme::W95_FACE);
+        t.setCursor(tx, y);
+        Theme::printRU16(t, warn);
+        y += 16 + 8;
+    } else {
+        t.setTextFont(1);
+        t.setTextSize(2);
+        t.setTextColor(WARN_RED, Theme::W95_FACE);
+        t.setCursor(tx, y);
+        t.print(warn);
+        y += t.fontHeight() + 8;
+    }
 
     Theme::bodyFontOn(t);
+    if (ru) { t.setTextFont(1); t.setTextSize(1); }
     int maxW = tw;
     if (maxW > 79 * t.textWidth("M")) maxW = 79 * t.textWidth("M");
     const int lineH = t.fontHeight() + 1;
     t.setTextColor(Theme::BLACK, Theme::W95_FACE);
     for (uint8_t p = 0; p < PARA_N; p++) {
+        const char* para = ru ? PARAS_RU[p] : PARAS_EN[p];
         char lines[8][80];
-        const uint8_t n = Theme::wrapText(t, PARAS[p], maxW, lines, 8);
+        const uint8_t n = ru ? Theme::wrapTextRU(t, para, maxW, lines, 8)
+                             : Theme::wrapText(t, para, maxW, lines, 8);
         for (uint8_t i = 0; i < n; i++) {
             t.setCursor(tx, y);
-            t.print(lines[i]);
+            if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
             y += lineH;
         }
         y += 5;
@@ -91,15 +114,25 @@ void drawAsWindow(TFT_eSPI& t) {
     buttonGeom(t, yesX, noX, by);
     // The question, in bold the way Win95 drew one: the same word twice, a
     // pixel apart.
-    const char* q = "Turn on PotsMesh?";
-    const int qx = (w - t.textWidth(q)) / 2, qy = by - t.fontHeight() - 8;
-    t.setCursor(qx, qy);     t.print(q);
-    t.setTextColor(Theme::BLACK);   // transparent: the second pass only thickens
-    t.setCursor(qx + 1, qy); t.print(q);
+    const char* q = Theme::tr("Turn on PotsMesh?", "Включить ПотсМеш?");
+    if (ru) {
+        t.setTextFont(1);
+        t.setTextSize(1);
+        const int qw = Theme::textWidthRU(t, q);
+        const int qx = (w - qw) / 2, qy = by - t.fontHeight() - 8;
+        t.setCursor(qx, qy);     Theme::printRU(t, q);
+        t.setTextColor(Theme::BLACK);   // transparent: the second pass only thickens
+        t.setCursor(qx + 1, qy); Theme::printRU(t, q);
+    } else {
+        const int qx = (w - t.textWidth(q)) / 2, qy = by - t.fontHeight() - 8;
+        t.setCursor(qx, qy);     t.print(q);
+        t.setTextColor(Theme::BLACK);   // transparent: the second pass only thickens
+        t.setCursor(qx + 1, qy); t.print(q);
+    }
     Theme::bodyFontOff(t);
 
-    Theme::drawWin95Button(t, yesX, by, btnW(), btnH(), "YES", false);
-    Theme::drawWin95Button(t, noX,  by, btnW(), btnH(), "NO",  false);
+    Theme::drawWin95Button(t, yesX, by, btnW(), btnH(), Theme::tr("YES", "ДА"), false);
+    Theme::drawWin95Button(t, noX,  by, btnW(), btnH(), Theme::tr("NO", "НЕТ"), false);
 }
 
 } // namespace
@@ -126,10 +159,18 @@ void uiMeshWarnTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     t.setCursor(8, 6);
     t.print("POTSMESH");
 
-    t.setTextSize(1);
+    const bool ru = Settings::lang() == 1;
+    const char* warn = Theme::tr("THIS MAKES YOU TRACKABLE", "ТЫ СТАНЕШЬ ОТСЛЕЖИВАЕМ");
     t.setTextColor(Theme::AMBER, Theme::BG);
-    t.setCursor(8, 26);
-    t.print("THIS MAKES YOU TRACKABLE");
+    if (ru) {
+        t.setTextSize(1);
+        t.setCursor(8, 26);
+        Theme::printRU16(t, warn);
+    } else {
+        t.setTextSize(1);
+        t.setCursor(8, 26);
+        t.print(warn);
+    }
 
     // Theme::wrapText fills fixed 48-char rows, so the wrap width is capped
     // at what 47 characters occupy regardless of how wide the panel is. At
@@ -143,11 +184,13 @@ void uiMeshWarnTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     int y = 40;
     t.setTextColor(Theme::WHITE, Theme::BG);
     for (uint8_t p = 0; p < PARA_N; p++) {
+        const char* para = ru ? PARAS_RU[p] : PARAS_EN[p];
         char lines[8][48];
-        const uint8_t n = Theme::wrapText(t, PARAS[p], maxW, lines, 8);
+        const uint8_t n = ru ? Theme::wrapTextRU(t, para, maxW, lines, 8)
+                             : Theme::wrapText(t, para, maxW, lines, 8);
         for (uint8_t i = 0; i < n; i++) {
             t.setCursor(8, y);
-            t.print(lines[i]);
+            if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
             y += lineH;
         }
         y += 4;                      // a gap between paragraphs, not a line
@@ -159,15 +202,21 @@ void uiMeshWarnTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     // The question sits with the buttons rather than at the top, so whatever
     // is being answered is the last thing read before answering it.
     t.setTextColor(Theme::CYAN, Theme::BG);
-    const char* q = "Turn on PotsMesh?";
-    t.setCursor((w - t.textWidth(q)) / 2, by - 14);
-    t.print(q);
+    const char* q = Theme::tr("Turn on PotsMesh?", "Включить ПотсМеш?");
+    if (ru) {
+        const int qw = Theme::textWidthRU(t, q);
+        t.setCursor((w - qw) / 2, by - 14);
+        Theme::printRU(t, q);
+    } else {
+        t.setCursor((w - t.textWidth(q)) / 2, by - 14);
+        t.print(q);
+    }
 
     // NO is not the quiet one. A consent dialog whose decline is styled as
     // the lesser option is doing the opposite of what it is for, so both are
     // ordinary system buttons and neither is preselected.
-    Theme::drawWin95Button(t, yesX, by, btnW(), btnH(), "YES", false);
-    Theme::drawWin95Button(t, noX,  by, btnW(), btnH(), "NO",  false);
+    Theme::drawWin95Button(t, yesX, by, btnW(), btnH(), Theme::tr("YES", "ДА"), false);
+    Theme::drawWin95Button(t, noX,  by, btnW(), btnH(), Theme::tr("NO", "НЕТ"), false);
 }
 
 MeshWarnHit uiMeshWarnHitTest(TFT_eSPI& t, int x, int y) {

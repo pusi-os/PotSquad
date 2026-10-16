@@ -9,6 +9,7 @@
 #endif
 #include "flood_bench.h" // FLOOD N, for the bench (a no-op outside FLOOD_BENCH builds)
 #include "settings.h"
+#include "theme.h"
 #include "crowd_bench.h"
 #include "blackbox.h"    // BLACKBOX dumps it
 #include "pet.h"         // YETI DISCO / YETI FLOSS
@@ -246,10 +247,10 @@ static bool localNow(struct tm& tmv, uint32_t epoch = 0) {
 
 void formatClock(char* out, size_t n) {
     struct tm tmv;
-    if (!localNow(tmv)) { snprintf(out, n, "not set"); return; }
+    if (!localNow(tmv)) { snprintf(out, n, "%s", Theme::tr("not set", "не заданы")); return; }
     snprintf(out, n, "%04d-%02d-%02d %02d:%02d%s",
              tmv.tm_year + 1900, tmv.tm_mon + 1, tmv.tm_mday,
-             tmv.tm_hour, tmv.tm_min, s_guess ? " at least" : "");
+             tmv.tm_hour, tmv.tm_min, s_guess ? Theme::tr(" at least", " как минимум") : "");
 }
 
 void formatStamp(uint32_t ms, char* out, size_t n) {
@@ -315,13 +316,18 @@ uint32_t localDay() {
 }
 
 static const char* const DAY_NAMES[]   = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
+static const char* const DAY_RU[]       = { "ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ" };
 static const char* const MONTH_NAMES[] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
                                            "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+static const char* const MONTH_RU[]    = { "ЯНВ", "ФЕВ", "МАР", "АПР", "МАЙ", "ИЮН",
+                                           "ИЮЛ", "АВГ", "СЕН", "ОКТ", "НОЯ", "ДЕК" };
 
 void formatDate(char* out, size_t n) {
     struct tm t;
-    if (!localNow(t)) { snprintf(out, n, "NO DATE YET"); return; }
-    snprintf(out, n, "%s %s %d", DAY_NAMES[t.tm_wday], MONTH_NAMES[t.tm_mon], t.tm_mday);
+    if (!localNow(t)) { snprintf(out, n, "%s", Theme::tr("NO DATE YET", "ДАТЫ НЕТ")); return; }
+    const bool ru = Settings::lang() == 1;
+    snprintf(out, n, "%s %s %d", ru ? DAY_RU[t.tm_wday] : DAY_NAMES[t.tm_wday],
+             ru ? MONTH_RU[t.tm_mon] : MONTH_NAMES[t.tm_mon], t.tm_mday);
 }
 
 void formatTime(char* out, size_t n, bool twelveHour, bool* pm) {

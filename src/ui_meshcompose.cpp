@@ -74,8 +74,8 @@ uint8_t     s_tab = 0;
 static inline int AWof(TFT_eSPI& t) { return t.width() >= 400 ?  72 : 44; }
 static inline int TWof(TFT_eSPI& t) { return t.width() >= 400 ? 112 : 56; }
 // BACK, SEND, FILL and the rest. 68x26 was measured against size-1 labels on
-// a 320-wide panel; a 480-wide one draws them at size 2, and "[ CANCEL ]" is
-// 120 px at that size, so the box has to lead the label or drawButton just
+// a 320-wide panel; a 480-wide one draws them at size 2, and "[ CANCEL ]"
+// is 120 px at that size, so the box has to lead the label or drawButton just
 // declines the step-up and they stay small. Everything narrower is unchanged.
 static inline int BWof(TFT_eSPI& t) { return t.width() >= 400 ? 128 : 68; }
 static inline int BHof(TFT_eSPI& t) { return t.width() >= 400 ?  36 : 26; }
@@ -84,18 +84,25 @@ static inline int BHof(TFT_eSPI& t) { return t.width() >= 400 ?  36 : 26; }
 // the most that fits; the first versions ran to 41 and lost their last words
 // off the edge -- "you can read, not repl" -- which the emulator caught.
 const char* const NEED_PHRASE  = "Set a phrase: POTSMESH > PHRASE.";
+const char* const NEED_PHRASE_RU = "Задай фразу: ПОТСМЕШ > ФРАЗА.";
 const char* const TRANSMIT_OFF = "TRANSMIT off: can read, not reply.";
+const char* const TRANSMIT_OFF_RU = "ПЕРЕДАЧА выкл: читаешь, не отвечаешь.";
 const char* const SENDING      = "Sending, for thirty seconds.";
+const char* const SENDING_RU   = "Отправляю, секунд тридцать.";
 const char* const SEND_FAILED  = "Could not send. Try again.";
+const char* const SEND_FAILED_RU = "Не отправилось. Попробуй ещё.";
 const char* const NOBODY_HERE  = "Emotes need a visitor on screen.";
+const char* const NOBODY_HERE_RU = "Эмоциям нужен гость на экране.";
 const char* const STILL_ON_AIR = "Your message is still sending.";
+const char* const STILL_ON_AIR_RU = "Сообщение ещё отправляется.";
 const char* const EMOTE_HINT   = "Tap one: you both act it out.";
+const char* const EMOTE_HINT_RU = "Жми: разыграете вдвоём.";
 
 // The reasons a message could not go out, given BEFORE anything is chosen or
 // typed rather than after the person has confirmed it. Null when it can.
 const char* cannotSend() {
-    if (!MeshTalk::ready())             return NEED_PHRASE;
-    if (!Settings::meshTransmit())      return TRANSMIT_OFF;
+    if (!MeshTalk::ready())             return Theme::tr(NEED_PHRASE, NEED_PHRASE_RU);
+    if (!Settings::meshTransmit())      return Theme::tr(TRANSMIT_OFF, TRANSMIT_OFF_RU);
     return nullptr;
 }
 
@@ -407,10 +414,12 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
     Theme::dimRegion(t, 0, 0, w, h, 110);
 
     t.setTextWrap(false);
-    t.setTextSize(2);
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
-    t.setCursor(8, 6);
-    t.print("MESSAGE");
+    {
+        const char* hd = Theme::tr("MESSAGE", "СООБЩЕНИЕ");
+        if (Theme::isRu(hd)) { t.setTextSize(1); t.setCursor(8, 6); Theme::printRU16(t, hd); }
+        else { t.setTextSize(2); t.setCursor(8, 6); t.print(hd); }
+    }
 
     // ---- the last one received, in red ------------------------------------
     // Two rows inside the same 22 pixels a canned line had to itself: a
@@ -423,23 +432,32 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
     Theme::bodyFontOn(t);
     const int sfh = t.fontHeight();
     if (m.have) {
-        char line[80];
+        char line[96];
         snprintf(line, sizeof line, "%s: %s", m.from, MeshTalk::lineText(m));
         t.fillRoundRect(bx, by, bw, bh, 4, Theme::RED);
         int maxW = bw - 12;
         if (maxW > 47 * t.textWidth("M")) maxW = 47 * t.textWidth("M");
         char rows[2][48];
-        const uint8_t n = Theme::wrapText(t, line, maxW, rows, 2);
+        const bool iru = Theme::isRu(line);
+        const uint8_t n = iru ? Theme::wrapTextRU(t, line, maxW, rows, 2)
+                              : Theme::wrapText(t, line, maxW, rows, 2);
         t.setTextColor(Theme::WHITE, Theme::RED);
+        if (iru) { t.setTextFont(1); t.setTextSize(1); }
         for (uint8_t i = 0; i < n; i++) {
             t.setCursor(bx + 6, n == 1 ? by + (bh - sfh) / 2 : by + 2 + i * (sfh + 2));
-            t.print(rows[i]);
+            if (iru) Theme::printRU(t, rows[i]); else t.print(rows[i]);
         }
     } else {
         t.drawRoundRect(bx, by, bw, bh, 4, Theme::W95_SHADOW);
         t.setTextColor(Theme::W95_SHADOW, Theme::BG);
-        t.setCursor(bx + 6, by + (bh - sfh) / 2);
-        t.print("No messages yet.");
+        const char* no = Theme::tr("No messages yet.", "Сообщений пока нет.");
+        if (Theme::isRu(no)) {
+            t.setCursor(bx + 6, by + (bh - sfh) / 2);
+            Theme::printRU(t, no);
+        } else {
+            t.setCursor(bx + 6, by + (bh - sfh) / 2);
+            t.print(no);
+        }
     }
     Theme::bodyFontOff(t);
 
@@ -464,14 +482,18 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
         t.drawRect(px, py, pw, ph, Theme::VAPOR_PINK);
         t.setTextColor(Theme::W95_LIGHT, Theme::BG);
         t.setCursor(px + 6, py + 5);
-        t.print("YOUR MESSAGE");
-        t.setTextSize(2);
+        t.print(Theme::tr("YOUR MESSAGE", "ТВОЁ СООБЩЕНИЕ"));
+        // A typed message may be Cyrillic (the phone types RU): the 9px
+        // RU face then, which is what wrapTextRU above measured with.
+        const bool tru = Theme::isRu(s_typed);
+        t.setTextSize(tru ? 1 : 2);
         char lines[4][48];
-        const uint8_t n = Theme::wrapText(t, s_typed, pw - 12, lines, 4);
+        const uint8_t n = tru ? Theme::wrapTextRU(t, s_typed, pw - 12, lines, 4)
+                              : Theme::wrapText(t, s_typed, pw - 12, lines, 4);
         t.setTextColor(Theme::WHITE, Theme::BG);
         for (uint8_t i = 0; i < n; i++) {
-            t.setCursor(px + 6, py + 18 + i * 19);
-            t.print(lines[i]);
+            t.setCursor(px + 6, py + 18 + i * (tru ? 12 : 19));
+            if (tru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
         }
         t.setTextSize(1);
     } else if (s_emoteOn) {
@@ -485,10 +507,15 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
             s_tabRect[i] = { (int16_t)x, (int16_t)y0, (int16_t)tw, (int16_t)TH };
             t.fillRect(x, y0, tw, TH, on ? Theme::PURPLE : Theme::BG);
             t.drawRect(x, y0, tw, TH, on ? Theme::VAPOR_PINK : Theme::W95_SHADOW);
-            const char* nm = EmoteScript::TAB_NAME[i];
+            const char* nm = EmoteScript::tabName(i);
             t.setTextColor(on ? Theme::labelOn(Theme::PURPLE) : Theme::W95_LIGHT, on ? Theme::PURPLE : Theme::BG);
-            t.setCursor(x + (tw - t.textWidth(nm)) / 2, y0 + (TH - t.fontHeight()) / 2);
-            t.print(nm);
+            if (Theme::isRu(nm)) {
+                t.setCursor(x + (tw - Theme::textWidthRU(t, nm)) / 2, y0 + (TH - t.fontHeight()) / 2);
+                Theme::printRU(t, nm);
+            } else {
+                t.setCursor(x + (tw - t.textWidth(nm)) / 2, y0 + (TH - t.fontHeight()) / 2);
+                t.print(nm);
+            }
         }
         const int ty0 = y0 + TH + 5;
         const uint8_t n = EmoteScript::PER_TAB;
@@ -508,21 +535,29 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
             drawEmoteIcon(t, (uint8_t)e, x + 15, y + eh / 2);
             const char* sub = EmoteScript::sub(e);
             const bool two = sub[0] != '\0';
+            const char* enm = EmoteScript::name(e);
+            // RU tile names take the 16px face at size 1: the same 16px
+            // line the size-2 EN names stand, without the 2x pixels.
+            const bool eru = Theme::isRu(enm) || Theme::isRu(sub);
             t.setTextColor(Theme::WHITE, Theme::BG);
+            const uint8_t keepS = t.textsize ? t.textsize : 1;
+            const uint8_t keepF = t.textfont;
+            if (eru) { t.setTextFont(1); t.setTextSize(1); }
             const int efh = t.fontHeight();
             t.setCursor(x + 30, y + eh / 2 - (two ? efh + 1 : efh / 2));
-            t.print(EmoteScript::name(e));
+            if (eru) Theme::printRU16(t, enm); else t.print(enm);
             if (two) {
                 t.setCursor(x + 30, y + eh / 2 + 1);
-                t.print(sub);
+                if (eru) Theme::printRU16(t, sub); else t.print(sub);
             }
+            if (eru) { t.setTextSize(keepS); t.setTextFont(keepF); }
         }
         Theme::bodyFontOff(t);
     } else if (s_fillOn) {
         const int LTH = Theme::uiTextSize(t, 1) == 1 ? 18 : 26;
         t.setTextSize(Theme::uiTextSize(t, 1));
         t.setTextColor(Theme::VAPOR_YELLOW, Theme::BG);
-        const char* hd = "PICK A START, TYPE THE REST";
+        const char* hd = Theme::tr("PICK A START, TYPE THE REST", "ВЫБЕРИ НАЧАЛО, ДОПИШИ");
         t.setCursor((w - t.textWidth(hd)) / 2, y0 + (LTH - t.fontHeight()) / 2);
         t.print(hd);
         const int ly0 = y0 + LTH + 5;
@@ -552,10 +587,15 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
             s_lineTabRect[i] = { (int16_t)x, (int16_t)y0, (int16_t)ltw, (int16_t)LTH };
             t.fillRect(x, y0, ltw, LTH, on ? Theme::PURPLE : Theme::BG);
             t.drawRect(x, y0, ltw, LTH, on ? Theme::VAPOR_PINK : Theme::W95_SHADOW);
-            const char* nm = MeshMsg::CANNED_TAB_NAME[i];
+            const char* nm = MeshMsg::cannedTabName(i);
             t.setTextColor(on ? Theme::labelOn(Theme::PURPLE) : Theme::W95_LIGHT, on ? Theme::PURPLE : Theme::BG);
-            t.setCursor(x + (ltw - t.textWidth(nm)) / 2, y0 + (LTH - t.fontHeight()) / 2);
-            t.print(nm);
+            if (Theme::isRu(nm)) {
+                t.setCursor(x + (ltw - Theme::textWidthRU(t, nm)) / 2, y0 + (LTH - t.fontHeight()) / 2);
+                Theme::printRU(t, nm);
+            } else {
+                t.setCursor(x + (ltw - t.textWidth(nm)) / 2, y0 + (LTH - t.fontHeight()) / 2);
+                t.print(nm);
+            }
         }
         Theme::bodyFontOff(t);
         const int ly0 = y0 + LTH + 5;
@@ -568,12 +608,19 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
             s_lineN++;
             const bool sel = idx == s_sel;
             const uint16_t bg = sel ? Theme::PURPLE : Theme::BG;
+            const char* cl = MeshMsg::cannedLine(idx);
+            const bool cru = Theme::isRu(cl);
             t.fillRect(x, y, cw, ch, bg);
             t.drawRect(x, y, cw, ch, sel ? Theme::VAPOR_PINK : Theme::CYAN);
-            t.setTextSize(Theme::uiTextSize(t, 1));
+            t.setTextSize(cru ? 1 : Theme::uiTextSize(t, 1));
             t.setTextColor(sel ? Theme::labelOn(bg) : Theme::WHITE, bg);
-            t.setCursor(x + 6, y + (ch - t.fontHeight()) / 2);
-            t.print(MeshMsg::CANNED[idx]);
+            if (cru) {
+                t.setCursor(x + 6, y + (ch - t.fontHeight()) / 2);
+                Theme::printRU(t, cl);
+            } else {
+                t.setCursor(x + 6, y + (ch - t.fontHeight()) / 2);
+                t.print(cl);
+            }
         }
     }
 
@@ -581,12 +628,13 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
     const char* st = s_status;
     uint16_t sc = s_statusCol;
     if (!st && s_typedOn) {
-        st = "Send it?";
+        st = Theme::tr("Send it?", "Отправляем?");
         sc = Theme::VAPOR_YELLOW;
     } else if (!st && s_sel >= 0) {
         // Quoted back in full, so what is about to go out is read once more
-        // before it does.
-        snprintf(s_confirm, sizeof s_confirm, "Send \"%s\"?", MeshMsg::CANNED[s_sel]);
+        // before it does. The quoted line stays in the board's language --
+        // what goes on the air is the index, not these words.
+        snprintf(s_confirm, sizeof s_confirm, Theme::tr("Send \"%s\"?", "Шлём \"%s\"?"), MeshMsg::cannedLine(s_sel));
         st = s_confirm;
         sc = Theme::VAPOR_YELLOW;
     } else if (!st && s_emoteOn) {
@@ -594,7 +642,7 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
         sc = Theme::AMBER;
         if (!st) {
             const bool here = uiClearGuest() != nullptr;
-            st = here ? EMOTE_HINT : NOBODY_HERE;
+            st = here ? Theme::tr(EMOTE_HINT, EMOTE_HINT_RU) : Theme::tr(NOBODY_HERE, NOBODY_HERE_RU);
             sc = here ? Theme::VAPOR_YELLOW : Theme::AMBER;
         }
     } else if (!st && !tut) {
@@ -602,17 +650,19 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
         // would otherwise open with a warning about not having one.
         st = cannotSend();
         sc = Theme::AMBER;
-        if (!st && MeshTalk::sending(now)) { st = SENDING; sc = Theme::GREEN; }
+        if (!st && MeshTalk::sending(now)) { st = Theme::tr(SENDING, SENDING_RU); sc = Theme::GREEN; }
     }
     if (st) {
         // Too long for the line at the list's size (the 3.5" in portrait),
         // it drops to the body font rather than running off the edge.
-        const bool drop = t.textWidth(st) > w - 16;
-        if (drop) Theme::bodyFontOn(t);
+        const bool sru = Theme::isRu(st);
+        const bool drop = (sru ? Theme::textWidthRU(t, st) : t.textWidth(st)) > w - 16;
+        if (drop && !sru) Theme::bodyFontOn(t);
+        if (sru) { t.setTextFont(1); t.setTextSize(1); }
         t.setTextColor(sc, Theme::BG);
         t.setCursor(8, h - BHof(t) - 6 - 12);
-        t.print(st);
-        if (drop) Theme::bodyFontOff(t);
+        if (sru) Theme::printRU(t, st); else t.print(st);
+        if (drop && !sru) Theme::bodyFontOff(t);
     }
 
     // ---- chrome -------------------------------------------------------------
@@ -630,21 +680,21 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
     if (s_typedOn || s_sel >= 0) {
         s_send = { (int16_t)(w - 4 - BWof(t)), (int16_t)(h - BHof(t) - 6), (int16_t)BWof(t), (int16_t)BHof(t) };
         Theme::drawButton(t, s_back.x, s_back.y, s_back.w, s_back.h,
-                          s_typedOn ? "[ EDIT ]" : "[ CANCEL ]", false);
-        Theme::drawButton(t, s_send.x, s_send.y, s_send.w, s_send.h, "[ SEND ]", false);
+                          s_typedOn ? Theme::tr("[ EDIT ]", "[ ПРАВКА ]") : Theme::tr("[ CANCEL ]", "[ ОТМЕНА ]"), false);
+        Theme::drawButton(t, s_send.x, s_send.y, s_send.w, s_send.h, Theme::tr("[ SEND ]", "[ ОТПРАВЬ ]"), false);
     } else if (s_emoteOn) {
         // Back to the lines, not off the screen; the EMOTE button, still lit,
         // does the same.
-        Theme::drawButton(t, s_back.x, s_back.y, s_back.w, s_back.h, "[ LINES ]", false);
+        Theme::drawButton(t, s_back.x, s_back.y, s_back.w, s_back.h, Theme::tr("[ LINES ]", "[ СТРОКИ ]"), false);
         s_random = { (int16_t)(w - 4 - BWof(t) - 8), (int16_t)(h - BHof(t) - 6), (int16_t)(BWof(t) + 8), (int16_t)BHof(t) };
-        Theme::drawButton(t, s_random.x, s_random.y, s_random.w, s_random.h, "[ RANDOM ]", false);
+        Theme::drawButton(t, s_random.x, s_random.y, s_random.w, s_random.h, Theme::tr("[ RANDOM ]", "[ СЛУЧАЙНО ]"), false);
         s_emoteBtn = { (int16_t)(w - 4 - BWof(t)), 2, (int16_t)BWof(t), (int16_t)(BHof(t) - 6) };
-        Theme::drawButton(t, s_emoteBtn.x, s_emoteBtn.y, s_emoteBtn.w, s_emoteBtn.h, "[ EMOTE ]", true);
+        Theme::drawButton(t, s_emoteBtn.x, s_emoteBtn.y, s_emoteBtn.w, s_emoteBtn.h, Theme::tr("[ EMOTE ]", "[ ЭМОЦИЯ ]"), true);
     } else {
-        Theme::drawButton(t, s_back.x, s_back.y, s_back.w, s_back.h, "[ BACK ]", false);
+        Theme::drawButton(t, s_back.x, s_back.y, s_back.w, s_back.h, Theme::tr("[ BACK ]", "[ НАЗАД ]"), false);
         // FILL, where the emote half keeps RANDOM: the openings with a blank.
         s_fill = { (int16_t)(w - 4 - BWof(t) - 8), (int16_t)(h - BHof(t) - 6), (int16_t)(BWof(t) + 8), (int16_t)BHof(t) };
-        Theme::drawButton(t, s_fill.x, s_fill.y, s_fill.w, s_fill.h, s_fillOn ? "[ LINES ]" : "[ FILL ]", s_fillOn);
+        Theme::drawButton(t, s_fill.x, s_fill.y, s_fill.w, s_fill.h, s_fillOn ? Theme::tr("[ LINES ]", "[ СТРОКИ ]") : Theme::tr("[ FILL ]", "[ НАЧАЛО ]"), s_fillOn);
         // No page arrows any more: the lines are on labelled tabs, and the
         // emote half never had arrows either.
         int right = w - 4;
@@ -652,7 +702,7 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
         // the count moved up beside "?".
         const int mid = (s_back.x + s_back.w + right) / 2;
         s_type = { (int16_t)(mid - TWof(t) / 2), (int16_t)(h - BHof(t) - 6), (int16_t)TWof(t), (int16_t)BHof(t) };
-        Theme::drawButton(t, s_type.x, s_type.y, s_type.w, s_type.h, "[ TYPE ]", false);
+        Theme::drawButton(t, s_type.x, s_type.y, s_type.w, s_type.h, Theme::tr("[ TYPE ]", "[ НАБЕРИ ]"), false);
         // "?" replays the tutorial. Top right, level with the title, where
         // nothing else on this screen can be reached for by mistake.
         if (!tut) {
@@ -662,7 +712,7 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
             // now it is a full-width button, filled, and says what it is --
             // the one thing on this screen most people came for.
             s_emoteBtn = { (int16_t)(s_help.x - 6 - BWof(t)), 2, (int16_t)BWof(t), (int16_t)(BHof(t) - 6) };
-            Theme::drawButton(t, s_emoteBtn.x, s_emoteBtn.y, s_emoteBtn.w, s_emoteBtn.h, "[ EMOTE ]", true);
+            Theme::drawButton(t, s_emoteBtn.x, s_emoteBtn.y, s_emoteBtn.w, s_emoteBtn.h, Theme::tr("[ EMOTE ]", "[ ЭМОЦИЯ ]"), true);
         }
     }
 
@@ -689,9 +739,9 @@ ComposeHit uiMeshComposeTouch(int x, int y, uint32_t now) {
     auto sent = [](MeshTalk::Send r) {
         switch (r) {
             case MeshTalk::Send::OK:           return true;
-            case MeshTalk::Send::NOT_READY:    s_status = NEED_PHRASE;  s_statusCol = Theme::AMBER; break;
-            case MeshTalk::Send::TRANSMIT_OFF: s_status = TRANSMIT_OFF; s_statusCol = Theme::AMBER; break;
-            default:                           s_status = SEND_FAILED;  s_statusCol = Theme::RED;   break;
+            case MeshTalk::Send::NOT_READY:    s_status = Theme::tr(NEED_PHRASE, NEED_PHRASE_RU);  s_statusCol = Theme::AMBER; break;
+            case MeshTalk::Send::TRANSMIT_OFF: s_status = Theme::tr(TRANSMIT_OFF, TRANSMIT_OFF_RU); s_statusCol = Theme::AMBER; break;
+            default:                           s_status = Theme::tr(SEND_FAILED, SEND_FAILED_RU);  s_statusCol = Theme::RED;   break;
         }
         return false;
     };
@@ -730,10 +780,10 @@ ComposeHit uiMeshComposeTouch(int x, int y, uint32_t now) {
                 if (inRect(s_emoteRect[i], x, y)) pick = (int)EmoteScript::atTab(s_tab, i);
             if (pick < 0) return ComposeHit::NONE;
             if (const char* why = cannotSend()) { s_status = why; s_statusCol = Theme::AMBER; return ComposeHit::NONE; }
-            if (!uiClearGuest())            { s_status = NOBODY_HERE;  s_statusCol = Theme::AMBER; return ComposeHit::NONE; }
+            if (!uiClearGuest())            { s_status = Theme::tr(NOBODY_HERE, NOBODY_HERE_RU);  s_statusCol = Theme::AMBER; return ComposeHit::NONE; }
             // An emote would take over the scan response and cut the
             // message short -- the one thing that should not happen.
-            if (MeshTalk::sendingMessage(now)) { s_status = STILL_ON_AIR; s_statusCol = Theme::AMBER; return ComposeHit::NONE; }
+            if (MeshTalk::sendingMessage(now)) { s_status = Theme::tr(STILL_ON_AIR, STILL_ON_AIR_RU); s_statusCol = Theme::AMBER; return ComposeHit::NONE; }
             return sendEmoteNow((MeshMsg::Emote)pick, now, sent);
         }
         if (inRect(s_help, x, y)) return ComposeHit::HELP;

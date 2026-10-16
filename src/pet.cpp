@@ -1,6 +1,7 @@
 // PotsSquad-CYD — the pet. See pet.h.
 #include "pet.h"
 #include "theme.h"
+#include "ru_text.h"
 #include "potsy.h"
 #include "lil_guy.h"
 #include "settings.h"
@@ -771,13 +772,18 @@ static int s_balloonCeil = 0;
 
 // The balloon's lines, black on its paper. Bold strikes each one twice and
 // leaves the paper alone, or the second pass would wipe the first.
-static void balloonText(TFT_eSPI& t, char lines[][25], uint8_t n, int x, int y, int lh, uint16_t paper) {
+static void balloonText(TFT_eSPI& t, char lines[][49], uint8_t n, int x, int y, int lh, uint16_t paper, bool ru) {
     if (s_balloonBold) t.setTextColor(Theme::BLACK);
     else t.setTextColor(Theme::BLACK, paper);
+    const uint8_t keepF = t.textfont;
+    const uint8_t keepS = t.textsize ? t.textsize : 1;
+    if (ru) { t.setTextFont(1); t.setTextSize(1); }
     for (uint8_t i = 0; i < n; i++) {
-        t.setCursor(x, y + i * lh); t.print(lines[i]);
-        if (s_balloonBold) { t.setCursor(x + 1, y + i * lh); t.print(lines[i]); }
+        t.setCursor(x, y + i * lh);
+        if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
+        if (s_balloonBold) { t.setCursor(x + 1, y + i * lh); if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]); }
     }
+    if (ru) { t.setTextSize(keepS); t.setTextFont(keepF); }
 }
 
 static void petBalloonIn(TFT_eSPI& t, const char* s, int boxX, int boxY, int boxW, int screenW, int screenH);
@@ -810,10 +816,37 @@ static void petBalloonIn(TFT_eSPI& t, const char* s, int boxX, int boxY, int box
         if (maxC < 14) { maxC = 24; right = true; }     // no room either side: above after all
     }
     const uint8_t maxN = side ? 5 : 3;
-    char lines[5][25];
+    char lines[5][49];
     uint8_t n = 0;
+    const bool ru = Theme::isRu(s);
     const char* p = s;
-    while (*p && n < maxN) {
+    if (ru) {
+        // Glyph-based split: a Cyrillic glyph is two bytes, so the byte
+        // splitter below would cut mid-character. maxC glyphs a line,
+        // broken at spaces like the EN path; 24 glyphs cap the 49-byte
+        // rows above.
+        const int lim = maxC > 24 ? 24 : maxC;
+        while (*p && n < maxN) {
+            while (*p == ' ') p++;
+            if (!*p) break;
+            const char* q = p;
+            int glyphs = 0;
+            const char* lastSpace = nullptr;
+            while (*q && glyphs < lim) {
+                if (*q == ' ') lastSpace = q;
+                const char* qq = q;
+                (void)RuText::next(&qq);
+                glyphs++;
+                q = qq;
+            }
+            size_t take;
+            if (*q && lastSpace && lastSpace > p) take = (size_t)(lastSpace - p);
+            else take = (size_t)(q - p);
+            if (take > sizeof(lines[0]) - 1) take = sizeof(lines[0]) - 1;
+            memcpy(lines[n], p, take); lines[n][take] = '\0';
+            n++; p += take;
+        }
+    } else while (*p && n < maxN) {
         while (*p == ' ') p++;
         size_t len = strlen(p);
         size_t take = len;
@@ -822,8 +855,11 @@ static void petBalloonIn(TFT_eSPI& t, const char* s, int boxX, int boxY, int box
         n++; p += take;
     }
     if (!n) return;
+    const uint8_t keepS = t.textsize ? t.textsize : 1;
+    if (ru) { t.setTextFont(1); t.setTextSize(1); }
     int tw = 0;
-    for (uint8_t i = 0; i < n; i++) { const int w = t.textWidth(lines[i]); if (w > tw) tw = w; }
+    for (uint8_t i = 0; i < n; i++) { const int w = ru ? Theme::textWidthRU(t, lines[i]) : t.textWidth(lines[i]); if (w > tw) tw = w; }
+    if (ru) t.setTextSize(keepS);
     if (s_balloonBold) tw++;
     // A row per line: 9 in the system font, the font's own height in the
     // 3.5in's medium one (see drawHeldBalloons()).
@@ -844,7 +880,7 @@ static void petBalloonIn(TFT_eSPI& t, const char* s, int boxX, int boxY, int box
             t.drawFastVLine(tx, ty + i, 6 - 2 * i > 0 ? 6 - 2 * i : 1, paper);
             t.drawPixel(tx, ty + i - 1, Theme::BLACK);
         }
-        balloonText(t, lines, n, bx + 5, by + 3, lh, paper);
+        balloonText(t, lines, n, bx + 5, by + 3, lh, paper, ru);
         return;
     }
     const int anchorX = boxX + boxW / 2, bottomY = boxY - 4;
@@ -864,7 +900,7 @@ static void petBalloonIn(TFT_eSPI& t, const char* s, int boxX, int boxY, int box
         t.drawPixel(tx - 3 + i, by + bh - 1 + i, Theme::BLACK);
         t.drawPixel(tx + 2, by + bh - 1 + i, Theme::BLACK);
     }
-    balloonText(t, lines, n, bx + 5, by + 3, lh, paper);
+    balloonText(t, lines, n, bx + 5, by + 3, lh, paper, ru);
 }
 
 static void clipBalloon(TFT_eSPI& t, const char* s, int clipX, int clipY, int screenW, int screenH) {

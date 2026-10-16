@@ -19,6 +19,9 @@
 #include <cstring>
 #include <cstdio>
 
+// Theme::tr stub: EN in tests, the way the firmware reads with lang()==0.
+namespace Theme { const char* tr(const char* en, const char*) { return en; } }
+
 using namespace MeshMsg;
 
 // ---- the toy AEAD ------------------------------------------------------------

@@ -1,5 +1,6 @@
 // PotsSquad-CYD — PotsMesh messages at runtime. See include/meshtalk.h.
 #include "meshtalk.h"
+#include "theme.h"
 #include "gnss.h"
 
 #if POTS_MESH
@@ -332,7 +333,7 @@ void deliverInvite(const Slot& s, uint32_t now, uint32_t ctr, uint8_t kind) {
             uint8_t shared[MeshCrypto::DH_LEN];
             if (!MeshCrypto::dhShared(s_invPriv, s_invPeerPub, shared)) {
                 inviteRxReject(6, "DH agreement failed");
-                inviteFail("Bad key from their board", now);
+                inviteFail(Theme::tr("Bad key from their board", "Плохой ключ с их платы"), now);
                 return;
             }
             MeshCrypto::dhSessionKey(shared, s_invKey);
@@ -357,7 +358,7 @@ void deliverInvite(const Slot& s, uint32_t now, uint32_t ctr, uint8_t kind) {
         if (!s_invAsm.add(s.mac, kind, ctr, part, bytes)) return;
         const bool ok = MeshMsg::inviteKeyUnblob(s_invAsm.bytes, s_invPhrase);
         s_invAsm.clear();
-        if (!ok) { inviteFail("Garbled phrase", now); return; }
+        if (!ok) { inviteFail(Theme::tr("Garbled phrase", "Фраза искажена"), now); return; }
         s_replay.record(s.nmac, ctr);
         saveReplay();
         s_invPhraseIn = true;
@@ -365,7 +366,7 @@ void deliverInvite(const Slot& s, uint32_t now, uint32_t ctr, uint8_t kind) {
         // Taken now if MATCHES was already pressed, else held for it.
         if (s_invState == InviteState::WAITING) {
             if (setPhrase(s_invPhrase)) { inviteTo(InviteState::JOINED, now); joinedHello(); }
-            else inviteFail("Could not take the phrase", now);
+            else inviteFail(Theme::tr("Could not take the phrase", "Не вышло принять фразу"), now);
             memset(s_invPhrase, 0, sizeof s_invPhrase);
             s_invPhraseIn = false;
         }
@@ -914,16 +915,16 @@ Send inviteAccept(uint32_t now) {
     if (s_invState != InviteState::ASKED) return Send::FAILED;
     if (!Settings::meshTransmit()) return Send::TRANSMIT_OFF;
     if (!s_macSet) return Send::FAILED;
-    if (!MeshCrypto::dhKeypair(s_invPriv, s_invPub)) { inviteFail("Could not make a key", now); return Send::FAILED; }
+    if (!MeshCrypto::dhKeypair(s_invPriv, s_invPub)) { inviteFail(Theme::tr("Could not make a key", "Не вышло создать ключ"), now); return Send::FAILED; }
     uint8_t shared[MeshCrypto::DH_LEN];
-    if (!MeshCrypto::dhShared(s_invPriv, s_invPeerPub, shared)) { inviteFail("Bad key from their board", now); return Send::FAILED; }
+    if (!MeshCrypto::dhShared(s_invPriv, s_invPeerPub, shared)) { inviteFail(Theme::tr("Bad key from their board", "Плохой ключ с их платы"), now); return Send::FAILED; }
     MeshCrypto::dhSessionKey(shared, s_invKey);
     memset(shared, 0, sizeof shared);
     s_invCode = MeshCrypto::dhCode(s_invPub, s_invPeerPub);
     uint8_t blob[MeshMsg::INVITE_BLOB];
     MeshMsg::invitePubBlob(s_invPeerMac, 1, s_invPub, blob);
     const Send r = invitePut(MeshMsg::KIND_INVITE_PUB, blob, INVITE_OFFER_MS, now);
-    if (r != Send::OK) { inviteFail("Could not answer", now); return r; }
+    if (r != Send::OK) { inviteFail(Theme::tr("Could not answer", "Не вышло ответить"), now); return r; }
     inviteTo(InviteState::CODE, now);
     Serial.printf("[invite] answered %s; code %04u\n", s_invPeerName, (unsigned)s_invCode);
     return Send::OK;
@@ -935,10 +936,10 @@ Send inviteConfirm(uint32_t now) {
     if (s_invState != InviteState::CODE) return Send::FAILED;
     if (s_invInviter) {
         uint8_t blob[MeshMsg::INVITE_BLOB];
-        if (MeshMsg::inviteKeyBlob(s_phrase, blob) == 0) { inviteFail("No phrase to send", now); return Send::FAILED; }
+        if (MeshMsg::inviteKeyBlob(s_phrase, blob) == 0) { inviteFail(Theme::tr("No phrase to send", "Нет фразы для отправки"), now); return Send::FAILED; }
         const Send r = invitePut(MeshMsg::KIND_INVITE_KEY, blob, INVITE_KEY_MS, now);
         memset(blob, 0, sizeof blob);
-        if (r != Send::OK) { inviteFail("Could not send the phrase", now); return r; }
+        if (r != Send::OK) { inviteFail(Theme::tr("Could not send the phrase", "Не вышло отправить фразу"), now); return r; }
         inviteTo(InviteState::SENDING, now);
         s_invConfirmed = false;
         for (uint8_t i = 0; i < SQUAD_N; i++)
@@ -949,7 +950,7 @@ Send inviteConfirm(uint32_t now) {
     // Invitee: the phrase may already be in.
     if (s_invPhraseIn) {
         if (setPhrase(s_invPhrase)) { inviteTo(InviteState::JOINED, now); joinedHello(); }
-        else inviteFail("Could not take the phrase", now);
+        else inviteFail(Theme::tr("Could not take the phrase", "Не вышло принять фразу"), now);
         memset(s_invPhrase, 0, sizeof s_invPhrase);
         s_invPhraseIn = false;
         return Send::OK;
@@ -1179,8 +1180,8 @@ void tick(uint32_t now) {
     }
     // The invite's clocks: a side that waits too long for the other gives up,
     // and the inviter is done once the phrase has had its time on the air.
-    if (s_invState == InviteState::OFFERING && now - s_invSince > INVITE_WAIT_MS) inviteFail("No answer from their board", now);
-    if (s_invState == InviteState::WAITING  && now - s_invSince > INVITE_WAIT_MS) inviteFail("The phrase never arrived", now);
+    if (s_invState == InviteState::OFFERING && now - s_invSince > INVITE_WAIT_MS) inviteFail(Theme::tr("No answer from their board", "Их плата не отвечает"), now);
+    if (s_invState == InviteState::WAITING  && now - s_invSince > INVITE_WAIT_MS) inviteFail(Theme::tr("The phrase never arrived", "Фраза так и не пришла"), now);
     // Their hello under the new phrase is the proof it landed: done, and
     // the phrase can come off the air. Otherwise done when its time is up,
     // unconfirmed.
@@ -1228,8 +1229,8 @@ bool takeRead(char* who, size_t cap) {
 
 const char* lineText(const Message& m) {
     if (m.text) return m.body;
-    if (m.unknownLine) return "(a line this build doesn't know)";
-    return MeshMsg::CANNED[m.canned < MeshMsg::CANNED_N ? m.canned : 0];
+    if (m.unknownLine) return Theme::tr("(a line this build doesn't know)", "(строка, которой эта сборка не знает)");
+    return MeshMsg::cannedLine(m.canned);
 }
 
 } // namespace MeshTalk

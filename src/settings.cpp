@@ -163,6 +163,7 @@ static uint8_t  s_buzzMode     = 2;    // 0 OFF, 1 HIGH, 2 MED, 3 LOW; MED by de
 // 0 ALWAYS, 1 five seconds of thirty, 2 ten of sixty, 3 BLE always on with
 // WiFi five of thirty. Watch only; the CYDs never read it.
 static const char* const RADIO_DUTY_NAMES[] = { "ALWAYS", "5/30", "10/60", "BLE+5/30" };
+static const char* const RADIO_DUTY_RU[] = { "ВСЕГДА", "5/30", "10/60", "BLE+5/30" };
 static const uint8_t     RADIO_DUTY_N       = 4;
 #if defined(TWATCH_S3)
 // BLE+5/30: Bluetooth listens all the time, WiFi rests 25 s in every 30.
@@ -211,7 +212,9 @@ static uint8_t s_lang         = 1;   // 0 EN, 1 RU (PotSquad default). SYSTEM pa
 static uint8_t s_timeZone     = 10;   // UTC in Clock's table
 static bool    s_tzChosen     = false;
 static const char* const LIGHT_IDLE_NAMES[]  = { "OFF", "BREATHE", "SOLID" };
+static const char* const LIGHT_IDLE_RU[]    = { "ВЫКЛ", "ДЫШИТ", "ГОРИТ" };
 static const char* const BANTER_NAMES[]      = { "IMPORTANT", "LESS", "NORMAL", "MORE" };
+static const char* const BANTER_RU[]         = { "ВАЖНОЕ", "РЕЖЕ", "ОБЫЧНО", "ЧАЩЕ" };
 static const float       BANTER_SCALE[]      = { 2.5f, 2.5f, 1.0f, 0.5f };
 static uint8_t s_banter = 2;   // NORMAL: what every board did before the row existed
 // BACKGROUND is stored as 10, after the fixed colours, so the indices saved
@@ -220,22 +223,25 @@ static uint8_t s_banter = 2;   // NORMAL: what every board did before the row ex
 static const char* const LIGHT_COLOR_NAMES[] = { "THEME", "RED", "ORANGE", "YELLOW", "GREEN",
                                                  "CYAN", "BLUE", "PURPLE", "PINK", "WHITE",
                                                  "BACKGROUND" };
+static const char* const LIGHT_COLOR_RU[] = { "ТЕМА", "КРАСНЫЙ", "ОРАНЖ", "ЖЁЛТЫЙ", "ЗЕЛЁНЫЙ",
+                                              "ГОЛУБОЙ", "СИНИЙ", "ФИОЛЕТ", "РОЗОВЫЙ", "БЕЛЫЙ",
+                                              "ФОН" };
 static const uint8_t LIGHT_COLOR_N = sizeof(LIGHT_COLOR_NAMES) / sizeof(LIGHT_COLOR_NAMES[0]);
 
 const char* backgroundName(Background b) {
     switch (b) {
-        case Background::DIGITAL:    return "DIGITAL RAIN";
-        case Background::STARFIELD: return "STARFIELD";
-        case Background::TOASTERS:  return "FLYING TOASTERS";
-        case Background::AQUARIUM:  return "AQUARIUM";
-        case Background::TERMINAL:  return "TERMINAL LOG";
-        case Background::FIREFLIES: return "FIREFLIES";
-        case Background::FIRE:      return "FIRE";
-        case Background::SNOWFALL:  return "SNOWFALL";
-        case Background::SPECTRUM:  return "THE GIBSON";
-        case Background::TUNNEL:    return "WIREFRAME TUNNEL";
-        case Background::SYNTHWAVE: return "SYNTHWAVE";
-        case Background::BLACK:     return "BLACK";
+        case Background::DIGITAL:    return Theme::tr("DIGITAL RAIN", "ЦИФРОВОЙ ДОЖДЬ");
+        case Background::STARFIELD: return Theme::tr("STARFIELD", "ЗВЁЗДЫ");
+        case Background::TOASTERS:  return Theme::tr("FLYING TOASTERS", "ТОСТЕРЫ");
+        case Background::AQUARIUM:  return Theme::tr("AQUARIUM", "АКВАРИУМ");
+        case Background::TERMINAL:  return Theme::tr("TERMINAL LOG", "ТЕРМИНАЛ");
+        case Background::FIREFLIES: return Theme::tr("FIREFLIES", "СВЕТЛЯЧКИ");
+        case Background::FIRE:      return Theme::tr("FIRE", "ОГОНЬ");
+        case Background::SNOWFALL:  return Theme::tr("SNOWFALL", "СНЕГ");
+        case Background::SPECTRUM:  return Theme::tr("THE GIBSON", "ГИБСОН");
+        case Background::TUNNEL:    return Theme::tr("WIREFRAME TUNNEL", "ТУННЕЛЬ");
+        case Background::SYNTHWAVE: return Theme::tr("SYNTHWAVE", "СИНТВЕЙВ");
+        case Background::BLACK:     return Theme::tr("BLACK", "ЧЁРНЫЙ");
         default:                    return "?";
     }
 }
@@ -266,7 +272,7 @@ bool     buzz()             { return s_buzzMode != 0; }
 // or WATCH in settings) picks the mode; neither turns the saver on.
 uint8_t  radioDuty()        { return s_powerSaver ? s_radioDutyIx : 0; }
 uint8_t  radioDutyRaw()     { return s_radioDutyIx; }
-const char* radioDutyName(uint8_t ix) { return RADIO_DUTY_NAMES[ix < RADIO_DUTY_N ? ix : 0]; }
+const char* radioDutyName(uint8_t ix) { const uint8_t i = ix < RADIO_DUTY_N ? ix : 0; return Theme::tr(RADIO_DUTY_NAMES[i], RADIO_DUTY_RU[i]); }
 void cycleRadioDuty() {
     s_radioDutyIx = (uint8_t)((s_radioDutyIx + 1) % RADIO_DUTY_N);
     s_prefs.putUChar("pwrRadio", s_radioDutyIx);
@@ -322,8 +328,10 @@ void cycleCpuMhz() {
 
 uint8_t buzzStrength() { return s_buzzMode == 0 ? 0 : (uint8_t)(3 - s_buzzMode); }
 const char* buzzModeName() {
-    static const char* const N[] = { "OFF", "HIGH", "MED", "LOW" };
-    return N[s_buzzMode < 4 ? s_buzzMode : 2];
+    static const char* const EN[] = { "OFF", "HIGH", "MED", "LOW" };
+    static const char* const RU[] = { "ВЫКЛ", "СИЛЬН", "СРЕД", "СЛАБ" };
+    const uint8_t i = s_buzzMode < 4 ? s_buzzMode : 2;
+    return Theme::tr(EN[i], RU[i]);
 }
 void cycleBuzz() {
     s_buzzMode = (uint8_t)((s_buzzMode + 1) % 4);
@@ -372,8 +380,10 @@ bool buzzerOn()     { return s_buzzer; }
 void toggleBuzzer() { s_buzzer = !s_buzzer; s_prefs.putBool("buzzer", s_buzzer); }
 uint8_t soundMode() { return s_soundMode; }
 const char* soundModeName() {
-    static const char* const N[] = { "OFF", "ALERTS", "ALL" };
-    return N[s_soundMode < 3 ? s_soundMode : 0];
+    static const char* const EN[] = { "OFF", "ALERTS", "ALL" };
+    static const char* const RU[] = { "ВЫКЛ", "ТРЕВОГИ", "ВСЁ" };
+    const uint8_t i = s_soundMode < 3 ? s_soundMode : 0;
+    return Theme::tr(EN[i], RU[i]);
 }
 void cycleSoundMode() { s_soundMode = (uint8_t)((s_soundMode + 1) % 3); s_prefs.putUChar("sndMode", s_soundMode); }
 uint8_t soundVolume() { return s_soundVol; }
@@ -395,15 +405,16 @@ void cycleLoraListen() {
 }
 void setLoraListen(uint8_t v) { s_loraListen = v & 3; s_prefs.putUChar("loraLstn", s_loraListen); }
 const char* loraListenName() {
-    static const char* const N[4] = { "OFF", "MESHTASTIC", "MESHCORE", "BOTH" };
-    return N[s_loraListen & 3];
+    static const char* const EN[4] = { "OFF", "MESHTASTIC", "MESHCORE", "BOTH" };
+    static const char* const RU[4] = { "ВЫКЛ", "MESHTASTIC", "MESHCORE", "ОБА" };
+    return Theme::tr(EN[s_loraListen & 3], RU[s_loraListen & 3]);
 }
 uint8_t loraTxDbm() { return s_loraTx; }
 void cycleLoraTx() {
     s_loraTx = s_loraTx == 0 ? 10 : s_loraTx == 10 ? 20 : 0;
     s_prefs.putUChar("loraTx", s_loraTx);
 }
-const char* loraTxName() { return s_loraTx == 0 ? "OFF" : s_loraTx == 10 ? "10 dBm" : "20 dBm"; }
+const char* loraTxName() { return s_loraTx == 0 ? Theme::tr("OFF", "ВЫКЛ") : s_loraTx == 10 ? "10 dBm" : "20 dBm"; }
 uint8_t loraRegion() { return s_loraRegion; }
 void setLoraRegion(uint8_t r) { s_loraRegion = r > 2 ? 0 : r; s_prefs.putUChar("loraRgn", s_loraRegion); }
 uint8_t loraFocus() { return s_loraFocus; }
@@ -710,12 +721,15 @@ uint8_t     clockFont()         { return s_clockFont; }
 const char* clockFontName()     { return s_clockFont ? "BANGERS" : "DIGITAL"; }
 void        cycleClockFont()    { s_clockFont = (uint8_t)((s_clockFont + 1) % 2); s_prefs.putUChar("clkfont", s_clockFont); }
 uint8_t     clockSize()         { return s_clockSize; }
-const char* clockSizeName()     { static const char* const N[3] = { "SMALL", "MEDIUM", "LARGE" }; return N[s_clockSize]; }
+const char* clockSizeName()     { static const char* const EN[3] = { "SMALL", "MEDIUM", "LARGE" };
+                                  static const char* const RU[3] = { "МАЛЫЙ", "СРЕДНИЙ", "КРУПНЫЙ" };
+                                  return Theme::tr(EN[s_clockSize], RU[s_clockSize]); }
 void        cycleClockSize()    { s_clockSize = (uint8_t)((s_clockSize + 1) % 3); s_prefs.putUChar("clksize", s_clockSize); }
 uint8_t     clockBackdrop()     { return s_clockBackdrop; }
 const char* clockBackdropName() {
-    static const char* const N[CLOCK_BG_N] = { "PLAIN", "RAIN", "SNOW", "TOASTERS", "FIRE", "STARFIELD", "FIREFLIES" };
-    return N[s_clockBackdrop];
+    static const char* const EN[CLOCK_BG_N] = { "PLAIN", "RAIN", "SNOW", "TOASTERS", "FIRE", "STARFIELD", "FIREFLIES" };
+    static const char* const RU[CLOCK_BG_N] = { "ПРОСТОЙ", "ДОЖДЬ", "СНЕГ", "ТОСТЕРЫ", "ОГОНЬ", "ЗВЁЗДЫ", "СВЕТЛЯЧКИ" };
+    return Theme::tr(EN[s_clockBackdrop], RU[s_clockBackdrop]);
 }
 void        cycleClockBackdrop() { s_clockBackdrop = (uint8_t)((s_clockBackdrop + 1) % CLOCK_BG_N); s_prefs.putUChar("clkbg", s_clockBackdrop); }
 void        cyclePrevClockBackdrop() { s_clockBackdrop = (uint8_t)((s_clockBackdrop + CLOCK_BG_N - 1) % CLOCK_BG_N); s_prefs.putUChar("clkbg", s_clockBackdrop); }
@@ -869,14 +883,14 @@ bool        lightMessages()   { return s_lightMsgs; }
 uint8_t     lightIdle()       { return s_lightIdle; }
 uint8_t     lightColor()      { return s_lightColor; }
 uint8_t     lightBrightness() { return s_lightBright; }
-const char* lightIdleName()   { return LIGHT_IDLE_NAMES[s_lightIdle > 2 ? 1 : s_lightIdle]; }
-const char* lightColorName()  { return LIGHT_COLOR_NAMES[s_lightColor < LIGHT_COLOR_N ? s_lightColor : 0]; }
+const char* lightIdleName()   { const uint8_t i = s_lightIdle > 2 ? 1 : s_lightIdle; return Theme::tr(LIGHT_IDLE_NAMES[i], LIGHT_IDLE_RU[i]); }
+const char* lightColorName()  { const uint8_t i = s_lightColor < LIGHT_COLOR_N ? s_lightColor : 0; return Theme::tr(LIGHT_COLOR_NAMES[i], LIGHT_COLOR_RU[i]); }
 void toggleLight()         { s_lightOn = !s_lightOn;         s_prefs.putBool("ltOn", s_lightOn); }
 void toggleLightAlerts()   { s_lightAlerts = !s_lightAlerts; s_prefs.putBool("ltAlert", s_lightAlerts); }
 void toggleLightMessages() { s_lightMsgs = !s_lightMsgs;     s_prefs.putBool("ltMsg", s_lightMsgs); }
 void cycleLightIdle()      { s_lightIdle = (uint8_t)((s_lightIdle + 1) % 3);            s_prefs.putUChar("ltIdle", s_lightIdle); }
 uint8_t     banter()       { return s_banter; }
-const char* banterName()   { return BANTER_NAMES[s_banter > 3 ? 2 : s_banter]; }
+const char* banterName()   { const uint8_t i = s_banter > 3 ? 2 : s_banter; return Theme::tr(BANTER_NAMES[i], BANTER_RU[i]); }
 float       banterScale()  { return BANTER_SCALE[s_banter > 3 ? 2 : s_banter]; }
 // Quiet to loud: IMPORTANT, LESS, NORMAL, MORE, round again.
 void cycleBanter()         { s_banter = (uint8_t)((s_banter + 1) % 4);                 s_prefs.putUChar("banter", s_banter); }
@@ -967,9 +981,9 @@ const char* autoQuietLabel() {
     if (autoQuietForced()) return "SAVER 5";
 #endif
     switch (s_autoQuiet) {
-        case 5:  return "AFTER 5";
-        case 10: return "AFTER 10";
-        default: return "OFF";
+        case 5:  return Theme::tr("AFTER 5", "ЧЕРЕЗ 5");
+        case 10: return Theme::tr("AFTER 10", "ЧЕРЕЗ 10");
+        default: return Theme::tr("OFF", "ВЫКЛ");
     }
 }
 
@@ -987,9 +1001,9 @@ void cycleMinConfidence() {
 
 const char* minConfidenceLabel() {
     switch (s_minConf) {
-        case Confidence::LOW_CONF:  return "ALL";
-        case Confidence::MED_CONF:  return "MED+";
-        case Confidence::HIGH_CONF: return "HIGH ONLY";
+        case Confidence::LOW_CONF:  return Theme::tr("ALL", "ВСЕ");
+        case Confidence::MED_CONF:  return Theme::tr("MED+", "СРЕД+");
+        case Confidence::HIGH_CONF: return Theme::tr("HIGH ONLY", "ТОЛЬКО ХОРОШИЕ");
         default:                    return "?";
     }
 }
@@ -998,6 +1012,7 @@ const char* minConfidenceLabel() {
 // has never been told otherwise draws him exactly as it always did.
 static const uint8_t     SQ_SIZE_PCT[3]   = { 70, 85, 100 };
 static const char* const SQ_SIZE_LABEL[3] = { "SMALL", "MEDIUM", "LARGE" };
+static const char* const SQ_SIZE_RU[3] = { "МАЛЫЙ", "СРЕДНИЙ", "КРУПНЫЙ" };
 static const uint8_t     SQ_SIZE_N        = 3;
 
 #if POTS_MESH
@@ -1008,11 +1023,11 @@ void setMeshConsent(bool v) {
     s_meshConsent = v;
     s_prefs.putBool("meshok", v);
 }
-const char* meshDetectLabel()   { return s_meshDetect   ? "ON" : "OFF"; }
+const char* meshDetectLabel()   { return Theme::onOff(s_meshDetect); }
 // Reports what the RADIO is doing, not what the flag holds -- meshTransmit()
 // is the same answer the advertiser gets, so the row cannot say ON while
 // nothing is going out.
-const char* meshTransmitLabel() { return meshTransmit() ? "ON" : "OFF"; }
+const char* meshTransmitLabel() { return Theme::onOff(meshTransmit()); }
 uint8_t meshCrowd() { return s_meshCrowd; }
 bool    deskSquad() { return s_deskSquad; }
 void    toggleDeskSquad() {
@@ -1029,10 +1044,10 @@ uint8_t deskCrowd() { return s_deskCrowd; }
 static const char* crowdLabel(uint8_t n) {
     // ONE is a different thing, not a count of one: it is the ordinary visit,
     // with the set pieces and the emotes that a crowd stands down.
-    if (n == 0) return "NONE";
-    if (n == 1) return "ONE";
+    if (n == 0) return Theme::tr("NONE", "НИКОГО");
+    if (n == 1) return Theme::tr("ONE", "ОДИН");
     static char b[10];
-    snprintf(b, sizeof b, "UP TO %u", (unsigned)n);
+    snprintf(b, sizeof b, Theme::tr("UP TO %u", "ДО %u"), (unsigned)n);
     return b;
 }
 const char* meshCrowdLabel() { return crowdLabel(s_meshCrowd); }
@@ -1084,7 +1099,7 @@ const char* meshSummary() {
     if (s_meshDetect && meshTransmit()) return "RX+TX >";
     if (s_meshDetect)                   return "RX >";
     if (meshTransmit())                 return "TX >";
-    return "OFF >";
+    return Theme::tr("OFF >", "ВЫКЛ >");
 }
 
 bool phoneQwerty() { return s_phoneQwerty; }
@@ -1129,7 +1144,8 @@ uint8_t potsySizePct() {
     return SQ_SIZE_PCT[s_sqSizeIx < SQ_SIZE_N ? s_sqSizeIx : (uint8_t)(SQ_SIZE_N - 1)];
 }
 const char* potsySizeLabel() {
-    return SQ_SIZE_LABEL[s_sqSizeIx < SQ_SIZE_N ? s_sqSizeIx : (uint8_t)(SQ_SIZE_N - 1)];
+    const uint8_t i = s_sqSizeIx < SQ_SIZE_N ? s_sqSizeIx : (uint8_t)(SQ_SIZE_N - 1);
+    return Theme::tr(SQ_SIZE_LABEL[i], SQ_SIZE_RU[i]);
 }
 void cyclePotsySize() {
     s_sqSizeIx = (uint8_t)((s_sqSizeIx + 1) % SQ_SIZE_N);

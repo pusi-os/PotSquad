@@ -48,6 +48,11 @@ constexpr uint8_t CANNED_TABS = 6, CANNED_PER_TAB = 8;
 extern const char* const CANNED_TAB_NAME[CANNED_TABS];
 // The CANNED index at that slot, or 0xFF when the slot is empty.
 uint8_t cannedAtTab(uint8_t tab, uint8_t slot);
+// Display strings: the indices above go on the air, so each board renders
+// its own language. cannedLine() picks EN/RU by Settings::lang(); the
+// protocol tables themselves never change.
+const char* cannedLine(uint8_t i);
+const char* cannedTabName(uint8_t tab);
 
 // ---- phrases ---------------------------------------------------------------
 // A uniform index in [0, n). Rejection sampling rather than `rng() % n`, which

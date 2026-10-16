@@ -95,6 +95,7 @@ UI_SRCS  := $(SRC)/theme.cpp \
             $(SRC)/ui_dex.cpp \
             $(SRC)/detection_info.cpp \
             $(SRC)/device_info.cpp \
+            $(SRC)/type_names.cpp \
             $(SRC)/idle_events.cpp \
             $(SRC)/ui_clear.cpp \
             $(SRC)/ui_power.cpp \

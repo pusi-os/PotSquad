@@ -1,6 +1,7 @@
 // PotsSquad-CYD — signature data tables and lookup functions
 // Sources per docs/DETECTIONS.md.
 #include "signatures.h"
+#include "theme.h"
 #include <string.h>
 #include <strings.h>   // strncasecmp
 
@@ -660,9 +661,9 @@ Confidence confidenceFor(DetectionType t) {
 
 const char* confidenceLabel(Confidence c) {
     switch (c) {
-        case Confidence::HIGH_CONF:   return "HIGH CONF";
-        case Confidence::MED_CONF: return "MED CONF";
-        default:                 return "LOW CONF";
+        case Confidence::HIGH_CONF:   return Theme::tr("HIGH CONF", "УВЕРЕННО");
+        case Confidence::MED_CONF: return Theme::tr("MED CONF", "ТАК СЕБЕ");
+        default:                 return Theme::tr("LOW CONF", "НЕ УВЕРЕН");
     }
 }
 

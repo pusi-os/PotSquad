@@ -15,6 +15,9 @@
 #include <cstring>
 #include <cstdio>
 
+// Theme::tr stub: EN in tests, the way the firmware reads with lang()==0.
+namespace Theme { const char* tr(const char* en, const char*) { return en; } }
+
 // A beacon is a 24-byte header then 12 bytes of fixed parameters, so the
 // information elements -- and anything a pwnagotchi added -- start at 36.
 // Everything before that is filled with a recognisable pattern rather than

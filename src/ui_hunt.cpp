@@ -226,15 +226,15 @@ void uiHuntTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
     // would silently query the wrong thing here.
     int readoutH = t.fontHeight();
 
-    const char* trend = "WAITING FOR SIGNAL...";
+    const char* trend = Theme::tr("WAITING FOR SIGNAL...", "ЖДУ СИГНАЛ...");
     uint16_t trendColor = Theme::WHITE;
     if (rssiN >= 2) {
         uint8_t backIdx = (rssiN > 6) ? (rssiN - 6) : 0;
         int delta = (int)latestRssi - (int)eng.huntRssiAt(backIdx);
         TrendState cur;
-        if (delta > 3)       { trend = "GETTING WARMER";  trendColor = Theme::GREEN; cur = TrendState::WARMER; }
-        else if (delta < -3) { trend = "GETTING COLDER";  trendColor = Theme::RED;   cur = TrendState::COLDER; }
-        else                 { trend = "HOLDING STEADY";  trendColor = Theme::CYAN;  cur = TrendState::STEADY; }
+        if (delta > 3)       { trend = Theme::tr("GETTING WARMER", "ТЕПЛЕЕ");  trendColor = Theme::GREEN; cur = TrendState::WARMER; }
+        else if (delta < -3) { trend = Theme::tr("GETTING COLDER", "ХОЛОДНЕЕ");  trendColor = Theme::RED;   cur = TrendState::COLDER; }
+        else                 { trend = Theme::tr("HOLDING STEADY", "ДЕРЖИМ");  trendColor = Theme::CYAN;  cur = TrendState::STEADY; }
         // Only on an actual change -- not every tick the trend still
         // reads the same way, or he'd never shut up.
         if (cur != s_lastTrend) {
@@ -246,26 +246,30 @@ void uiHuntTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
     // Caught: the word takes the readout's row, in a green box the eye cannot
     // miss from across a table, and the number moves down to the trend line.
     if (caught) {
-        t.setTextSize(2);
-        const int cw2 = t.textWidth("CAUGHT!") + 16, ch2 = t.fontHeight() + 4;
+        const char* cg = Theme::tr("CAUGHT!", "ПОЙМАН!");
+        const bool cgru = Theme::isRu(cg);
+        if (cgru) { t.setTextFont(1); t.setTextSize(1); } else t.setTextSize(2);
+        const int cw2 = (cgru ? Theme::textWidthRU16(t, cg) : t.textWidth(cg)) + 16, ch2 = t.fontHeight() + 4;
         const int cx2 = colX + (colW - cw2) / 2, cy2 = readY - 2;
         t.fillRect(cx2, cy2, cw2, ch2, Theme::GREEN);
         t.setTextColor(Theme::BLACK, Theme::GREEN);
         t.setCursor(cx2 + 8, cy2 + 2);
-        t.print("CAUGHT!");
+        if (cgru) Theme::printRU16(t, cg); else t.print(cg);
         trend = rbuf;
         trendColor = Theme::GREEN;
     }
     Theme::bodyFontOn(t);
-    int tw = t.textWidth(trend);
+    const bool tru = Theme::isRu(trend);
+    if (tru) { t.setTextFont(1); t.setTextSize(1); }
+    int tw = tru ? Theme::textWidthRU(t, trend) : t.textWidth(trend);
     t.setTextColor(trendColor, Theme::BG);
     t.setCursor(colX + (colW - tw) / 2, readY + readoutH + (tiny ? 1 : 2));
-    t.print(trend);
+    if (tru) Theme::printRU(t, trend); else t.print(trend);
     Theme::bodyFontOff(t);
 
     int bx, by, bw, bh;
     backButtonRect(w, h, bx, by, bw, bh);
-    Theme::drawButton(t, bx, by, bw, bh, "[ BACK ]", false);
+    Theme::drawButton(t, bx, by, bw, bh, Theme::tr("[ BACK ]", "[ НАЗАД ]"), false);
     stopButtonRect(w, h, bx, by, bw, bh);
-    Theme::drawButton(t, bx, by, bw, bh, "[ STOP ]", false);
+    Theme::drawButton(t, bx, by, bw, bh, Theme::tr("[ STOP ]", "[ СТОП ]"), false);
 }

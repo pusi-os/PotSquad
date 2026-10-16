@@ -144,6 +144,9 @@ static const SettingsRow APPEARANCE_ROWS[] = {
     SettingsRow::STATUS_LIGHT,
     // How big the words are, on a page of its own.
     SettingsRow::FONTS,
+    // Dead last: the one-way unlock for everything above. Tapping it is
+    // the point, so it sits where the thumb ends up, not buried mid-list.
+    SettingsRow::GODS_MODE,
 };
 
 // The FONTS page: one row per kind of text. A kind this board can show at
@@ -357,18 +360,18 @@ static RowGroupId groupFor(SettingsRow r) {
 
 static const char* groupName(RowGroupId g) {
     switch (g) {
-        case RowGroupId::APPEARANCE: return "APPEARANCE";
-        case RowGroupId::BEHAVIOR:   return "BEHAVIOR";
+        case RowGroupId::APPEARANCE: return Theme::tr("APPEARANCE", "ВНЕШНОСТЬ");
+        case RowGroupId::BEHAVIOR:   return Theme::tr("BEHAVIOR", "ПОВЕДЕНИЕ");
         case RowGroupId::POTSY:    return "POTSY";
-        case RowGroupId::DESK:       return "DESK";
-        case RowGroupId::SQUAD:      return "SQUAD";
-        case RowGroupId::FONTS:      return "TEXT SIZE";
+        case RowGroupId::DESK:       return Theme::tr("DESK", "ЧАСЫ");
+        case RowGroupId::SQUAD:      return Theme::tr("SQUAD", "СКВАД");
+        case RowGroupId::FONTS:      return Theme::tr("TEXT SIZE", "РАЗМЕР ТЕКСТА");
 #if defined(TDECK_PLUS)
         case RowGroupId::WATCH:      return "LORA";    // the T-Deck has the watch's LoRa rows and nothing else of the watch's
 #else
-        case RowGroupId::WATCH:      return "WATCH";
+        case RowGroupId::WATCH:      return Theme::tr("WATCH", "ЧАСЫ");
 #endif
-        default:                     return "SYSTEM";
+        default:                     return Theme::tr("SYSTEM", "СИСТЕМА");
     }
 }
 
@@ -536,11 +539,16 @@ static int maxScroll(const DisplayItem* items, uint8_t n,
 
 // ---- the FONTS page ----------------------------------------------------------
 static void rowPanel(TFT_eSPI& t, int w, int y, int hgt);   // below, with the other rows
+// Row measure/print lives in Theme (rowWidth/rowPrint) so every
+// settings-style list shares it; thin aliases keep the call sites short.
+static int rowTextWidth(TFT_eSPI& t, const char* s) { return Theme::rowWidth(t, s); }
+static void rowPrint(TFT_eSPI& t, const char* s, int x, int y) { Theme::rowPrint(t, s, x, y); }
 // The preview: a box with a sample of the kind moved last, drawn by the same
 // code that draws the real thing, so what it shows is what the screens get.
-static const char* const PREVIEW_TEXT = "Potsy spotted a tracker tagging along. Tap a row to see where it went.";
-static const char* const PREVIEW_SAY  = "Like this?";
-static const char* const PREVIEW_PET  = "Me next!";
+static const char* previewText() { return Theme::tr("Potsy spotted a tracker tagging along. Tap a row to see where it went.",
+    "Потси заметил трекер на хвосте. Жми на строку — увидишь, куда он делся."); }
+static const char* previewSay()  { return Theme::tr("Like this?", "Вот так?"); }
+static const char* previewPet()  { return Theme::tr("Me next!", "Я следующий!"); }
 static const int PREVIEW_CAP = 12;    // the "PREVIEW" caption's rows
 static int previewButtonH() { return Theme::dialogBtnH(24); }
 static int previewHeight(TFT_eSPI& t, int w) {
@@ -553,7 +561,9 @@ static int previewHeight(TFT_eSPI& t, int w) {
         case Settings::FontKind::TEXT: {
             Theme::bodyFontOn(t);
             char lines[4][48];
-            const uint8_t n = Theme::wrapText(t, PREVIEW_TEXT, w - 34, lines, 4);
+            const bool ru = Theme::isRu(previewText());
+            const uint8_t n = ru ? Theme::wrapTextRU(t, previewText(), w - 34, lines, 4)
+                                 : Theme::wrapText(t, previewText(), w - 34, lines, 4);
             sample = n * (t.fontHeight() + 2);
             break;
         }
@@ -565,7 +575,7 @@ static int previewHeight(TFT_eSPI& t, int w) {
             sample = (fh > 8 ? fh - 1 : 9) + 6 + 4 + 4;   // a line, its margins, the tail and a gap
             break;
         }
-        default:                           sample = Potsy::bubbleHeight(t, PREVIEW_SAY); break;
+        default:                           sample = Potsy::bubbleHeight(t, previewSay()); break;
     }
     t.setTextFont(1);
     t.setTextSize(1);
@@ -580,43 +590,49 @@ static void drawFontPreview(TFT_eSPI& t, int w, int y, int hgt) {
     t.setTextSize(1);
     t.setTextColor(Theme::CYAN, Theme::BG);
     t.setCursor(x0 + 5, y + 4);
-    static const char* const KIND[6] = { "MENUS", "TEXT", "BUTTONS", "BUBBLES", "XP TILES", "PETS" };
+    static const char* const KIND_EN[6] = { "MENUS", "TEXT", "BUTTONS", "BUBBLES", "XP TILES", "PETS" };
+    static const char* const KIND_RU[6] = { "МЕНЮ", "ТЕКСТ", "КНОПКИ", "ПУЗЫРИ", "ПЛАШКИ XP", "ПИТОМЦЫ" };
+    const char* const* KIND = Settings::lang() == 1 ? KIND_RU : KIND_EN;
     int8_t lo, hi;
     Theme::fontRange(t, s_previewKind, lo, hi);
     int8_t cur = Theme::fontDelta(s_previewKind);
     if (cur < lo) cur = lo;
     if (cur > hi) cur = hi;
-    char cap[40];
+    char cap[48];
+    const char* pre = Theme::tr("PREVIEW", "ПРЕДПРОСМОТР");
     if (Theme::fontHasFace(s_previewKind))
-        snprintf(cap, sizeof cap, "PREVIEW  %s: %s, %s", KIND[(int)s_previewKind], Theme::fontStepName(cur),
-                 Theme::fontSmooth(s_previewKind) ? "SMOOTH" : "PIXEL");
+        snprintf(cap, sizeof cap, "%s  %s: %s, %s", pre, KIND[(int)s_previewKind], Theme::fontStepName(cur),
+                 Theme::fontSmooth(s_previewKind) ? Theme::tr("SMOOTH", "ГЛАДКИЙ") : Theme::tr("PIXEL", "ПИКСЕЛЬ"));
     else
-        snprintf(cap, sizeof cap, "PREVIEW  %s: %s", KIND[(int)s_previewKind], Theme::fontStepName(cur));
-    t.print(cap);
+        snprintf(cap, sizeof cap, "%s  %s: %s", pre, KIND[(int)s_previewKind], Theme::fontStepName(cur));
+    rowPrint(t, cap, x0 + 5, y + 4);
     const int sy = y + 1 + PREVIEW_CAP;
     switch (s_previewKind) {
         case Settings::FontKind::MENUS: {
             // One of this screen's own rows.
+            const char* sLbl = Theme::tr("ALERT FILTER", "ФИЛЬТР ТРЕВОГ");
+            const char* sVal = Theme::tr("ALL", "ВСЕ");
             const int rh = hgt - PREVIEW_CAP - 10;
             Theme::drawListRowPanel(t, ww - 2, sy, rh);
             Theme::menuFontOn(t, t.height() > t.width());
-            while (t.textWidth("ALERT FILTER") + t.textWidth("ALL") + 8 > ww - 34 && Theme::menuFontSmaller(t)) {}
+            while (rowTextWidth(t, sLbl) + rowTextWidth(t, sVal) + 8 > ww - 34 && Theme::menuFontSmaller(t)) {}
             t.setTextColor(Theme::AMBER, Theme::BG);
-            t.setCursor(x0 + 8, sy + (rh - t.fontHeight()) / 2);
-            t.print("ALERT FILTER");
+            rowPrint(t, sLbl, x0 + 8, sy + (rh - t.fontHeight()) / 2);
             t.setTextColor(Theme::WHITE, Theme::BG);
-            t.setCursor(x0 + ww - 18 - t.textWidth("ALL"), sy + (rh - t.fontHeight()) / 2);
-            t.print("ALL");
+            rowPrint(t, sVal, x0 + ww - 18 - rowTextWidth(t, sVal), sy + (rh - t.fontHeight()) / 2);
             break;
         }
         case Settings::FontKind::TEXT: {
             Theme::bodyFontOn(t);
             char lines[4][48];
-            const uint8_t n = Theme::wrapText(t, PREVIEW_TEXT, w - 34, lines, 4);
+            const bool ru = Theme::isRu(previewText());
+            const uint8_t n = ru ? Theme::wrapTextRU(t, previewText(), w - 34, lines, 4)
+                                 : Theme::wrapText(t, previewText(), w - 34, lines, 4);
             t.setTextColor(Theme::WHITE, Theme::BG);
+            if (ru) t.setTextSize(1);
             for (uint8_t i = 0; i < n; i++) {
                 t.setCursor(x0 + 10, sy + 2 + i * (t.fontHeight() + 2));
-                t.print(lines[i]);
+                if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
             }
             break;
         }
@@ -624,13 +640,13 @@ static void drawFontPreview(TFT_eSPI& t, int w, int y, int hgt) {
             // A screen's own button and a window's, side by side.
             const int bh = previewButtonH(), gap = 8;
             const int bw = (ww - 16 - gap) / 2;
-            Theme::drawButton(t, x0 + 8, sy + 2, bw, bh, "[ GOT IT ]", false);
-            Theme::drawWin95Button(t, x0 + 8 + bw + gap, sy + 2, bw, bh, "YES", false);
+            Theme::drawButton(t, x0 + 8, sy + 2, bw, bh, Theme::tr("[ GOT IT ]", "[ ПОНЯЛ ]"), false);
+            Theme::drawWin95Button(t, x0 + 8 + bw + gap, sy + 2, bw, bh, Theme::tr("YES", "ДА"), false);
             break;
         }
         case Settings::FontKind::PETS:
             // A pet's balloon, its tail on a pet-sized box just under it.
-            Pet::drawSampleBalloon(t, x0 + ww / 2 - 11, y + hgt - 8, 22, PREVIEW_PET);
+            Pet::drawSampleBalloon(t, x0 + ww / 2 - 11, y + hgt - 8, 22, previewPet());
             break;
         case Settings::FontKind::XP_TILES: {
             // Two of the main screen's own counter tiles.
@@ -640,7 +656,7 @@ static void drawFontPreview(TFT_eSPI& t, int w, int y, int hgt) {
             break;
         }
         default:
-            Potsy::drawSampleBubble(t, x0 + ww / 2, sy + 2, PREVIEW_SAY);
+            Potsy::drawSampleBubble(t, x0 + ww / 2, sy + 2, previewSay());
             break;
     }
     t.setTextFont(1);
@@ -769,30 +785,38 @@ static SettingsRow s_confirmRow = SettingsRow::NONE;
 struct ConfirmText {
     SettingsRow row;
     const char* title;    // Bangers, so uppercase only
+    const char* titleRu;  // 16px RU face instead
     const char* line1;
+    const char* line1Ru;
     const char* line2;
+    const char* line2Ru;
     const char* verb;     // the button that goes through with it
+    const char* verbRu;
 };
 static const ConfirmText CONFIRMS[] = {
-    { SettingsRow::CALIBRATE, "RECALIBRATE?",
+    { SettingsRow::CALIBRATE, "RECALIBRATE?", "ПЕРЕКАЛИБРОВАТЬ?",
       "Replaces the touch calibration",
-      "you are using right now.", "CALIBRATE" },
+      "Заменяет калибровку тача,",
+      "you are using right now.", "которой пользуешься сейчас.", "CALIBRATE", "КАЛИБРОВАТЬ" },
     // The second line is the part worth stopping for. Outfits earned by
     // detection count are gated on the lifetime total, so zeroing it takes
     // them away again; the ones earned by finding something are not, and
     // stay put.
-    { SettingsRow::RESET_STATS, "RESET STATS?",
+    { SettingsRow::RESET_STATS, "RESET STATS?", "СБРОСИТЬ СТАТУ?",
       "Clears every detection total.",
-      "Outfits earned by count re-lock.", "RESET" },
+      "Обнуляет все счётчики находок.",
+      "Outfits earned by count re-lock.", "Костюмы за число снова закроются.", "RESET", "СБРОС" },
     // The second line is the whole reason this row has a panel: boring mode
     // hides every Potsy row, so the first thing it does is take away the
     // OUTFIT row, and the way back is not obvious once it has.
-    { SettingsRow::BORING_MODE, "BORING MODE?",
+    { SettingsRow::BORING_MODE, "BORING MODE?", "СКУЧНЫЙ РЕЖИМ?",
       "Hides Potsy and his rows,",
-      "OUTFIT included. Same row undoes.", "TURN ON" },
-    { SettingsRow::REPLAY_INTRO, "REPLAY INTRO?",
+      "Прячет Потси и его строки,",
+      "OUTFIT included. Same row undoes.", "включая КОСТЮМ. Та же строка вернёт.", "TURN ON", "ВКЛЮЧИТЬ" },
+    { SettingsRow::REPLAY_INTRO, "REPLAY INTRO?", "ПОВТОРИТЬ ИНТРО?",
       "Runs the first-boot walkthrough",
-      "again, from the top.", "REPLAY" },
+      "Показывает обучение первого",
+      "again, from the top.", "запуска заново, с начала.", "REPLAY", "ПОВТОР" },
 };
 static const uint8_t CONFIRMS_N = sizeof(CONFIRMS) / sizeof(CONFIRMS[0]);
 
@@ -857,23 +881,34 @@ static void drawSettingsConfirm(TFT_eSPI& t, int w, int h) {
     t.fillRoundRect(px, py, pw, ph, 6, Theme::BG);
     t.drawRoundRect(px, py, pw, ph, 6, Theme::RED);
 
-    int tw = Theme::bangersTextWidth(ct->title, Theme::BangersSize::MD);
-    if (tw > pw - 16) tw = pw - 16;
-    Theme::drawBangersText(t, px + (pw - tw) / 2, py + 8, ct->title, Theme::RED, Theme::BangersSize::MD);
+    const char* ttl = Theme::tr(ct->title, ct->titleRu);
+    if (Theme::isRu(ttl)) {
+        t.setTextSize(1);
+        t.setTextColor(Theme::RED, Theme::BG);
+        const int tw = Theme::textWidthRU16(t, ttl);
+        t.setCursor(px + (pw - tw) / 2, py + 8);
+        Theme::printRU16(t, ttl);
+    } else {
+        int tw = Theme::bangersTextWidth(ct->title, Theme::BangersSize::MD);
+        if (tw > pw - 16) tw = pw - 16;
+        Theme::drawBangersText(t, px + (pw - tw) / 2, py + 8, ct->title, Theme::RED, Theme::BangersSize::MD);
+    }
 
     t.setTextWrap(false);
     Theme::bodyFontOn(t);
     t.setTextColor(Theme::WHITE, Theme::BG);
-    const char* lines[2] = { ct->line1, ct->line2 };
+    const char* lines[2] = { Theme::tr(ct->line1, ct->line1Ru), Theme::tr(ct->line2, ct->line2Ru) };
     for (uint8_t i = 0; i < 2; i++) {
-        int lw = t.textWidth(lines[i]);
+        const bool ru = Theme::isRu(lines[i]);
+        if (ru) t.setTextSize(1);
+        int lw = ru ? Theme::textWidthRU(t, lines[i]) : t.textWidth(lines[i]);
         t.setCursor(px + (pw - lw) / 2, py + 34 + i * (t.fontHeight() + 3));
-        t.print(lines[i]);
+        if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
     }
     Theme::bodyFontOff(t);
 
-    Theme::drawButton(t, okX, okY, okW, okH, ct->verb, false);
-    Theme::drawButton(t, cnX, cnY, cnW, cnH, "CANCEL", false);
+    Theme::drawButton(t, okX, okY, okW, okH, Theme::tr(ct->verb, ct->verbRu), false);
+    Theme::drawButton(t, cnX, cnY, cnW, cnH, Theme::tr("CANCEL", "ОТМЕНА"), false);
 }
 
 void uiSettingsScroll(int delta) {
@@ -926,15 +961,14 @@ static void drawPinnedBack(TFT_eSPI& t, int screenW, int screenH) {
     if (s_page == SettingsPage::DESK) {
         const int half = w / 2;
         t.drawFastVLine(x + half, y + 4, h - 8, Theme::PURPLE);
-        t.setCursor(x + (half - t.textWidth("[ OK ]")) / 2, y + (h - t.fontHeight()) / 2);
-        t.print("[ OK ]");
-        t.setCursor(x + half + (half - t.textWidth("[ UP ]")) / 2, y + (h - t.fontHeight()) / 2);
-        t.print("[ UP ]");
+        const char* ok = Theme::tr("[ OK ]", "[ ОК ]");
+        const char* up = Theme::tr("[ UP ]", "[ ВВЕРХ ]");
+        rowPrint(t, ok, x + (half - rowTextWidth(t, ok)) / 2, y + (h - t.fontHeight()) / 2);
+        rowPrint(t, up, x + half + (half - rowTextWidth(t, up)) / 2, y + (h - t.fontHeight()) / 2);
         return;
     }
-    const char* lbl = (s_page == SettingsPage::MAIN) ? "[ BACK ]" : "[ UP ]";
-    t.setCursor(x + (w - t.textWidth(lbl)) / 2, y + (h - t.fontHeight()) / 2);
-    t.print(lbl);
+    const char* lbl = (s_page == SettingsPage::MAIN) ? Theme::tr("[ BACK ]", "[ НАЗАД ]") : Theme::tr("[ UP ]", "[ ВВЕРХ ]");
+    rowPrint(t, lbl, x + (w - rowTextWidth(t, lbl)) / 2, y + (h - t.fontHeight()) / 2);
 }
 
 bool uiSettingsTapPinnedOk(int x, int y, int screenW, int screenH) {
@@ -956,8 +990,7 @@ static void drawHeader(TFT_eSPI& t, int w, int y, int hgt, RowGroupId g) {
     // step up, and the thing that vanished most on a 480-wide panel.
     t.setTextSize(Theme::uiTextSize(t, 1));
     t.setTextColor(groupColor(g), Theme::BG);
-    t.setCursor(8, y + (hgt - t.fontHeight()) / 2);
-    t.print(groupName(g));
+    rowPrint(t, groupName(g), 8, y + (hgt - t.fontHeight()) / 2);
 }
 
 // `compact` drops the row text from size 2 to size 1. Used in portrait,
@@ -1009,13 +1042,13 @@ static void rowPanel(TFT_eSPI& t, int w, int y, int hgt) {
     t.fillRect(x0, y + 1, ww, hh, Theme::BG);
     t.drawRect(x0, y + 1, ww, hh, Theme::PURPLE);
 }
+
 static void drawTwoLineRow(TFT_eSPI& t, int w, int y, int hgt, const char* label,
                            const char* value, uint16_t labelColor, bool cycles) {
     rowPanel(t, w, y, hgt);
     Theme::bodyFontOn(t);
     t.setTextColor(labelColor, Theme::BG);
-    t.setCursor(8, y + 2);
-    t.print(label);
+    rowPrint(t, label, 8, y + 2);
     const int lineY = y + 2 + t.fontHeight() + 1;
     Theme::bodyFontOff(t);
 
@@ -1025,19 +1058,18 @@ static void drawTwoLineRow(TFT_eSPI& t, int w, int y, int hgt, const char* label
     if (vs < 1) vs = 1;
     if (vs > 4) vs = 4;
     Theme::menuFontSized(t, vs);
-    while (vs > 2 && value && t.textWidth(value) > w - 18 - 8 - 2 * (t.textWidth(">") + 4)) Theme::menuFontSized(t, --vs);
+    while (vs > 2 && value && rowTextWidth(t, value) > w - 18 - 8 - 2 * (t.textWidth(">") + 4)) Theme::menuFontSized(t, --vs);
     const int chev = t.textWidth(">");
     const int lo = 8 + chev + 4;
     const int hi = w - 18 - chev - 4;
-    const int vw = value ? t.textWidth(value) : 0;
+    const int vw = value ? rowTextWidth(t, value) : 0;
     // Centred between the arrows rather than in the row, so the longest name
     // still cannot slide underneath one of them.
     int vx = lo + ((hi - lo) - vw) / 2;
     if (vx < lo) vx = lo;
     if (value) {
         t.setTextColor(Theme::WHITE, Theme::BG);
-        t.setCursor(vx, lineY);
-        t.print(value);
+        rowPrint(t, value, vx, lineY);
     }
     t.setTextColor(Theme::PURPLE, Theme::BG);
     if (cycles) { t.setCursor(8, lineY); t.print("<"); }
@@ -1060,19 +1092,17 @@ static void drawRow(TFT_eSPI& t, int w, int y, int hgt, const char* label,
     // half again as tall. FONTS > MENUS moves both; a row the bigger size
     // would run off the screen steps back down, label and value together.
     Theme::menuFontOn(t, compact);
-    while (t.textWidth(label) + (value ? t.textWidth(value) + 8 : 0) > w - 8 - 18
+    while (rowTextWidth(t, label) + (value ? rowTextWidth(t, value) + 8 : 0) > w - 8 - 18
            && Theme::menuFontSmaller(t)) {}
     t.setTextColor(danger ? Theme::RED : labelColor, Theme::BG);
-    t.setCursor(8, y + (hgt - t.fontHeight()) / 2);
-    t.print(label);
+    rowPrint(t, label, 8, y + (hgt - t.fontHeight()) / 2);
     if (value) {
         t.setTextColor(Theme::WHITE, Theme::BG);
-        int vw = t.textWidth(value);
+        int vw = rowTextWidth(t, value);
         // 18px, not 8px, reserved on the right -- leaves room for the
         // scroll indicator without it overlapping right-aligned value
         // text.
-        t.setCursor(w - 18 - vw, y + (hgt - t.fontHeight()) / 2);
-        t.print(value);
+        rowPrint(t, value, w - 18 - vw, y + (hgt - t.fontHeight()) / 2);
     }
     t.setTextFont(1);
 }
@@ -1140,87 +1170,87 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
     value  = nullptr;
     switch (r) {
         case SettingsRow::THEME:
-            label = "THEME"; value = Theme::kPalettes[Settings::paletteIndex()].name;
+            label = Theme::tr("THEME", "ТЕМА"); value = Theme::kPalettes[Settings::paletteIndex()].name;
             break;
         case SettingsRow::SYSTEM:
-            label = "SYSTEM"; value = OtaCore::availableVersion()[0] ? "UPDATE >" : ">";
+            label = Theme::tr("SYSTEM", "СИСТЕМА"); value = OtaCore::availableVersion()[0] ? Theme::tr("UPDATE >", "ОБНОВА >") : ">";
             break;
         // The tracking rows. Their whole reason to exist is naming the thing,
         // so the value is the target's own label rather than a state word.
         case SettingsRow::WATCH_TARGET:
-            label = "WATCHING"; value = s_watchLabel;
+            label = Theme::tr("WATCHING", "СЛЕЖУ"); value = s_watchLabel;
             break;
         case SettingsRow::HUNT_TARGET:
-            label = "HUNTING"; value = s_huntLabel;
+            label = Theme::tr("HUNTING", "ОХОЧУСЬ"); value = s_huntLabel;
             break;
         case SettingsRow::BACKGROUND:
-            label = "BACKGROUND"; value = Settings::backgroundName(Settings::background());
+            label = Theme::tr("BACKGROUND", "ФОН"); value = Settings::backgroundName(Settings::background());
             break;
         case SettingsRow::DESK_OPEN:
-            label = "OPEN DESK"; value = ">";
+            label = Theme::tr("OPEN DESK", "ОТКРЫТЬ ЧАСЫ"); value = ">";
             break;
         case SettingsRow::DESK_BACKGROUND:
-            label = "BACKGROUND"; value = Settings::backgroundName(Settings::deskBackground());
+            label = Theme::tr("BACKGROUND", "ФОН"); value = Settings::backgroundName(Settings::deskBackground());
             break;
         case SettingsRow::CLOCK_FONT:
-            label = "CLOCK FONT"; value = Settings::clockFontName();
+            label = Theme::tr("CLOCK FONT", "ШРИФТ ЧАСОВ"); value = Settings::clockFontName();
             break;
         case SettingsRow::CLOCK_SIZE:
-            label = "CLOCK SIZE"; value = Settings::clockSizeName();
+            label = Theme::tr("CLOCK SIZE", "РАЗМЕР ЧАСОВ"); value = Settings::clockSizeName();
             break;
         case SettingsRow::CLOCK_BACKDROP:
-            label = "CLOCK BG"; value = Settings::clockBackdropName();
+            label = Theme::tr("CLOCK BG", "ФОН ЧАСОВ"); value = Settings::clockBackdropName();
             break;
         case SettingsRow::CLOCK_FORMAT:
-            label = "CLOCK FORMAT"; value = Settings::clock24Hour() ? "24 HOUR" : "12 HOUR";
+            label = Theme::tr("CLOCK FORMAT", "ФОРМАТ ЧАСОВ"); value = Settings::clock24Hour() ? Theme::tr("24 HOUR", "24 ЧАСА") : Theme::tr("12 HOUR", "12 ЧАСОВ");
             break;
 #if POTS_MESH
         case SettingsRow::DESK_SQUAD:
-            label = "SQUAD ON DESK"; value = Settings::deskSquad() ? "ON" : "OFF";
+            label = Theme::tr("SQUAD ON DESK", "СКВАД НА ЧАСАХ"); value = Theme::onOff(Settings::deskSquad());
             break;
         case SettingsRow::DESK_CROWD:
-            label = "HOW MANY"; value = Settings::deskCrowdLabel();
+            label = Theme::tr("HOW MANY", "СКОЛЬКО"); value = Settings::deskCrowdLabel();
             break;
         // With one visitor. A crowd of them always chats, as on the main screen.
         case SettingsRow::DESK_VISIT:
-            label = "VISITOR"; value = Settings::deskFullVisit() ? "FULL VISIT" : "CHATS";
+            label = Theme::tr("VISITOR", "ГОСТЬ"); value = Settings::deskFullVisit() ? Theme::tr("FULL VISIT", "ПОЛНЫЙ ВИЗИТ") : Theme::tr("CHATS", "БОЛТАЕТ");
             break;
 #endif
         case SettingsRow::BACKGROUND_LOCK:
-            label = "LOCK BACKGROUND"; value = Settings::backgroundLocked() ? "ON" : "OFF";
+            label = Theme::tr("LOCK BACKGROUND", "ЗАКРЕПИТЬ ФОН"); value = Theme::onOff(Settings::backgroundLocked());
             break;
         case SettingsRow::BRIGHTNESS:
-            label = "BRIGHT"; value = stepperValue(r, valBuf, valBufN);
+            label = Theme::tr("BRIGHT", "ЯРКОСТЬ"); value = stepperValue(r, valBuf, valBufN);
             break;
 #if SQW_SOUND_ROWS
         case SettingsRow::SOUND_VOLUME:
-            label = "VOLUME"; value = stepperValue(r, valBuf, valBufN);
+            label = Theme::tr("VOLUME", "ГРОМКОСТЬ"); value = stepperValue(r, valBuf, valBufN);
             break;
 #endif
         case SettingsRow::INVERT:
-            label = "INVERT COLORS"; value = Settings::inverted() ? "ON" : "OFF";
+            label = Theme::tr("INVERT COLORS", "ИНВЕРСИЯ"); value = Theme::onOff(Settings::inverted());
             break;
         case SettingsRow::RGB_SWAP:
-            label = "COLOR ORDER"; value = Settings::rgbSwapped() ? "SWAPPED" : "NORMAL";
+            label = Theme::tr("COLOR ORDER", "ПОРЯДОК ЦВЕТОВ"); value = Settings::rgbSwapped() ? Theme::tr("SWAPPED", "ОБРАТНЫЙ") : Theme::tr("NORMAL", "ОБЫЧНЫЙ");
             break;
         case SettingsRow::ROTATION_LOCK:
-            label = "ROTATION LOCK"; value = Settings::rotationLocked() ? "ON" : "OFF";
+            label = Theme::tr("ROTATION LOCK", "БЛОК ПОВОРОТА"); value = Theme::onOff(Settings::rotationLocked());
             break;
         case SettingsRow::BORING_MODE:
-            label = "BORING MODE"; value = Settings::boringMode() ? "ON" : "OFF";
+            label = Theme::tr("BORING MODE", "СКУЧНЫЙ РЕЖИМ"); value = Theme::onOff(Settings::boringMode());
             break;
         case SettingsRow::CONFIDENCE:
-            label = "ALERT FILTER"; value = Settings::minConfidenceLabel();
+            label = Theme::tr("ALERT FILTER", "ФИЛЬТР ТРЕВОГ"); value = Settings::minConfidenceLabel();
             break;
         case SettingsRow::AUTO_QUIET:
-            label = "AUTO SNOOZE"; value = Settings::autoQuietLabel();
+            label = Theme::tr("AUTO SNOOZE", "АВТОТИШИНА"); value = Settings::autoQuietLabel();
             break;
 #if defined(CROWPANEL7)
         case SettingsRow::BUZZER:
             // NEW ONLY rather than ON: the value says what the switch does,
             // the way AT BOOT and AFTER 5 do, so nobody expects a beep per
             // alert. The rules are in crowpanel7_buzzer.h.
-            label = "BUZZER"; value = Settings::buzzerOn() ? "NEW ONLY" : "OFF";
+            label = Theme::tr("BUZZER", "ПИЩАЛКА"); value = Settings::buzzerOn() ? Theme::tr("NEW ONLY", "ЛИШЬ НОВЫЕ") : Theme::tr("OFF", "ВЫКЛ");
             break;
 #endif
 #if SQW_SOUND_ROWS
@@ -1228,14 +1258,14 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             // ALERTS is a new device, a watch-list hit and a low battery; ALL
             // adds the squad, the throws, the pets and the lamp's cable. The
             // rules are in sound.h.
-            label = "SOUND"; value = Settings::soundModeName();
+            label = Theme::tr("SOUND", "ЗВУК"); value = Settings::soundModeName();
             break;
 #endif
 #if SQW_WIFI_5G
         case SettingsRow::WIFI_BANDS:
             // Short values: the label and its value share 240px in portrait
             // at size 2, the squeeze TYPE FILTER below is named for.
-            label = "WIFI BANDS"; value = Settings::wifi5() ? "2.4+5" : "2.4";
+            label = Theme::tr("WIFI BANDS", "ДИАПАЗОНЫ"); value = Settings::wifi5() ? "2.4+5" : "2.4";
             break;
 #endif
         case SettingsRow::DETECTION_FILTER:
@@ -1245,7 +1275,7 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             // confirmed with the emulator before ever touching
             // hardware. Shortened here only; the destination screen
             // keeps the full name in its title bar.
-            label = "TYPE FILTER";
+            label = Theme::tr("TYPE FILTER", "ТИПЫ");
             snprintf(valBuf, valBufN, "%u/%u", (unsigned)Settings::enabledTypeCount(),
                      (unsigned)DetectionType::COUNT - 1);
             value = valBuf;
@@ -1255,7 +1285,7 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             // itself is shortened for the same reason TYPE FILTER above is
             // -- the full name collides with its own value on the 240px
             // portrait rotation at this row's size-2 text.
-            label = "IGNORED";
+            label = Theme::tr("IGNORED", "ИГНОР");
             snprintf(valBuf, valBufN, "%u", (unsigned)IgnoreList::count());
             value = valBuf;
             break;
@@ -1266,40 +1296,40 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
 #endif
 #if defined(TWATCH_S3)
         case SettingsRow::WATCH_BATTERY:
-            label = "BATTERY"; twatchBatteryLine(valBuf, valBufN); value = valBuf;
+            label = Theme::tr("BATTERY", "БАТАРЕЯ"); twatchBatteryLine(valBuf, valBufN); value = valBuf;
             break;
         case SettingsRow::WATCH_RADIO:
-            label = "RADIOS"; value = Settings::radioDutyName(Settings::radioDutyRaw());
+            label = Theme::tr("RADIOS", "РАДИО"); value = Settings::radioDutyName(Settings::radioDutyRaw());
             break;
         case SettingsRow::WATCH_LISTEN:
-            label = "BLE LISTEN"; snprintf(valBuf, valBufN, "%u%%", (unsigned)Settings::bleListenRaw()); value = valBuf;
+            label = Theme::tr("BLE LISTEN", "BLE СЛУШАЮ"); snprintf(valBuf, valBufN, "%u%%", (unsigned)Settings::bleListenRaw()); value = valBuf;
             break;
         case SettingsRow::WATCH_IDLE_CPU:
-            label = "SLEEP CPU"; snprintf(valBuf, valBufN, "%u MHz", (unsigned)Settings::idleCpuMhzRaw()); value = valBuf;
+            label = Theme::tr("SLEEP CPU", "ЦПУ ВО СНЕ"); snprintf(valBuf, valBufN, "%u MHz", (unsigned)Settings::idleCpuMhzRaw()); value = valBuf;
             break;
         case SettingsRow::WATCH_BUZZ:
-            label = "BUZZ"; value = Settings::buzzModeName();
+            label = Theme::tr("BUZZ", "ЖУЖЖАНИЕ"); value = Settings::buzzModeName();
             break;
         case SettingsRow::WATCH_SETTINGS:
-            label = "WATCH SETTINGS"; value = ">";
+            label = Theme::tr("WATCH SETTINGS", "НАСТРОЙКИ ЧАСОВ"); value = ">";
             break;
         case SettingsRow::WATCH_TEMP:
-            label = "CHIP TEMP"; snprintf(valBuf, valBufN, "%d C", twatchChipC()); value = valBuf;
+            label = Theme::tr("CHIP TEMP", "ТЕМП ЧИПА"); snprintf(valBuf, valBufN, "%d C", twatchChipC()); value = valBuf;
             break;
         case SettingsRow::WATCH_WARDRIVE: {
             // OFF, or what it is doing: finding the GPS, waiting for a fix, or
             // logging, with how many sightings are kept.
-            label = "WARDRIVE";
+            label = Theme::tr("WARDRIVE", "ВАРДРАЙВ");
             const uint8_t g = twatchGpsState();
-            if (!Wardrive::enabled())  value = "OFF";
-            else if (g == 4)           value = "GPS RESTING";
-            else if (g <= 1)           value = "GPS STARTING";
-            else if (g == 2)           value = "NO FIX YET";
-            else { snprintf(valBuf, valBufN, "ON  %lu", (unsigned long)Wardrive::count()); value = valBuf; }
+            if (!Wardrive::enabled())  value = Theme::tr("OFF", "ВЫКЛ");
+            else if (g == 4)           value = Theme::tr("GPS RESTING", "GPS ОТДЫХАЕТ");
+            else if (g <= 1)           value = Theme::tr("GPS STARTING", "GPS СТАРТУЕТ");
+            else if (g == 2)           value = Theme::tr("NO FIX YET", "НЕТ ФИКСА");
+            else { snprintf(valBuf, valBufN, Theme::tr("ON  %lu", "ВКЛ  %lu"), (unsigned long)Wardrive::count()); value = valBuf; }
             break;
         }
         case SettingsRow::WATCH_QUIET_TAGS:
-            label = "TAGS + RINGS"; value = Settings::quietTrackers() ? "LOG ONLY" : "ALERT";
+            label = Theme::tr("TAGS + RINGS", "МЕТКИ+КОЛЬЦА"); value = Settings::quietTrackers() ? Theme::tr("LOG ONLY", "ТОЛЬКО ЛОГ") : Theme::tr("ALERT", "ТРЕВОГА");
             break;
 #endif
         // The LoRa rows: the watch's and the T-Deck's (the T-Deck lists them on
@@ -1310,10 +1340,10 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             label = "LORA"; value = Settings::loraListenName();
             break;
         case SettingsRow::WATCH_LORA_CHATS: {
-            label = "LORA CHATS";
+            label = Theme::tr("LORA CHATS", "LORA ЧАТЫ");
             const uint16_t u = uiLoraChatUnread();
-            if (u) { snprintf(valBuf, valBufN, "%u NEW", (unsigned)u); value = valBuf; }
-            else value = "OPEN";
+            if (u) { snprintf(valBuf, valBufN, Theme::tr("%u NEW", "%u НОВЫХ"), (unsigned)u); value = valBuf; }
+            else value = Theme::tr("OPEN", "ОТКРЫТЬ");
             break;
         }
         case SettingsRow::LORA_TX:
@@ -1323,31 +1353,31 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
 #if defined(CYD_GPS)
         case SettingsRow::WATCH_WARDRIVE:
             // OFF, or what stands between it and a row, or the rows written.
-            label = "WARDRIVE";
+            label = Theme::tr("WARDRIVE", "ВАРДРАЙВ");
             switch (Wardrive::sdState(millis())) {
-                case Wardrive::SdState::OFF:             value = "OFF"; break;
-                case Wardrive::SdState::NO_CARD:         value = "NO CARD"; break;
-                case Wardrive::SdState::LOW_MEMORY:      value = "LOW MEMORY"; break;
-                case Wardrive::SdState::WAITING_FOR_FIX: value = "WAITING FOR FIX"; break;
+                case Wardrive::SdState::OFF:             value = Theme::tr("OFF", "ВЫКЛ"); break;
+                case Wardrive::SdState::NO_CARD:         value = Theme::tr("NO CARD", "НЕТ КАРТЫ"); break;
+                case Wardrive::SdState::LOW_MEMORY:      value = Theme::tr("LOW MEMORY", "МАЛО ПАМЯТИ"); break;
+                case Wardrive::SdState::WAITING_FOR_FIX: value = Theme::tr("WAITING FOR FIX", "ЖДУ ФИКС"); break;
                 case Wardrive::SdState::LOGGING:
-                    snprintf(valBuf, valBufN, "ON  %lu", (unsigned long)Wardrive::written());
+                    snprintf(valBuf, valBufN, Theme::tr("ON  %lu", "ВКЛ  %lu"), (unsigned long)Wardrive::written());
                     value = valBuf;
                     break;
             }
             break;
 #endif
         case SettingsRow::EXT_SCREEN:
-            label = "EXT SCREEN"; value = Settings::extScreen() ? "ON" : "OFF";
+            label = Theme::tr("EXT SCREEN", "ВНЕШНИЙ ЭКРАН"); value = Theme::onOff(Settings::extScreen());
             break;
         case SettingsRow::PRIVACY:
-            label = "PRIVACY MODE"; value = Settings::privacyMode() ? "ON" : "OFF";
+            label = Theme::tr("PRIVACY MODE", "РЕЖИМ ТАЙНЫ"); value = Theme::onOff(Settings::privacyMode());
             break;
         case SettingsRow::CHARGE_MODE:
-            label = "CHARGE MODE"; value = "START";
+            label = Theme::tr("CHARGE MODE", "РЕЖИМ ЗАРЯДКИ"); value = Theme::tr("START", "СТАРТ");
             break;
         case SettingsRow::LAST_RUN: {
             // The boot before this one: how long it ran before it stopped.
-            label = "LAST RUN";
+            label = Theme::tr("LAST RUN", "ПРОШЛЫЙ ЗАПУСК");
             uint16_t b[2], m[2];
             const uint8_t n = Settings::runHistory(b, m, 2);
             if (n < 2) value = "--";
@@ -1406,13 +1436,24 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             label = "SHADES COLOR"; value = Potsy::shadesColorName();
             break;
         case SettingsRow::GLASSES:
-            label = Theme::tr("GLASSES", "ОЧКИ"); value = Potsy::glassesOn() ? Theme::tr("ON", "ВКЛ") : Theme::tr("OFF", "ВЫКЛ");
+            // TH3 0N3 owns its shades (round lenses, falling code): the
+            // switch says so rather than pretending to move them.
+            label = Theme::tr("GLASSES", "ОЧКИ");
+            value = Potsy::th3Wearing() ? "TH3 0N3" : Theme::onOff(Potsy::glassesOn());
+            break;
+        case SettingsRow::GODS_MODE:
+            // One way: a relock could not tell granted unlocks from
+            // legitimately earned ones, so ON stays ON. The value says
+            // the state; the tap is what turns it on.
+            label = Theme::tr("GODS MODE", "РЕЖИМ БОГА");
+            value = Theme::onOff(Potsy::godsMode());
+            danger = !Potsy::godsMode();
             break;
         // "SIZE" rather than "POTSY SIZE": this row is already under the
         // POTSY heading, and the longer label plus "MEDIUM" overruns a
         // 240px portrait row by two pixels at text size 2.
         case SettingsRow::POTSY_SIZE:
-            label = "SIZE"; value = Settings::potsySizeLabel();
+            label = Theme::tr("SIZE", "РАЗМЕР"); value = Settings::potsySizeLabel();
             break;
 #if POTS_MESH
         case SettingsRow::POTSY_NAME: {
@@ -1421,7 +1462,7 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             // this row cannot disagree with the nameplate. There used to be
             // a second row, NICKNAME, cycling the curated list on its own;
             // once a name was typed it changed something nothing showed.
-            label = "NAME";
+            label = Theme::tr("NAME", "ИМЯ");
             value = Potsy::nickname();
             break;
         }
@@ -1432,11 +1473,11 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
 #endif
         case SettingsRow::OUTFIT:
         case SettingsRow::PET:
-            label = r == SettingsRow::OUTFIT ? "OUTFIT" : "PET";
+            label = r == SettingsRow::OUTFIT ? Theme::tr("OUTFIT", "КОСТЮМ") : Theme::tr("PET", "ПИТОМЕЦ");
             if (Potsy::jailed()) {
                 // Serving time: both rows say how long, and neither moves.
                 const uint32_t left = (Potsy::jailLeftMs() + 999) / 1000;
-                snprintf(valBuf, valBufN, "SERVING %u:%02u", (unsigned)(left / 60), (unsigned)(left % 60));
+                snprintf(valBuf, valBufN, Theme::tr("SERVING %u:%02u", "СИЖУ %u:%02u"), (unsigned)(left / 60), (unsigned)(left % 60));
                 value = valBuf;
             } else if (r == SettingsRow::OUTFIT) {
                 snprintf(valBuf, valBufN, "%s (%u/%u)", Potsy::outfitName(),
@@ -1447,58 +1488,58 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             }
             break;
         case SettingsRow::BANTER:
-            label = "BANTER";
+            label = Theme::tr("BANTER", "БОЛТОВНЯ");
             value = Settings::banterName();
             break;
         case SettingsRow::DET_STYLE:
-            label = "DETECTIONS";
-            value = Settings::detXp() ? "XP" : "CLASSIC";
+            label = Theme::tr("DETECTIONS", "ПОИСК");
+            value = Settings::detXp() ? "XP" : Theme::tr("CLASSIC", "КЛАССИКА");
             break;
         case SettingsRow::VIEW_DIARY:
-            label = "POTSY'S DIARY";
+            label = Theme::tr("POTSY'S DIARY", "ДНЕВНИК ПОТСИ");
             break;
         case SettingsRow::BINGO: {
-            label = "BINGO";
+            label = Theme::tr("BINGO", "БИНГО");
             static char bingoVal[12];
             snprintf(bingoVal, sizeof bingoVal, "%u/16 >", (unsigned)Bingo::markedCount());
             value = bingoVal;
             break;
         }
         case SettingsRow::DEX: {
-            label = "POTSY-DEX";
+            label = Theme::tr("POTSY-DEX", "ПОТСИ-ДЕКС");
             static char dexVal[12];
             snprintf(dexVal, sizeof dexVal, "%u/%u >", (unsigned)s_dexCaught, (unsigned)Dex::ENTRIES);
             value = dexVal;
             break;
         }
         case SettingsRow::DESK_MODE:
-            label = "DESK MODE";
+            label = Theme::tr("DESK MODE", "РЕЖИМ ЧАСОВ");
             value = ">";
             break;
         case SettingsRow::RESET_STATS:
-            label = "RESET STATS";
-            snprintf(valBuf, valBufN, "%lu total", (unsigned long)eng.lifetimeTotal());
+            label = Theme::tr("RESET STATS", "СБРОС СТАТЫ");
+            snprintf(valBuf, valBufN, Theme::tr("%lu total", "%lu всего"), (unsigned long)eng.lifetimeTotal());
             value = valBuf;
             danger = true;
             break;
         case SettingsRow::APPEARANCE:
-            label = "APPEARANCE"; value = ">";
+            label = Theme::tr("APPEARANCE", "ВНЕШНОСТЬ"); value = ">";
             break;
         case SettingsRow::AURA:
-            label = "AURA"; value = Settings::auraShown() ? "LIT" : "OUT";
+            label = Theme::tr("AURA", "АУРА"); value = Settings::auraShown() ? Theme::tr("LIT", "ГОРИТ") : Theme::tr("OUT", "НЕТ");
             break;
         case SettingsRow::FONTS:
-            label = "FONTS"; value = ">";
+            label = Theme::tr("FONTS", "ШРИФТЫ"); value = ">";
             break;
-        case SettingsRow::FONT_MENUS:   label = "MENUS";   value = nullptr; break;
-        case SettingsRow::FONT_TEXT:    label = "TEXT";    value = nullptr; break;
-        case SettingsRow::FONT_BUTTONS: label = "BUTTONS"; value = nullptr; break;
-        case SettingsRow::FONT_BUBBLES: label = "BUBBLES"; value = nullptr; break;
-        case SettingsRow::FONT_XP:      label = "XP TILES"; value = nullptr; break;
-        case SettingsRow::FONT_PETS:    label = "PETS"; value = nullptr; break;
-        case SettingsRow::FONT_PREVIEW: label = "PREVIEW"; value = nullptr; break;
+        case SettingsRow::FONT_MENUS:   label = Theme::tr("MENUS", "МЕНЮ");   value = nullptr; break;
+        case SettingsRow::FONT_TEXT:    label = Theme::tr("TEXT", "ТЕКСТ");    value = nullptr; break;
+        case SettingsRow::FONT_BUTTONS: label = Theme::tr("BUTTONS", "КНОПКИ"); value = nullptr; break;
+        case SettingsRow::FONT_BUBBLES: label = Theme::tr("BUBBLES", "ПУЗЫРИ"); value = nullptr; break;
+        case SettingsRow::FONT_XP:      label = Theme::tr("XP TILES", "ПЛАШКИ XP"); value = nullptr; break;
+        case SettingsRow::FONT_PETS:    label = Theme::tr("PETS", "ПИТОМЦЫ"); value = nullptr; break;
+        case SettingsRow::FONT_PREVIEW: label = Theme::tr("PREVIEW", "ПРЕДПРОСМОТР"); value = nullptr; break;
         case SettingsRow::BACK:
-            label = "< BACK";
+            label = Theme::tr("< BACK", "< НАЗАД");
             break;
         default:
             label = "?";
@@ -1589,7 +1630,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
             // value goes, rather than gone. See isPotsyOnlyRow().
             const bool off = Settings::boringMode() && isPotsyOnlyRow(items[idx].row);
             if (off) {
-                drawRow(t, w, y, itemH, label, "boring mode", false, Theme::W95_SHADOW, h > w);
+                drawRow(t, w, y, itemH, label, Theme::tr("boring mode", "скучный режим"), false, Theme::W95_SHADOW, h > w);
             } else if (isTwoLineRow(items[idx].row)) {
                 drawTwoLineRow(t, w, y, itemH, label, value, groupColor(items[idx].group),
                                items[idx].row == SettingsRow::BACKGROUND ||

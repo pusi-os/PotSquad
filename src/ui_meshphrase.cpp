@@ -108,24 +108,36 @@ int window(TFT_eSPI& t, const char* name) {
 
 void title(TFT_eSPI& t, const char* s) {
     t.setTextWrap(false);
-    t.setTextSize(2);
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
-    t.setCursor(8, 6);
-    t.print(s);
+    if (Theme::isRu(s)) {
+        // The 16px RU face at size 1: the same line the size-2 GLCD
+        // title stands, without the chunky 2x pixels.
+        t.setTextFont(1);
+        t.setTextSize(1);
+        t.setCursor(8, 6);
+        Theme::printRU16(t, s);
+    } else {
+        t.setTextSize(2);
+        t.setCursor(8, 6);
+        t.print(s);
+    }
 }
 
 int para(TFT_eSPI& t, int y, const char* text, uint16_t col) {
     Theme::bodyFontOn(t);
     t.setTextColor(ink(col), ground());
+    const bool ru = Theme::isRu(text);
+    if (ru) { t.setTextFont(1); t.setTextSize(1); }
     // Theme::wrapText fills 48-character rows; cap the width at 47 of them.
     const int charW = t.textWidth("M");
     int maxW = t.width() - 2 * textX();
     if (maxW > 47 * charW) maxW = 47 * charW;
     char lines[6][48];
-    const uint8_t n = Theme::wrapText(t, text, maxW, lines, 6);
+    const uint8_t n = ru ? Theme::wrapTextRU(t, text, maxW, lines, 6)
+                         : Theme::wrapText(t, text, maxW, lines, 6);
     for (uint8_t i = 0; i < n; i++) {
         t.setCursor(textX(), y);
-        t.print(lines[i]);
+        if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
         y += t.fontHeight() + 1;
     }
     Theme::bodyFontOff(t);
@@ -154,15 +166,17 @@ void status(TFT_eSPI& t) {
     if (!s_status) return;
     Theme::bodyFontOn(t);
     t.setTextColor(ink(s_statusCol), ground());
+    const bool ru = Theme::isRu(s_status);
+    if (ru) { t.setTextFont(1); t.setTextSize(1); }
     t.setCursor(textX(), t.height() - btnH() - (s_win ? WIN_M + 10 : 6) - t.fontHeight() - 4);
-    t.print(s_status);
+    if (ru) Theme::printRU(t, s_status); else t.print(s_status);
     Theme::bodyFontOff(t);
 }
 
 void drawShow(TFT_eSPI& t) {
     int y = 30;
-    if (s_win) y = window(t, "Phrase") + 2;
-    else       title(t, "PHRASE");
+    if (s_win) y = window(t, Theme::tr("Phrase", "Фраза")) + 2;
+    else       title(t, Theme::tr("PHRASE", "ФРАЗА"));
     if (MeshTalk::havePhrase()) {
         char buf[MeshMsg::PHRASE_TEXT_MAX];
         snprintf(buf, sizeof buf, "%s", MeshTalk::phrase());
@@ -178,58 +192,87 @@ void drawShow(TFT_eSPI& t) {
         const bool shown = Settings::phraseShown();
         static const char* const DASHES[MeshMsg::PHRASE_WORDS] = { "-----", "-----", "-----", "-----", "-----" };
         y = bigWords(t, y, shown ? words : DASHES, shown ? Theme::VAPOR_YELLOW : Theme::W95_SHADOW);
-        y = para(t, y + 4, shown ? "Anyone who has these five words can read your messages. "
-                                   "Say them aloud only to people you trust."
-                                 : "Hidden. This board never says its phrase; members join "
-                                   "by ADD TO SQUAD, in person.", Theme::W95_LIGHT);
+        y = para(t, y + 4, shown ? Theme::tr("Anyone who has these five words can read your messages. "
+                                            "Say them aloud only to people you trust.",
+                                            "Кто знает эти пять слов — читает твои сообщения. "
+                                            "Произноси их вслух лишь тем, кому доверяешь.")
+                                 : Theme::tr("Hidden. This board never says its phrase; members join "
+                                            "by ADD TO SQUAD, in person.",
+                                            "Скрыто. Плата фразу не показывает; своих добавляй "
+                                            "через ДОБАВИТЬ В СКВАД, лично."), Theme::W95_LIGHT);
         // The switch, drawn as a settings row.
         if (s_win) {
             // In the window it is a system button that says what it does.
             const int rh = 30, rx = textX() - 4, rw = t.width() - 2 * rx;
             s_showRow = { (int16_t)rx, (int16_t)(y + 6), (int16_t)rw, rh };
             Theme::drawWin95Button(t, rx, s_showRow.y, rw, rh,
-                                   shown ? "SHOW PHRASE: ON" : "SHOW PHRASE: OFF", false);
+                                   shown ? Theme::tr("SHOW PHRASE: ON", "ПОКАЗ ФРАЗЫ: ВКЛ")
+                                         : Theme::tr("SHOW PHRASE: OFF", "ПОКАЗ ФРАЗЫ: ВЫКЛ"), false);
         } else {
             const int rh = 22;
             s_showRow = { 3, (int16_t)(y + 4), (int16_t)(t.width() - 10), rh };
             Theme::drawListRowPanel(t, t.width(), s_showRow.y, rh + 2);
             t.setTextSize(1);
             t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
+            const char* sl = Theme::tr("SHOW PHRASE", "ПОКАЗ ФРАЗЫ");
             t.setCursor(10, s_showRow.y + (rh - t.fontHeight()) / 2);
-            t.print("SHOW PHRASE");
-            const char* v = shown ? "ON" : "OFF";
+            if (Theme::isRu(sl)) Theme::printRU(t, sl); else t.print(sl);
+            const char* v = Theme::onOff(shown);
             t.setTextColor(Theme::WHITE, Theme::BG);
-            t.setCursor(t.width() - 16 - t.textWidth(v), s_showRow.y + (rh - t.fontHeight()) / 2);
-            t.print(v);
+            if (Theme::isRu(v)) {
+                const int vw = Theme::textWidthRU(t, v);
+                t.setCursor(t.width() - 16 - vw, s_showRow.y + (rh - t.fontHeight()) / 2);
+                Theme::printRU(t, v);
+            } else {
+                t.setCursor(t.width() - 16 - t.textWidth(v), s_showRow.y + (rh - t.fontHeight()) / 2);
+                t.print(v);
+            }
         }
     } else {
         s_showRow = { 0, 0, 0, 0 };
-        t.setTextSize(2);
-        t.setTextColor(ink(Theme::WHITE), ground());
-        t.setCursor(textX(), y);
-        t.print("No phrase yet.");
-        y = para(t, y + 24, "A phrase is five words you share with a friend. ROLL makes "
-                            "a new one to read out; ENTER takes theirs.", Theme::W95_LIGHT);
+        const char* no = Theme::tr("No phrase yet.", "Фразы пока нет.");
+        if (Theme::isRu(no)) {
+            t.setTextSize(1);
+            t.setTextColor(ink(Theme::WHITE), ground());
+            t.setCursor(textX(), y);
+            Theme::printRU16(t, no);
+        } else {
+            t.setTextSize(2);
+            t.setTextColor(ink(Theme::WHITE), ground());
+            t.setCursor(textX(), y);
+            t.print(no);
+        }
+        y = para(t, y + 24, Theme::tr("A phrase is five words you share with a friend. ROLL makes "
+                                     "a new one to read out; ENTER takes theirs.",
+                                     "Фраза — пять слов на вас с другом. КИНЬ создаёт новую "
+                                     "для зачитывания; ВВЕДИ принимает его."), Theme::W95_LIGHT);
         if (!MeshTalk::selfTestOk())
-            para(t, y + 4, "Messages are off: this build's crypto failed its self-test "
-                           "at boot.", Theme::RED);
+            para(t, y + 4, Theme::tr("Messages are off: this build's crypto failed its self-test "
+                                    "at boot.",
+                                    "Сообщения выключены: крипто-тест этой сборки "
+                                    "провален при старте."), Theme::RED);
     }
     status(t);
     // No way to make a key on a build whose crypto failed the self-test.
     const bool ok = MeshTalk::selfTestOk();
-    chrome(t, "[ BACK ]", ok ? "[ ROLL ]" : nullptr, ok ? "[ ENTER ]" : nullptr);
+    chrome(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"),
+           ok ? Theme::tr("[ ROLL ]", "[ КИНЬ ]") : nullptr,
+           ok ? Theme::tr("[ ENTER ]", "[ ВВЕДИ ]") : nullptr);
 }
 
 void drawRolled(TFT_eSPI& t) {
     int top = 30;
-    if (s_win) top = window(t, "New phrase") + 2;
-    else       title(t, "NEW PHRASE");
+    if (s_win) top = window(t, Theme::tr("New phrase", "Новая фраза")) + 2;
+    else       title(t, Theme::tr("NEW PHRASE", "НОВАЯ ФРАЗА"));
     const char* words[MeshMsg::PHRASE_WORDS];
     for (int i = 0; i < MeshMsg::PHRASE_WORDS; i++) words[i] = MeshMsg::WORDS[s_rolled[i]];
     const int y = bigWords(t, top, words, Theme::VAPOR_YELLOW);
-    para(t, y + 4, "Read these to your friend. On theirs: PHRASE, ENTER, and the "
-                   "same five in the same order.", Theme::W95_LIGHT);
-    chrome(t, "[ CANCEL ]", "[ AGAIN ]", "[ USE ]");
+    para(t, y + 4, Theme::tr("Read these to your friend. On theirs: PHRASE, ENTER, and the "
+                             "same five in the same order.",
+                             "Прочти их другу. У него: ФРАЗА, ВВЕДИ и те же "
+                             "пять в том же порядке."), Theme::W95_LIGHT);
+    chrome(t, Theme::tr("[ CANCEL ]", "[ ОТМЕНА ]"),
+           Theme::tr("[ AGAIN ]", "[ ЕЩЁ ]"), Theme::tr("[ USE ]", "[ ВЗЯТЬ ]"));
 }
 
 void countLetters() {
@@ -272,8 +315,8 @@ void drawPick(TFT_eSPI& t) {
     const int w = t.width(), h = t.height();
     const bool port = h > w;
     const int M = 4, G = 4, avail = w - 2 * M;
-    char tb[20];
-    snprintf(tb, sizeof tb, "WORD %u OF 5", (unsigned)(s_pickN + 1));
+    char tb[24];
+    snprintf(tb, sizeof tb, Theme::tr("WORD %u OF 5", "СЛОВО %u ИЗ 5"), (unsigned)(s_pickN + 1));
     title(t, tb);
     progress(t, 28);
 
@@ -349,14 +392,18 @@ void pickBack() {
 }
 
 void drawStretch(TFT_eSPI& t) {
-    title(t, "STRETCHING");
+    title(t, Theme::tr("STRETCHING", "ТЯНУ КЛЮЧ"));
     // Measured: 2.75 s at MeshMsg::ITERS on an ESP32. Said plainly, because
     // the screen does not move while it runs and a frozen screen with no
     // warning looks like a crash.
-    const int y = para(t, 34, "Turning five words into a key. This takes about three seconds, "
-                              "and the screen will freeze until it is done.", Theme::W95_LIGHT);
-    para(t, y + 6, "That is on purpose: every guess an attacker makes has to take "
-                "that long too. It only happens when you set a phrase.", Theme::W95_LIGHT);
+    const int y = para(t, 34, Theme::tr("Turning five words into a key. This takes about three seconds, "
+                                        "and the screen will freeze until it is done.",
+                                        "Превращаю пять слов в ключ. Это займёт секунды три, "
+                                        "и экран пока зависнет."), Theme::W95_LIGHT);
+    para(t, y + 6, Theme::tr("That is on purpose: every guess an attacker makes has to take "
+                             "that long too. It only happens when you set a phrase.",
+                             "Так задумано: каждый подбор злодея длится столько же. "
+                             "Бывает лишь когда задаёшь фразу."), Theme::W95_LIGHT);
 }
 
 void startStretch() {
@@ -392,7 +439,8 @@ void uiMeshPhraseTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, boo
     // it is doing instead of freezing on whatever was there.
     if (s_mode == Mode::STRETCH && s_stretchShown) {
         const bool ok = MeshTalk::setPhrase(s_pending);
-        s_status    = ok ? "Phrase set. Messages use it now." : "Could not set the phrase.";
+        s_status    = ok ? Theme::tr("Phrase set. Messages use it now.", "Фраза задана. Сообщения её используют.")
+                             : Theme::tr("Could not set the phrase.", "Не вышло задать фразу.");
         s_statusCol = ok ? Theme::GREEN : Theme::RED;
         s_mode      = Mode::SHOW;
     }
@@ -407,7 +455,8 @@ void uiMeshPhraseTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, boo
     switch (s_mode) {
         case Mode::SHOW:    drawShow(t); break;
         case Mode::ROLLED:  drawRolled(t); break;
-        case Mode::PICK:    drawPick(t); chrome(t, "[ BACK ]", nullptr, "[ CANCEL ]"); break;
+        case Mode::PICK:    drawPick(t); chrome(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"), nullptr,
+                                         Theme::tr("[ CANCEL ]", "[ ОТМЕНА ]")); break;
         case Mode::STRETCH: drawStretch(t); s_stretchShown = true; break;
     }
 }

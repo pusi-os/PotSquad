@@ -129,6 +129,8 @@ uint8_t die(uint8_t setup, uint8_t who);
 // ---- the picker ---------------------------------------------------------------------
 constexpr uint8_t TABS = 6, PER_TAB = 6;
 extern const char* const TAB_NAME[TABS];
+// Display name of a tab in the board's language (TAB_NAME is EN).
+const char* tabName(uint8_t tab);
 MeshMsg::Emote atTab(uint8_t tab, uint8_t i);
 const char*    name(MeshMsg::Emote e);
 const char*    sub(MeshMsg::Emote e);     // a second line under the name, or ""

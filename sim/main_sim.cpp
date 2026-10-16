@@ -26,6 +26,7 @@
 #include "pet.h"
 #include "detection.h"
 #include "detection_info.h"
+#include "type_names.h"
 #include "ui_clear.h"
 #include "ui_log.h"
 #include "ui_alert.h"
@@ -722,7 +723,7 @@ int main(int argc, char** argv) {
             const bool info = (infoType >= 0);
             const DetectionType it = info ? (DetectionType)infoType : DetectionType::UNKNOWN;
             uiLogTick(frame, t, engine, 0, false, "", info,
-                      info ? detectionTypeName(it) : nullptr,
+                      info ? TypeNames::display(it) : nullptr,
                       info ? DetectionInfo::explainLive(it, engine) : "",
                       false, false, false);   // no confirm panel in the sim: nothing watched, nothing hunted
         }
