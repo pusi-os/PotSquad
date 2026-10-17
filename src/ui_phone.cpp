@@ -18,14 +18,17 @@
 // And for anybody who hates multi-tap regardless, a QWERTY board: one button
 // away, and remembered once chosen. It speaks two alphabets -- QWERTY and
 // ЙЦУКЕН, switched by a button beside BACK that names the other one, just
-// like the keypad/QWERTY switch itself. The Russian board types Latin
-// transliteration (the air alphabet is Latin and the readout face is too),
-// its keys labelled in Cyrillic. It is drawn by this same screen rather
-// than a screen of its own because the text being typed lives here, and
-// switching layouts mid-word keeps what you have typed -- which is the entire
-// point of a bailout. Its geometry, hit test and touch filter are pure
-// arithmetic in qwerty.cpp, host-tested against every pixel of both
-// rotations and both boards.
+// like the keypad/QWERTY switch itself. Its keys are labelled in Cyrillic,
+// and typing one enters the real Cyrillic letter -- a NAME on the Russian
+// board comes out Russian, on the nameplate and in the advert, both of which
+// render it through the RU face. A MESSAGE does not: it still types Latin
+// transliteration, because the air alphabet every decoder accepts is Latin
+// and MeshMsg::TEXT_CHARSET is what keeps an untypeable character from
+// existing. It is drawn by this same screen rather than a screen of its own
+// because the text being typed lives here, and switching layouts mid-word
+// keeps what you have typed -- which is the entire point of a bailout. Its
+// geometry, hit test and touch filter are pure arithmetic in qwerty.cpp,
+// host-tested against every pixel of both rotations and both boards.
 #include "ui_phone.h"
 
 #if POTS_MESH
@@ -103,10 +106,18 @@ uint32_t    s_forgotAt    = 0;
 bool        s_pinForgotHit = false;
 const uint32_t FORGOT_ARM_MS = 5000;
 uint16_t s_max    = Potsy::CUSTOM_NAME_MAX;
-// When non-zero, the ceiling is a CHARACTER count rather than a byte count:
-// transliterated Russian stays byte-counted (Latin air alphabet), so this
-// stays zero on PotSquad; kept for parity with the BroWatch donor.
+// When non-zero, the ceiling is a CHARACTER count as well as the byte count
+// above. A name sets it: the chest sticker and the advert both size by
+// rendered width, and a Cyrillic letter is two bytes where a Latin one is
+// one, so counting bytes alone would let a longer string through than the
+// table it has to fit. Eight characters, which leaves a Latin name at eight
+// and a Cyrillic one at six before CUSTOM_NAME_MAX's twelve bytes fill up --
+// "six to eight" is exactly the pair of ceilings working together. A message
+// leaves it zero: the protocol counts its bytes, not its glyphs.
 uint16_t s_maxChars = 0;
+// The name's character ceiling. See s_maxChars above for why it is not the
+// byte ceiling.
+static const uint16_t NAME_CHARS = 8;
 bool     s_msgOk  = false;      // a message ended on OK, not BACK
 
 char     s_buf[256];
@@ -188,13 +199,30 @@ void appendChar(char c) {
     if (s_maxChars) { if (u8len(s_buf) < s_maxChars && s_len < s_max) { s_buf[s_len++] = c; s_buf[s_len] = '\0'; } }
     else if (s_len < s_max) { s_buf[s_len++] = c; s_buf[s_len] = '\0'; }
 }
-// A Russian key appends its whole transliteration ("SHCH" is four letters).
-// The buffer counts bytes, so a long tail can fill it mid-key: the rest is
-// dropped, the same way a full buffer drops one more letter.
+// A Russian key on the MESSAGE board appends its whole transliteration
+// ("SHCH" is four letters). The buffer counts bytes, so a long tail can fill
+// it mid-key: the rest is dropped, the same way a full buffer drops one more
+// letter. Names do not come through here -- see appendUtf8 below.
 void appendTr(const char* tr) {
     Potsy::noteTyped();
     commitPending();
     while (*tr && s_len < s_max) { s_buf[s_len++] = *tr++; }
+    s_buf[s_len] = '\0';
+}
+// A Russian key on the NAME board appends the real letter, the UTF-8 glyph
+// its key is labelled with (qwerty.cpp owns the table). Whole glyph or
+// nothing: a half-appended two-byte letter would draw as mojibake and split
+// on BACKSPACE, so both the character ceiling and the byte ceiling are
+// checked against the whole sequence before any of it is written.
+void appendUtf8(const char* g) {
+    Potsy::noteTyped();
+    commitPending();
+    uint8_t glen = 0;
+    while (g && g[glen]) glen++;
+    if (!glen) return;
+    if (s_maxChars && u8len(s_buf) >= s_maxChars) return;
+    if (s_len + glen > s_max) return;
+    for (uint8_t i = 0; i < glen; i++) s_buf[s_len++] = g[i];
     s_buf[s_len] = '\0';
 }
 
@@ -361,7 +389,10 @@ static void typeKey(int k) {
     else if (c == Qwerty::OK)   saveAndClose();
     else if (Qwerty::isRuKey(c)) {
         const uint8_t ix = (uint8_t)(c - Qwerty::RU_BASE);
-        appendTr(Qwerty::ruTr(ix));
+        // A name keeps the letter; a message keeps the air Latin, so it flies
+        // as transliteration instead (see the file header).
+        if (msg()) appendTr(Qwerty::ruTr(ix));
+        else       appendUtf8(Qwerty::ruGlyph(ix));
     }
     else                        appendChar(c);
 }
@@ -382,6 +413,7 @@ void uiPhoneInit(TFT_eSPI& t) {
     (void)t;
     s_mode = Mode::NAME;
     s_max  = Potsy::CUSTOM_NAME_MAX;
+    s_maxChars = NAME_CHARS;
     start(Potsy::customName());
 }
 
@@ -389,6 +421,7 @@ void uiPhoneInitMessage(TFT_eSPI& t, const char* text) {
     (void)t;
     s_mode = Mode::MESSAGE;
     s_max  = MeshMsg::TEXT_MAX;
+    s_maxChars = 0;
     start(text);
 }
 
@@ -400,6 +433,7 @@ void uiPhoneInitPin(TFT_eSPI& t, uint8_t len, const char* prompt, bool allowBack
     (void)t;
     s_mode      = Mode::PIN;
     s_max       = len;
+    s_maxChars  = 0;
     s_pinLen    = len;
     s_pinBack   = allowBack;
     s_pinPrompt = prompt ? prompt : "";
@@ -587,8 +621,9 @@ void uiPhoneTouch(int x, int y, uint32_t now, PhoneTouch phase) {
         s_lastPadKey = (int8_t)i;
 
         if (i == 9) {                                   // DEL
-            commitPending();
-            if (s_len) s_buf[--s_len] = '\0';
+            // deleteLast(), not one byte: a Cyrillic name may be on the
+            // board after a QWERTY detour, and half a letter is not a letter.
+            deleteLast();
             Potsy::noteBackspace();
             return;
         }
@@ -603,7 +638,10 @@ void uiPhoneTouch(int x, int y, uint32_t now, PhoneTouch phase) {
         }
         if (i == 10 && !msg()) {                        // SPACE, for a name
             commitPending();
-            if (s_len < s_max) { s_buf[s_len++] = ' '; s_buf[s_len] = '\0'; }
+            if (s_len < s_max && (!s_maxChars || u8len(s_buf) < s_maxChars)) {
+                s_buf[s_len++] = ' ';
+                s_buf[s_len] = '\0';
+            }
             return;
         }
         if (!msg() && i == 0) { shuffleName(); return; }   // 1 is SHUFFLE, for a name
@@ -618,7 +656,7 @@ void uiPhoneTouch(int x, int y, uint32_t now, PhoneTouch phase) {
             // A different key commits whatever was pending immediately. That
             // is what lets you type two letters off one key by waiting, and
             // two off different keys without waiting at all.
-            if (s_len >= s_max) return;
+            if (s_len >= s_max || (s_maxChars && u8len(s_buf) >= s_maxChars)) return;
             Potsy::noteTyped();
             s_tapIx = 0;
             s_buf[s_len++] = letters[0];
@@ -709,8 +747,8 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         t.print("_");
     }
     }   // end of the readout (TH3 0N3's call takes it first)
-    // A message has a limit worth seeing coming; a name's twelve is its own
-    // readout.
+    // A message has a limit worth seeing coming; a name's own readout is the
+    // name you are typing, and the sticker it has to fit is on his chest.
     char rem[12];
     const unsigned left = s_maxChars ? (unsigned)(s_maxChars - u8len(s_buf)) : (unsigned)(s_max - s_len);
     if (Settings::lang() == 1) snprintf(rem, sizeof rem, "%u ОСТ.", left);

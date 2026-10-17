@@ -597,9 +597,15 @@ namespace Potsy {
     // which is the whole reason four bits was enough to send it.
     const char* nicknameAt(uint8_t idx);
 
-    // The typed name, if there is one. Twelve is a RENDERING budget, not a
-    // storage one: the name has to fit a nameplate under a Potsy drawn at
-    // SMALL, which is tighter than the settings row it lives in.
+    // The typed name, if there is one. Twelve BYTES is a rendering budget,
+    // not a storage one: the name has to fit the nameplate under a Potsy
+    // drawn at SMALL, which is tighter than the settings row it lives in, and
+    // it is also the advert's name field (PusiMesh::NAME_LEN), so the same
+    // twelve is what a peer can receive. A Cyrillic letter is two bytes, so an
+    // eight-character ceiling (ui_phone's NAME_CHARS) leaves a Russian name
+    // six letters wide and a Latin one eight -- the "six to eight" the chest
+    // sticker fits. This is the byte ceiling; the character one lives in
+    // ui_phone.cpp, next to the board that enforces it.
     // NOT called NAME_MAX: that is a POSIX macro out of <limits.h>, so the
     // declaration expanded to `static const uint8_t 255 = 12;` and every
     // translation unit that included this header failed at once.
