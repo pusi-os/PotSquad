@@ -3819,7 +3819,7 @@ static void twatchCrownTick(uint32_t now) {
 static void printBootBanner() {
     Serial.println("╔══════════════════════════════════════════════════╗");
     Serial.println("║   .-\"\"\"-.                                        ║");
-    Serial.println("║  /  ^ ^  \\     ███ S Q U A C H W A T C H ███     ║");
+    Serial.println("║  /  ^ ^  \\     ███ P O T S S Q U A D         ███     ║");
     Serial.println("║  | [o|o] |     surveillance detector             ║");
     // %-13.13s holds the right border in place whatever the tag turns out
     // to be: the fixed text ahead of it is 37 columns and the box is 50.
@@ -3827,7 +3827,7 @@ static void printBootBanner() {
     // "v1.5.16-dirty" and a commit past a tag as "v1.5.16-3-g554330d", both
     // of which walk the border off the end of the line. Truncated here only;
     // the boot screen and the diary still show the version in full.
-    Serial.printf ("║  |   -   |     TALKING SAPOTS  .  %-13.13s║\n", FIRMWARE_VERSION);
+    Serial.printf ("║  |   -   |     TALKING PUSI    .  %-13.13s║\n", FIRMWARE_VERSION);
     // Same %-34s trick as the version line above: the reason is variable
     // length ("interrupt watchdog" is the longest at eighteen characters)
     // and the right border has to stay put.

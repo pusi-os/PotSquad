@@ -1291,7 +1291,7 @@ void drawDigitalRain(TFT_eSPI& t, uint32_t now, int yStart, int yEnd, bool advan
     static const int  SPACING  = 5;
     static const char GLYPHS[] =
         "01" "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "!@#$%^&*<>{}[]/\\|+=~" "SAPOTS";
+        "!@#$%^&*<>{}[]/\\|+=~" "POTSPUSI";
     static const int  GLN      = sizeof(GLYPHS) - 1;
     static const int  MINTRAIL = 17;      // averages ~21, just under the old flat 22
     // Ordered cool -> warm so that indexing them by depth gives distance:
@@ -6198,7 +6198,7 @@ void drawFire(TFT_eSPI& t, uint32_t now, int yStart, int yEnd) {
         static const char* const QUIPS[] = {
             "it's always DNS", "RTFM",          "rm -rf /",
             "ROT13 twice",       "allegedly",     "flag{h00t}",
-            "salt your hash",    "0 days since",  "PCBWAY!"
+            "salt your hash",    "0 days since",  "pusi was here"
         };
         static const uint8_t NQUIP = sizeof(QUIPS) / sizeof(QUIPS[0]);
         // While the werewolf is on stage the owl has other priorities.
@@ -10026,7 +10026,7 @@ void drawClockBackdrop(TFT_eSPI& t, uint32_t now, int x, int y, int w, int h, ui
     if (kind == 1) {
         // Digital rain: the same glyphs and the same depth colours as the
         // background, dimmed so the time stays the brightest thing.
-        static const char GL[] = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*<>{}[]/\\|+=~SAPOTS";
+        static const char GL[] = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*<>{}[]/\\|+=~POTSPUSI";
         static const uint16_t HUE[3] = { VAPOR_PURPLE, CYAN, GREEN };
         const int COL = 6, ROW = 8, TRAIL = 7;
         t.setTextSize(1);

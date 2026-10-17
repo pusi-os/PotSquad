@@ -123,7 +123,7 @@ void uiBootTick(TFT_eSPI& t, uint32_t now) {
         t.drawFastHLine(x, 46, 1, Theme::titlebarColor(x, w));
     }
 
-    // TALKING SAPOTS subtitle -- the brand line under the product
+    // TALKING PUSI subtitle -- the brand line under the product
     // name, not just the product name again.
     //
     // Chromatic: a white core with cyan and magenta copies split either
@@ -146,7 +146,7 @@ void uiBootTick(TFT_eSPI& t, uint32_t now) {
     // rectangle. Anything built on it would look correct in one and
     // wrong on the other, and the emulator is where this gets checked.
     t.setTextSize(2);
-    const char* sub = "TALKING SAPOTS";
+    const char* sub = "TALKING PUSI";
     const int sw = t.textWidth(sub);
     const int sx = (w - sw) / 2;
     const int sy = 54;

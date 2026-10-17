@@ -57,7 +57,7 @@ static void zLandedAt(int x) { Potsy::petLandedAt(x * s_k); }
 // him and starts looking like a caption.
 static const char* const QUIPS[] = {
     "nice shades",
-    "PCBWAY!",
+    "kiska!",
     "how do you even walk",
     "you make a good chair",
     "great view up here",
@@ -84,7 +84,7 @@ static const uint8_t QUIPS_N = sizeof(QUIPS) / sizeof(QUIPS[0]);
 
 static const char* const QUIPS_RU[] = {
     "клёвые очки",
-    "PCBWAY!",
+    "киска!",
     "как ты вообще ходишь",
     "из тебя выйдет стул",
     "отсюда классный вид",

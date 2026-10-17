@@ -248,7 +248,7 @@ static const uint8_t CANNED_TAB[CANNED_TABS][CANNED_PER_TAB] = {
     {  1, 22, 33, 34, 35, 36, 37, 38 },
     // REPLY -- short answers
     {  6,  7,  8, 20, 39, 40, 41, 42 },
-    // POTS -- he is still a sasquatch about it
+    // POTS -- he is still all kiska about it
     { 18, 19, 21, 43, 44, 45, 46, 47 },
 };
 

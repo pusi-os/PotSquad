@@ -188,14 +188,14 @@ static const char* IDLE_LINES[] = {
     "Too quiet. I love it.",
     "Snacks fuel good opsec. Pack extra.",
     "This screen's my new hideout.",
-    "Bigfoot sightings up 40% lately.",
+    "Pusi sightings up 40% lately.",
     "Locks keep out the polite. I'm not polite.",
     "The best hack teaches someone.",
     "I contain multitudes and RF signals.",
     "Every good cryptid needs a hobby.",
     "This counts as cardio. Fight me.",
     "Cryptid by night, operator by day.",
-    "Nobody suspects the Sapots.",
+    "Nobody suspects the Pusi.",
 };
 
 static const char* ENCOURAGE_LINES[] = {
@@ -8117,11 +8117,11 @@ void drawWaving(TFT_eSPI& t, int cx, int baseY, uint32_t now, float scale, const
     // Fixed above his (pre-bob, pre-wander) head, same as tick()'s
     // bubble row — it shouldn't bounce or chase him around. Pulled up
     // further than tick()'s gap (18px) specifically so it sits right
-    // under the "TALKING SAPOTS" subtitle above, in the extra room
+    // under the "TALKING PUSI" subtitle above, in the extra room
     // this bigger boot-splash scale leaves between his head and the
     // subtitle.
     // bubbleGap defaults to 34, which is the BOOT SPLASH's number -- it was
-    // chosen to tuck under the "TALKING SAPOTS" subtitle in the room that
+    // chosen to tuck under the "TALKING PUSI" subtitle in the room that
     // screen leaves above his head.
     //
     // On CLEAR with a visitor, 34 put his bubble at the very top of the

@@ -299,7 +299,7 @@ float sparkleLevel(uint32_t quiet) { return quiet > QUIET_MS ? fminf(1.0f, (quie
 //              cyan behind Meshtastic and pink behind MeshCore, under the
 //              lines. (A backdrop through the page's background came out the
 //              same day: the owner wanted it in the boxes, not around them.)
-const char RAIN_GLYPHS[] = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*<>{}[]/\\|+=~SAPOTS";
+const char RAIN_GLYPHS[] = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*<>{}[]/\\|+=~POTSPUSI";
 const int  RAIN_GN = sizeof(RAIN_GLYPHS) - 1;
 const float CODE_WF_A = 0.65f, CODE_STRIP_A = 0.25f, CHAT_RAIN_A = 0.3f;
 struct RainCol { float y, v; uint8_t len, depth; bool active; char g[16]; };
