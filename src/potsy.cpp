@@ -6839,6 +6839,32 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     // Body — broad, stocky torso instead of a slim rounded rect.
     if (!torsoHidden)
         t.fillRoundRect(cx2 - S(torsoHalf()), hy + S(23), S(2 * torsoHalf()), S(18), S(5), furMain);
+
+    // ---- base clothing -------------------------------------------------
+    // A plain t-shirt and shorts, so he is not bare under a hat-only
+    // costume. Drawn from his OWN palette -- a light tint for the shirt, a
+    // dark one for the shorts -- so every costume that recolours his fur
+    // takes the clothes with it and none of them clash; the outfits that
+    // dress the torso themselves (SPACE, the bros, PARKA, YZZERD, the gi)
+    // draw over this a few lines below. Skipped wherever the bare torso is
+    // skipped, so a robe or a gi never shows a shirt under it.
+    if (!torsoHidden) {
+        const int th = torsoHalf();
+        const uint16_t teeC   = blend(furMain, WHITE, 120);
+        const uint16_t teeDk  = blend(furMain, BLACK, 60);
+        const uint16_t shrtC  = blend(furMain, BLACK, 118);
+        const uint16_t shrtDk = blend(furMain, BLACK, 168);
+        // Shirt: shoulders to the waist, with a collar and a hem line.
+        t.fillRoundRect(cx2 - S(th), hy + S(23), S(2 * th), S(12), S(3), teeC);
+        t.fillRect(cx2 - S(th), hy + S(23), S(2 * th), S(1) + 1, teeDk);
+        t.fillRect(cx2 - S(th), hy + S(34), S(2 * th), S(1) + 1, teeDk);
+        // Shorts: the hips and the top of each leg, cut short so his own fur
+        // shows between them and the feet.
+        t.fillRoundRect(cx2 - S(th), hy + S(35), S(2 * th), S(12), S(3), shrtC);
+        t.fillRect(cx2 - S(th), hy + S(35), S(2 * th), S(1) + 1, shrtDk);
+        // A centre seam, so the shorts read as two legs rather than a skirt.
+        t.fillRect(cx2 - 1, hy + S(38), 2, S(9), shrtDk);
+    }
     // No highlight down the sides. There used to be a light strip down each
     // edge, exactly under where the arms hang, so it was invisible at rest and
     // appeared as a second, lighter pair of arms the moment a pose lifted one.
@@ -7318,13 +7344,17 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         }
     }
 
-    // Head — a touch narrower than before (half-width 14, was 15), same
-    // original corner radii so the crown and the cheeks stay smooth. Ears,
-    // cheeks and mouth below moved in with the edge; eyes, nose, shades
-    // and every outfit's headgear keep their absolute anchors.
-    t.fillRoundRect(cx2 - S(14), hh, S(28), S(24), S(7), furLight);
-    t.fillRoundRect(cx2 - S(11), hh + S(2), S(22), S(19), S(5), furMain);
-    t.fillRoundRect(cx2 - S(9),  hh + S(7), S(18), S(11), S(4),
+    // Head — narrower (half-width 13, was 15 two passes ago) and squarer:
+    // the corner radii pulled in so the skull reads as a rounded box, the
+    // Simpson way, rather than an oval. Ears, cheeks and mouth below moved
+    // in with the edge; eyes, nose, shades and every outfit's headgear keep
+    // their absolute anchors.
+    t.fillRoundRect(cx2 - S(13), hh, S(26), S(24), S(5), furLight);
+    // The ring between the skull and the muzzle: once his saturated yellow,
+    // now a light tint of it, so the band around the eyes that runs down to
+    // the cheeks sits close to the face instead of reading as a dark mask.
+    t.fillRoundRect(cx2 - S(10), hh + S(2), S(20), S(19), S(4), blend(furMain, furLight, 150));
+    t.fillRoundRect(cx2 - S(8),  hh + S(7), S(16), S(11), S(3),
                      outfitNow == OutfitId::SHAMBLER ? SH_SKIN : SKIN_TAN);
 
     // A cowlick, plus a couple of smaller shaggy fringe tufts either side.
@@ -7388,19 +7418,20 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     {
         const int erx = (S(4) * 9) / 10, ery = (S(4) * 14) / 10;
         for (int8_t sg = -1; sg <= 1; sg += 2) {
-            const int ex = cx2 + sg * S(14);
+            const int ex = cx2 + sg * S(13);
             t.fillEllipse(ex, hh + S(13), erx, ery, furMain);
             t.fillEllipse(ex, hh + S(13), (erx * 8) / 10, (ery * 8) / 10, SKIN_DARK);
             t.fillEllipse(ex, hh + S(13), (erx * 6) / 10, (ery * 6) / 10, furMain);
         }
     }
 
-    // Cheeks — warm Simpson shading, not blush: furMain walked a touch
-    // toward the ear's dark tone. Not on SHAMBLER: nothing about him glows.
+    // Cheeks — a light, warm Simpson shading rather than blush: furMain
+    // only barely walked toward the ear's dark tone now, so they sit close
+    // to the face's own yellow. Not on SHAMBLER: nothing about him glows.
     if (outfitNow != OutfitId::SHAMBLER) {
-        const uint16_t cheek = blend(furMain, SKIN_DARK, 72);
-        t.fillCircle(cx2 - S(8), hh + S(15), S(2) + 1, cheek);
-        t.fillCircle(cx2 + S(8), hh + S(15), S(2) + 1, cheek);
+        const uint16_t cheek = blend(furMain, SKIN_DARK, 34);
+        t.fillCircle(cx2 - S(7), hh + S(15), S(2) + 1, cheek);
+        t.fillCircle(cx2 + S(7), hh + S(15), S(2) + 1, cheek);
     }
 
     // Nose — a light knob with its own keyline, so it reads against the
@@ -7544,28 +7575,42 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             // not touch them. Only the plain-issue shades come off.
             t3Shades(t, cx2, hh + sd, blink, scale);
         } else if (!glassesOn()) {
-            // Simpson base face: big bare eyes under the (removed) shades.
-            // The shades above are the separate sprite layer; with them off
-            // the same blink/wink cycle drives real eyes instead of lenses.
+            // Simpson base face: bare eyes under the (removed) shades. The
+            // shades above are the separate sprite layer; with them off the
+            // same blink/wink cycle drives real eyes instead of lenses.
+            //
+            // Smaller and squarer than the tall ovals they were, so they sit
+            // in the face like the rest of him, with a pair of tiny lashes on
+            // each outer top corner.
+            const int eex = S(7) / 2;      // centre offset from the nose
+            const int erx = S(5) / 2;      // half width
+            const int ery = S(6) / 2;      // half height
             if (blink) {
-                t.drawLine(cx2 - S(9), hh + S(9), cx2 - S(1), hh + S(9), BLACK);
-                t.drawLine(cx2 + S(1), hh + S(9), cx2 + S(9), hh + S(9), BLACK);
+                t.drawLine(cx2 - eex - erx, hh + S(9), cx2 - eex + erx, hh + S(9), BLACK);
+                t.drawLine(cx2 + eex - erx, hh + S(9), cx2 + eex + erx, hh + S(9), BLACK);
             } else {
-                // Bare eyes a touch smaller and closer together than they
-                // were, with the pupils riding along.
-                const int eex = S(5) - 1, eerx = (S(4) * 9) / 10, eery = (S(5) * 9) / 10;
-                t.fillEllipse(cx2 - eex, hh + S(9), eerx + 1, eery + 1, BLACK);
-                t.fillEllipse(cx2 + eex, hh + S(9), eerx + 1, eery + 1, BLACK);
-                t.fillEllipse(cx2 - eex, hh + S(9), eerx, eery, WHITE);
-                t.fillEllipse(cx2 + eex, hh + S(9), eerx, eery, WHITE);
+                for (int8_t sg = -1; sg <= 1; sg += 2) {
+                    const int ex = cx2 + sg * eex;
+                    t.fillRoundRect(ex - erx - 1, hh + S(9) - ery - 1,
+                                    2 * erx + 2, 2 * ery + 2, S(1) + 1, BLACK);
+                    t.fillRoundRect(ex - erx, hh + S(9) - ery,
+                                    2 * erx, 2 * ery, S(1), WHITE);
+                    // One tiny lash off the outer top corner only, so it reads
+                    // as a lash rather than a brow.
+                    const int lx = ex + sg * erx, ly = hh + S(9) - ery;
+                    t.drawLine(lx, ly, lx + sg, ly - S(1) - 1, BLACK);
+                }
+                // Pupils ride just below centre, so a smaller eye does not
+                // read as looking down.
+                const int py = hh + S(9) + S(1) / 2;
                 if (winking) {
-                    t.drawLine(cx2 - S(9), hh + S(9), cx2 - S(1), hh + S(9), BLACK);
-                    t.fillCircle(cx2 + eex, hh + S(10), S(1) + 1, BLACK);
+                    t.drawLine(cx2 - eex - erx, hh + S(9), cx2 - eex + erx, hh + S(9), BLACK);
+                    t.fillCircle(cx2 + eex, py, S(1) + 1, BLACK);
                 } else {
-                    t.fillCircle(cx2 - eex, hh + S(10), S(1) + 1, BLACK);
-                    t.fillCircle(cx2 + eex, hh + S(10), S(1) + 1, BLACK);
-                    t.fillCircle(cx2 - eex + 1, hh + S(9), 1, WHITE);
-                    t.fillCircle(cx2 + eex + 1, hh + S(9), 1, WHITE);
+                    t.fillCircle(cx2 - eex, py, S(1) + 1, BLACK);
+                    t.fillCircle(cx2 + eex, py, S(1) + 1, BLACK);
+                    t.fillCircle(cx2 - eex + 1, py - 1, 1, WHITE);
+                    t.fillCircle(cx2 + eex + 1, py - 1, 1, WHITE);
                 }
             }
         } else {
