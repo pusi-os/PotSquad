@@ -1,4 +1,4 @@
-// Fast, allocation-free appearance comparison for PotsMesh advertising.
+// Fast, allocation-free appearance comparison for PusiMesh advertising.
 // The live codec's 8- or 20-byte payload includes nickname, outfit, shades,
 // and (if present) custom name. Refresh only if those bytes really differ.
 #pragma once

@@ -879,7 +879,7 @@ void pollSerial() {
             Serial.printf("[bench] remote update %s\n", Settings::remoteUpdate() ? "on" : "off");
 #if POTS_MESH
         } else if (strncasecmp(line, "SQUAD JOIN ", 11) == 0) {
-            // Everything the POTSMESH pages would switch on, and a phrase,
+            // Everything the PUSIMESH pages would switch on, and a phrase,
             // for a bench board nobody is standing at. The phrase is not echoed.
             Settings::setMeshConsent(true);
             if (!Settings::meshDetect())   Settings::cycleMeshDetect();

@@ -32,7 +32,7 @@ void bootStage(uint8_t s);   // main.cpp: the power diary's steps through setup(
 #include "nimble/porting/nimble/include/nimble/nimble_port.h"
 #endif
 #if POTS_MESH
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include "potsy.h"
 #include "settings.h"
 #endif
@@ -1046,7 +1046,7 @@ Stats stats() {
 #include "mesh_appearance_policy.h"
 #include "mesh_primary_transport.h"
 
-// PotsMesh's radio half: our advert, our scan response and our own
+// PusiMesh's radio half: our advert, our scan response and our own
 // address. Everything that does not touch NimBLE -- who is visiting, the
 // decoder, where a message frame goes -- is src/mesh.cpp, so that the
 // emulator compiles the same code; sim/meshsim.cpp is its radio half.
@@ -1088,7 +1088,7 @@ static void txFailure(uint8_t code, const char* stage) {
 
 // The payload we last handed the stack, so an unchanged one is never handed
 // over twice.
-static uint8_t s_lastAdv[PotsMesh::LEN_MAX];
+static uint8_t s_lastAdv[PusiMesh::LEN_MAX];
 static size_t  s_lastAdvLen = 0;
 
 static void setAdvertising(bool on, uint32_t now) {
@@ -1100,7 +1100,7 @@ static void setAdvertising(bool on, uint32_t now) {
         return;
     }
 
-    uint8_t buf[PotsMesh::LEN_MAX];
+    uint8_t buf[PusiMesh::LEN_MAX];
     const size_t n = buildSelf(buf);
 
     // Only touch the stack when the advert actually differs.
@@ -1130,14 +1130,14 @@ static void setAdvertising(bool on, uint32_t now) {
     const uint8_t* payload = out ? out : buf;
     const size_t payloadLen = out ? outLen : n;
     if ((out && !MeshPrimaryTransport::fitsPrimary(outLen)) ||
-        (!out && (n < PotsMesh::LEN_INDEXED || n > PotsMesh::LEN_MAX))) {
+        (!out && (n < PusiMesh::LEN_INDEXED || n > PusiMesh::LEN_MAX))) {
         txFailure(6, "primary-size");
         return;
     }
     std::string md;
     md.reserve(payloadLen + 2);
-    md.push_back((char)(PotsMesh::COMPANY_ID & 0xFF));
-    md.push_back((char)(PotsMesh::COMPANY_ID >> 8));
+    md.push_back((char)(PusiMesh::COMPANY_ID & 0xFF));
+    md.push_back((char)(PusiMesh::COMPANY_ID >> 8));
     md.append((const char*)payload, payloadLen);
 
     NimBLEAdvertisementData d;
@@ -1230,7 +1230,7 @@ void radioTick(uint32_t now) {
     // periodic check and transmit-consent gate as well.
     bool appearanceChanged = false;
     if (want && live && s_advOn) {
-        uint8_t current[PotsMesh::LEN_MAX];
+        uint8_t current[PusiMesh::LEN_MAX];
         const size_t n = buildSelf(current);
         appearanceChanged = MeshAppearancePolicy::changed(
             current, n, s_lastAdv, s_lastAdvLen);

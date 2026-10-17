@@ -1,4 +1,4 @@
-// PotsSquad-CYD — PotsMesh, the half that does not touch a radio.
+// PotsSquad-CYD — PusiMesh, the half that does not touch a radio.
 //
 // Who is visiting, what their advert said, when they were last heard, and
 // where a message frame goes: all of it is bytes in and state out, so it lives
@@ -13,7 +13,7 @@
 #include "detection.h"
 
 #if POTS_MESH
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include "potsy.h"
 #include "settings.h"
 #include "meshmsg.h"
@@ -27,7 +27,7 @@ namespace Mesh {
 // three buttons. A second arrival while somebody is here is dropped rather
 // than queued, because a visit is a moment and not a message that has to be
 // delivered.
-static PotsMesh::Peer s_peer{};
+static PusiMesh::Peer s_peer{};
 static uint8_t          s_peerMac[6] = {0};
 static uint32_t         s_peerSeen   = 0;
 static bool             s_havePeer   = false;
@@ -55,14 +55,14 @@ static const uint8_t SQUAD_N = 8;
 static uint8_t  s_squadMac[SQUAD_N][6];
 static uint32_t s_squadSeen[SQUAD_N];
 static bool     s_squadLive[SQUAD_N];
-static PotsMesh::Peer s_squadPeer[SQUAD_N];   // what each one looks like
+static PusiMesh::Peer s_squadPeer[SQUAD_N];   // what each one looks like
 
 // The visitor somebody picked on the SQUAD screen, if any. RAM only.
 static uint8_t  s_preferMac[6] = { 0 };
 static bool     s_preferSet    = false;
 
 // Phones heard lately: the address each one advertises from, and the six
-// bytes its frames are sealed under (potsmesh.h, phoneMac). A phone's
+// bytes its frames are sealed under (pusimesh.h, phoneMac). A phone's
 // address changes every quarter of an hour; its identity does not, so a
 // frame is opened, and replay-checked, by the identity. Four is plenty:
 // this is the companion app, not a crowd. Written and read in the BLE task.
@@ -72,7 +72,7 @@ static uint8_t  s_phoneMac[PHONE_N][6];
 static uint32_t s_phoneSeen[PHONE_N];
 static bool     s_phoneLive[PHONE_N];
 
-static void phoneNote(const uint8_t* addr, const uint8_t id[PotsMesh::PHONE_ID_LEN], uint32_t now) {
+static void phoneNote(const uint8_t* addr, const uint8_t id[PusiMesh::PHONE_ID_LEN], uint32_t now) {
     uint8_t slot = 0;
     bool found = false;
     for (uint8_t i = 0; i < PHONE_N; i++)
@@ -85,7 +85,7 @@ static void phoneNote(const uint8_t* addr, const uint8_t id[PotsMesh::PHONE_ID_L
         memcpy(s_phoneAddr[slot], addr, 6);
         s_phoneLive[slot] = true;
     }
-    PotsMesh::phoneMac(id, s_phoneMac[slot]);
+    PusiMesh::phoneMac(id, s_phoneMac[slot]);
     s_phoneSeen[slot] = now;
 }
 
@@ -96,7 +96,7 @@ static const uint8_t* phoneMacFor(const uint8_t* addr) {
     return nullptr;
 }
 
-static void squadNote(const uint8_t* mac, uint32_t now, const PotsMesh::Peer& p) {
+static void squadNote(const uint8_t* mac, uint32_t now, const PusiMesh::Peer& p) {
     uint8_t slot = SQUAD_N;
     for (uint8_t i = 0; i < SQUAD_N; i++)
         if (s_squadLive[i] && memcmp(s_squadMac[i], mac, 6) == 0) { slot = i; break; }
@@ -140,7 +140,7 @@ uint8_t squadList(uint32_t now, SquadMember* out, uint8_t cap) {
     return n;
 }
 
-bool peerLook(const uint8_t mac[6], PotsMesh::Peer& out) {
+bool peerLook(const uint8_t mac[6], PusiMesh::Peer& out) {
     for (uint8_t i = 0; i < SQUAD_N; i++)
         if (s_squadLive[i] && memcmp(s_squadMac[i], mac, 6) == 0) { out = s_squadPeer[i]; return true; }
     return false;
@@ -160,7 +160,7 @@ uint8_t squadCount(uint32_t now) {
     return n;
 }
 
-const PotsMesh::Peer* peer() {
+const PusiMesh::Peer* peer() {
     return s_havePeer ? &s_peer : nullptr;
 }
 const uint8_t* peerMac() { return s_peerMac; }
@@ -169,7 +169,7 @@ const uint8_t* peerMac() { return s_peerMac; }
 // the name can both change while this is running, and a peer drawing a stale
 // version of us is a bug nobody would think to look for.
 size_t buildSelf(uint8_t* out) {
-    PotsMesh::Peer me{};
+    PusiMesh::Peer me{};
     me.nick   = Potsy::nicknameIndex();
     me.outfit = Potsy::outfitIndex();
     me.shade  = Potsy::shadesIndex();
@@ -179,10 +179,10 @@ size_t buildSelf(uint8_t* out) {
     me.name[0] = '\0';
     if (me.custom) {
         size_t i = 0;
-        for (; i < PotsMesh::NAME_LEN && cn[i]; i++) me.name[i] = cn[i];
+        for (; i < PusiMesh::NAME_LEN && cn[i]; i++) me.name[i] = cn[i];
         me.name[i] = '\0';
     }
-    return PotsMesh::encode(me, out);
+    return PusiMesh::encode(me, out);
 }
 
 void begin() { s_havePeer = false; }
@@ -192,9 +192,9 @@ bool onManufacturerData(const uint8_t* d, size_t len, const uint8_t* mac, uint32
     // between the setting changing and the next tick.
     if (!Settings::meshDetect()) return false;
     // Company ID first, little-endian, then the payload.
-    if (len < 2 + PotsMesh::LEN_INDEXED) return false;
+    if (len < 2 + PusiMesh::LEN_INDEXED) return false;
     const uint16_t cid = (uint16_t)(d[0] | ((uint16_t)d[1] << 8));
-    if (cid != PotsMesh::COMPANY_ID) return false;
+    if (cid != PusiMesh::COMPANY_ID) return false;
 
     // A message frame rather than an advert. Queued raw for the loop task:
     // this runs in the BLE host task and the cipher lives on the loop, so no
@@ -208,8 +208,8 @@ bool onManufacturerData(const uint8_t* d, size_t len, const uint8_t* mac, uint32
         return true;
     }
 
-    PotsMesh::Peer p;
-    if (!PotsMesh::decode(d + 2, len - 2, p)) return false;
+    PusiMesh::Peer p;
+    if (!PusiMesh::decode(d + 2, len - 2, p)) return false;
     if (p.phone) phoneNote(mac, p.id, now);
     squadNote(mac, now, p);     // everybody counts, visiting or not
 

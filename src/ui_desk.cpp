@@ -9,7 +9,7 @@
 #include <math.h>
 #if POTS_MESH
 #include "meshtalk.h"
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include "settings.h"
 #include "ui_clear.h"   // the crowd is drawn by the main screen's renderer
 #endif
@@ -309,7 +309,7 @@ static void drawPolaroid(TFT_eSPI& t, int top, float p, uint32_t now) {
     // The sender, in his own outfit, waving. His look comes from the last
     // advert we heard from that board; a stranger gets the default.
     {
-        PotsMesh::Peer look{};
+        PusiMesh::Peer look{};
         const bool known = Mesh::peerLook(m.mac, look);
         Potsy::setOutfitPreview(known ? (int8_t)look.outfit : 0);
         Potsy::setShadesPreview(known ? (int8_t)look.shade  : 0);

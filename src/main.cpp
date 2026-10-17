@@ -2656,7 +2656,7 @@ static void enterPhone() {
     uiPhoneInit(*canvas);
 }
 
-// The same payphone, typing a PotsMesh message instead of a name.
+// The same payphone, typing a PusiMesh message instead of a name.
 static void enterPhoneMessage(const char* text) {
     state = AppState::PHONE;
     transitionStart = millis();
@@ -7896,7 +7896,7 @@ void loop() {
                         case SettingsRow::SECURITY:    enterSecurity(); break;
                         case SettingsRow::IGNORED_DEVICES:  enterIgnoreList(); break;
 #if POTS_MESH
-                        case SettingsRow::POTSMESH:
+                        case SettingsRow::PUSIMESH:
                             // Asked once. After that the row opens the menu
                             // directly -- re-consenting on every visit trains
                             // people to dismiss the thing without reading it,
@@ -8348,7 +8348,7 @@ void loop() {
                         memset(pass, 0, sizeof pass);
                         uiSquadUpdateSent(r == MeshTalk::Send::OK, now);
                         if (r == MeshTalk::Send::NOT_READY)    Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"), Theme::tr("Messages need a phrase first", "Сперва нужна фраза"), Theme::AMBER);
-                        else if (r == MeshTalk::Send::TRANSMIT_OFF) Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"), Theme::tr("Turn TRANSMIT on in PotsMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"), Theme::AMBER);
+                        else if (r == MeshTalk::Send::TRANSMIT_OFF) Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"), Theme::tr("Turn TRANSMIT on in PusiMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"), Theme::AMBER);
                         else if (r != MeshTalk::Send::OK)      Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"), Theme::tr("WiFi password too long to share", "Пароль WiFi слишком длинный"), Theme::AMBER);
                         break;
                     }
@@ -8380,7 +8380,7 @@ void loop() {
                     case InviteHit::ACCEPT: {
                         const MeshTalk::Send r = MeshTalk::inviteAccept(now);
                         if (r == MeshTalk::Send::TRANSMIT_OFF) {
-                            Theme::showToast(Theme::tr("CAN'T ANSWER", "НЕ МОГУ ОТВЕТИТЬ"), Theme::tr("Turn TRANSMIT on in PotsMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"), Theme::AMBER);
+                            Theme::showToast(Theme::tr("CAN'T ANSWER", "НЕ МОГУ ОТВЕТИТЬ"), Theme::tr("Turn TRANSMIT on in PusiMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"), Theme::AMBER);
                             MeshTalk::inviteCancel();
                             enterClear();
                         }
@@ -8426,8 +8426,8 @@ void loop() {
                         if (!mac) break;
                         const MeshTalk::Send r = MeshTalk::inviteStart(mac, uiSquadSelectedName(), now);
                         if (r == MeshTalk::Send::OK)            enterInvite();
-                        else if (r == MeshTalk::Send::NOT_READY) Theme::showToast(Theme::tr("NO PHRASE TO SHARE", "НЕЧЕМ ДЕЛИТЬСЯ"), Theme::tr("Set one under POTSMESH first", "Сперва задай в ПОТСМЕШ"), Theme::AMBER);
-                        else if (r == MeshTalk::Send::TRANSMIT_OFF) Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"), Theme::tr("Turn TRANSMIT on in PotsMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"), Theme::AMBER);
+                        else if (r == MeshTalk::Send::NOT_READY) Theme::showToast(Theme::tr("NO PHRASE TO SHARE", "НЕЧЕМ ДЕЛИТЬСЯ"), Theme::tr("Set one under PUSIMESH first", "Сперва задай в ПОТСМЕШ"), Theme::AMBER);
+                        else if (r == MeshTalk::Send::TRANSMIT_OFF) Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"), Theme::tr("Turn TRANSMIT on in PusiMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"), Theme::AMBER);
                         else                                     Theme::showToast(Theme::tr("CAN'T START", "НЕ МОГУ НАЧАТЬ"), Theme::tr("Try again in a moment", "Попробуй через миг"), Theme::AMBER);
                         break;
                     }

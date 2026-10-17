@@ -1,4 +1,4 @@
-// PotsSquad-CYD — the PotsMesh phrase: roll a new one, look at the one you
+// PotsSquad-CYD — the PusiMesh phrase: roll a new one, look at the one you
 // have, or enter a friend's.
 //
 // A phrase is five words from the list in meshwords.cpp, and the device rolls

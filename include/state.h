@@ -158,10 +158,10 @@ enum class AppState : uint8_t {
     POWER_SAVER      = 15, // battery settings, reached via Settings'
                             // "POWER SAVER" row
     PHONE            = 16, // the payphone: type a name for Potsy. Reached
-                            // from the PotsMesh menu. Only ever entered on
-                            // a PotsMesh build -- the row is not offered
+                            // from the PusiMesh menu. Only ever entered on
+                            // a PusiMesh build -- the row is not offered
                             // otherwise -- but the state costs nothing.
-    MESH_MENU        = 17, // PotsMesh's own screen: detect, transmit, name
+    MESH_MENU        = 17, // PusiMesh's own screen: detect, transmit, name
     MESH_WARN        = 18, // the consent gate in front of it. Stands before
                             // the MENU rather than before the TRANSMIT row:
                             // a warning read next to a switch reads as an
@@ -188,7 +188,7 @@ enum class AppState : uint8_t {
     SYS_PROPS        = 35, // SYSTEM PROPERTIES: the window that says an update
                             // is out, in front of the main screen on the first
                             // frame after the intro. See ui_sysprops.h.
-    // 36 was CROWD, a page holding one setting; the PotsMesh menu's CROWD
+    // 36 was CROWD, a page holding one setting; the PusiMesh menu's CROWD
     // row steps it in place now.
     BINGO            = 36, // the detection bingo card, from Settings' BINGO
                             // row. See ui_bingo.h.

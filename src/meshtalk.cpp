@@ -1,4 +1,4 @@
-// PotsSquad-CYD — PotsMesh messages at runtime. See include/meshtalk.h.
+// PotsSquad-CYD — PusiMesh messages at runtime. See include/meshtalk.h.
 #include "meshtalk.h"
 #include "theme.h"
 #include "gnss.h"
@@ -154,7 +154,7 @@ void rosterNote(const uint8_t mac[6], bool newMeeting) {
         changed = true;
     }
     Member& m = s_roster[slot];
-    PotsMesh::Peer look;
+    PusiMesh::Peer look;
     if (Mesh::peerLook(mac, look) && memcmp(&look, &m.look, sizeof look) != 0) { m.look = look; changed = true; }
     if (newMeeting && m.met < 0xFFFF) { m.met++; changed = true; }
     if (changed) rosterSave();

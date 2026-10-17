@@ -18,7 +18,7 @@ Just want to flash a board and go? **[Open the web flasher](https://potsquad.com
 - [Does it make any noise?](#does-it-make-any-noise)
 - [An alert popped up. Now what?](#an-alert-popped-up-now-what)
 - [False positives](#false-positives)
-- [PotsMesh and squads](#potsmesh-and-squads)
+- [PusiMesh and squads](#pusimesh-and-squads)
 - [Touch is off, the screen is white, the colours are wrong](#touch-is-off-the-screen-is-white-the-colours-are-wrong)
 - [GPS and LoRa (watches only)](#gps-and-lora-watches-only)
 - [What's with the Sapots on the screen?](#whats-with-the-sapots-on-the-screen)
@@ -82,7 +82,7 @@ Go to **Settings > SYSTEM > UPDATE FIRMWARE**. The screen shows the version you'
 
 - **UPDATE OVER WIFI.** Joins one of your saved WiFi networks (or asks you to pick one and type the password), checks potsquad.com, and shows UPDATE AVAILABLE or YOU'RE UP TO DATE. Tap INSTALL. Detection and Bluetooth stay off until the board restarts.
 - **UPDATE OVER BLUETOOTH (BETA).** Only on the S3 boards (T-Watch, StickS3, Cardputer ADV, Freenove S3, CrowPanel); the CYDs dropped it in v1.22.0 to free up memory. Open [potsquad.com/update](https://potsquad.com/update/) in Chrome or Edge on a computer, or Chrome on Android, and type the code the board shows. Brave blocks website Bluetooth, and iPhone and iPad browsers can't do it at all.
-- **UPDATE SQUAD.** Once one board is updated, this tells every squad board in range to update to the same version. More on that in [PotsMesh and squads](#potsmesh-and-squads).
+- **UPDATE SQUAD.** Once one board is updated, this tells every squad board in range to update to the same version. More on that in [PusiMesh and squads](#pusimesh-and-squads).
 - **SWITCH TO.** Goes back to the version in the other firmware slot. Your settings stay.
 
 Or just run the web flasher again. That always works, and it's the answer to any "it won't update" problem.
@@ -105,7 +105,7 @@ Yes, a little, and I'd rather you hear it from me. Older versions of this FAQ sa
 | **A short WiFi visit at boot.** If you've saved a WiFi network, the board joins it for a few seconds at boot, asks potsquad.com for the latest version of its build, sets its clock over the internet, and lets go before detection starts. | Every boot, only with a saved network | **UPDATE CHECK** to OFF (Settings > SYSTEM), or remove your networks under **WIFI NETWORKS**. |
 | **WiFi for an update you asked for.** | Only when you tap UPDATE OVER WIFI, or accept a squad update | Don't tap it. |
 | **A Bluetooth update server.** S3 boards only. | Only while the UPDATE OVER BLUETOOTH screen is open | Leave that screen. |
-| **PotsMesh adverts.** A Bluetooth advert every 1.5 seconds with a fixed address, your Potsy's name and outfit. Messages, heads-ups and squad updates ride on it. | Only with **TRANSMIT** on | It's **off by default**, behind a warning screen that literally says THIS MAKES YOU TRACKABLE. Settings > POTSMESH > TRANSMIT. |
+| **PusiMesh adverts.** A Bluetooth advert every 1.5 seconds with a fixed address, your Potsy's name and outfit. Messages, heads-ups and squad updates ride on it. | Only with **TRANSMIT** on | It's **off by default**, behind a warning screen that literally says THIS MAKES YOU TRACKABLE. Settings > PUSIMESH > TRANSMIT. |
 
 The WiFi detection itself just listens. LoRa on the watches only listens. Nothing else talks.
 
@@ -117,7 +117,7 @@ The WiFi detection itself just listens. LoRa on the watches only listens. Nothin
 
 - **The LOG, across restarts.** Since v1.12.0 the board keeps a "black box" in its flash: about 1,800 sightings and the last hundred or so boots, including what happened if one of them was a crash. After a restart the LOG comes back with the newest sighting of up to 200 devices, in grey so it sits quietly under what's live. **CLR** on the LOG screen clears it.
 - **A microSD card, if you put one in.** Every detection is also appended to a daily CSV file on the card. No card, no file; the black box still works.
-- **Your settings**, the ignore list, saved WiFi passwords (up to six networks) and, if you use PotsMesh, your squad phrase and key.
+- **Your settings**, the ignore list, saved WiFi passwords (up to six networks) and, if you use PusiMesh, your squad phrase and key.
 - **On the T-Watch S3 Plus with WARDRIVE on**, a log of every network and device it heard with where it heard them. See [GPS and LoRa](#gps-and-lora-watches-only).
 
 None of this leaves the board unless you plug it in and ask for it.
@@ -194,11 +194,11 @@ They happen, and the confidence grade is there so you can tell a solid match fro
 
 **Found a real false positive?** [Open an issue](#) with the type, the confidence, the first half of the address, the name if it had one, and what the thing actually was. Turn on PRIVACY MODE before you take a photo of the screen.
 
-## PotsMesh and squads
+## PusiMesh and squads
 
-PotsMesh lets PotsSquads see each other. When two meet, the other board's Potsy walks onto your screen for a visit. With a squad, you can also send messages.
+PusiMesh lets PotsSquads see each other. When two meet, the other board's Potsy walks onto your screen for a visit. With a squad, you can also send messages.
 
-It's opt-in and has two switches under **Settings > POTSMESH**:
+It's opt-in and has two switches under **Settings > PUSIMESH**:
 
 - **DETECT** only listens for other boards. It sends nothing.
 - **TRANSMIT** broadcasts your Potsy. Before it turns on, a warning screen explains exactly what goes out: an advert every 1.5 seconds with a Bluetooth address that never changes, plus your Potsy's name and outfit. Anyone with a scanner can log that address with a time and place, and because it never changes, those sightings join up. That's the same trick this device warns you about, so think about it.
@@ -208,7 +208,7 @@ It's opt-in and has two switches under **Settings > POTSMESH**:
 A squad gets you:
 
 - **Messages**: ready-made lines or up to 48 typed characters. SEND on the SQUAD screen opens the message screen, and you'll see READ when they open it.
-- **HEADS-UP**: when your board catches something serious (Flock, Axon, a skimmer, Raven, a plate reader, a deauth flood, an evil twin or a hacking tool, never trackers), your squad gets an eight-second banner. On by default; HEADS-UP in the PotsMesh menu turns it off.
+- **HEADS-UP**: when your board catches something serious (Flock, Axon, a skimmer, Raven, a plate reader, a deauth flood, an evil twin or a hacking tool, never trackers), your squad gets an eight-second banner. On by default; HEADS-UP in the PusiMesh menu turns it off.
 - **Update nudges**: a board that hears a squad member running a newer version tells you who. **UPDATE SQUAD** updates every squad board in range at once (each one gets a countdown with NOW and SKIP, and can optionally borrow your WiFi). A board only accepts this with **REMOTE UPDATE** on, in Settings > SECURITY. It's on by default.
 
 **What's encrypted:** messages, read receipts, heads-ups, squad hellos and update nudges (including a shared WiFi password) are sealed with AES-128-CCM, using a key stretched from your phrase. **What isn't:** the advert itself (the fixed address, name and outfit), and the fact that you sent something and when. Anyone with your five words can read your squad's messages, so share them like a house key.

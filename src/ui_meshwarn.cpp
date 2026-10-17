@@ -1,4 +1,4 @@
-// PotsSquad-CYD — the PotsMesh consent gate. See include/ui_meshwarn.h.
+// PotsSquad-CYD — the PusiMesh consent gate. See include/ui_meshwarn.h.
 #include "ui_meshwarn.h"
 
 #if POTS_MESH
@@ -15,7 +15,7 @@ namespace {
 // and which half of the feature is harmless.
 //
 // Every number here is real. 1.5 seconds is ADV_MS in detection.cpp; the
-// address is the stable public one (see the note in include/potsmesh.h --
+// address is the stable public one (see the note in include/pusimesh.h --
 // it stays stable because ignoring a specific peer needs something stable to
 // key on); the name and appearance are literally what the payload carries.
 // If any of those change, this text is wrong and has to change with them.
@@ -69,7 +69,7 @@ const uint16_t WARN_RED = 0xA000;
 void drawAsWindow(TFT_eSPI& t) {
     const int w = t.width(), h = t.height();
     const int wx = WIN_M, ww = w - 2 * WIN_M;
-    int y = Theme::drawWin95Window(t, wx, WIN_M, ww, h - 2 * WIN_M, "PotsMesh");
+    int y = Theme::drawWin95Window(t, wx, WIN_M, ww, h - 2 * WIN_M, "PusiMesh");
     const int tx = wx + 12, tw = ww - 24;
     t.setTextWrap(false);
 
@@ -114,7 +114,7 @@ void drawAsWindow(TFT_eSPI& t) {
     buttonGeom(t, yesX, noX, by);
     // The question, in bold the way Win95 drew one: the same word twice, a
     // pixel apart.
-    const char* q = Theme::tr("Turn on PotsMesh?", "Включить ПотсМеш?");
+    const char* q = Theme::tr("Turn on PusiMesh?", "Включить ПотсМеш?");
     if (ru) {
         t.setTextFont(1);
         t.setTextSize(1);
@@ -157,7 +157,7 @@ void uiMeshWarnTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     t.setTextSize(2);
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
     t.setCursor(8, 6);
-    t.print("POTSMESH");
+    t.print("PUSIMESH");
 
     const bool ru = Settings::lang() == 1;
     const char* warn = Theme::tr("THIS MAKES YOU TRACKABLE", "ТЫ СТАНЕШЬ ОТСЛЕЖИВАЕМ");
@@ -202,7 +202,7 @@ void uiMeshWarnTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     // The question sits with the buttons rather than at the top, so whatever
     // is being answered is the last thing read before answering it.
     t.setTextColor(Theme::CYAN, Theme::BG);
-    const char* q = Theme::tr("Turn on PotsMesh?", "Включить ПотсМеш?");
+    const char* q = Theme::tr("Turn on PusiMesh?", "Включить ПотсМеш?");
     if (ru) {
         const int qw = Theme::textWidthRU(t, q);
         t.setCursor((w - qw) / 2, by - 14);

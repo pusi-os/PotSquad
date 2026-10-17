@@ -61,7 +61,7 @@ CXXFLAGS := -std=c++17 -O1 -g -Wall -Wno-unused-parameter $(EXTRA_CXXFLAGS) \
 UI_SRCS  := $(SRC)/theme.cpp \
             $(SRC)/gnss.cpp \
             $(SRC)/potsy.cpp \
-            $(SRC)/potsmesh.cpp \
+            $(SRC)/pusimesh.cpp \
             $(SRC)/mesh.cpp \
             $(SRC)/meshmsg.cpp \
             $(SRC)/emote_script.cpp \
@@ -194,7 +194,7 @@ WASM_OUT  := $(WASM_DIR)/potssim.js
 # "booting" placeholder with a black canvas. If you add -sEXPORT_ES6=1,
 # change index.html back to an import in the same commit.
 # -DPOTS_MESH=1 as the native build has it. It was missing, so the web
-# emulator compiled every PotsMesh screen out and never showed the feature
+# emulator compiled every PusiMesh screen out and never showed the feature
 # that every shipping board has had since v1.5.23.
 # -Os keeps the website's download small; the phone app builds with -O3 for speed.
 WASM_OPT ?= -Os

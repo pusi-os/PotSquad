@@ -1,4 +1,4 @@
-// PotsSquad-CYD — PotsMesh messages, the pure half. See include/meshmsg.h.
+// PotsSquad-CYD — PusiMesh messages, the pure half. See include/meshmsg.h.
 #include "meshmsg.h"
 
 #if POTS_MESH

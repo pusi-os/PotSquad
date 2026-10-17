@@ -90,7 +90,7 @@ CLIPS = {
     ],
     # v1.34.0 "Lava Lamp", shot on the 3.5in CBD (480x320): the battery lamp
     # (POTSSIM_BATT gives the emulator a cell: 54, 54c on the cable, 6 nearly
-    # flat), the big text on the PotsMesh warning and the alert, a visitor at
+    # flat), the big text on the PusiMesh warning and the alert, a visitor at
     # the new size, C1iPPY hopping across when Potsy reaches the edge
     # (POTSSIM_WANDERAT starts the wander in the warm-up, so the capture
     # opens just before the swap), and his bold balloon after he is thrown.

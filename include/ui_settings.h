@@ -44,8 +44,8 @@ enum class SettingsRow : uint8_t {
     PET,
     VIEW_DIARY,
     RESET_STATS,
-    POTSY_NAME,   // opens the payphone; PotsMesh builds only
-    POTSMESH,     // announce ourselves to other PotsSquads
+    POTSY_NAME,   // opens the payphone; PusiMesh builds only
+    PUSIMESH,     // announce ourselves to other PotsSquads
     APPEARANCE,     // opens the APPEARANCE page: the display rows, and the aura
     AURA,           // on the APPEARANCE page, once he is a Legend
     SYSTEM,         // opens the SYSTEM page: calibrate, colours, diagnostics, reset

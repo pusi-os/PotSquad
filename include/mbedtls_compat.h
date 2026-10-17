@@ -5,7 +5,7 @@
 // cannot: it needs Arduino core 3.3+ (IDF 5.5), which carries mbedtls 3.6.
 // So two mbedtls major versions are in the project at once, and the handful of
 // API changes between them land in the two files that must not be got wrong --
-// meshcrypto.cpp (PotsMesh message encryption) and ota_core.cpp (the
+// meshcrypto.cpp (PusiMesh message encryption) and ota_core.cpp (the
 // signature check that decides whether a firmware image is ours).
 //
 // NONE OF THESE SUBSTITUTIONS CHANGE THE CRYPTOGRAPHY. Each is a rename or an

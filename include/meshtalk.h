@@ -1,4 +1,4 @@
-// PotsSquad-CYD — PotsMesh messages at runtime: the phrase, the key, the
+// PotsSquad-CYD — PusiMesh messages at runtime: the phrase, the key, the
 // counter, what is being sent and what has arrived.
 //
 // The pure protocol is meshmsg.h, the cipher is meshcrypto.h, and the radio is
@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "meshmsg.h"
-#include "potsmesh.h"
+#include "pusimesh.h"
 
 namespace MeshTalk {
 
@@ -59,7 +59,7 @@ const uint8_t* outgoing(uint32_t now, size_t& len, uint32_t& gen);
 void setOwnMac(const uint8_t mac[6]);
 // BLE host task. Copies and returns; see the note at the top. `sealedAs` is
 // the six bytes the frame's nonce was built from when that is not the
-// address it came from: a phone's identity (potsmesh.h). Null for a board.
+// address it came from: a phone's identity (pusimesh.h). Null for a board.
 void onFrame(const uint8_t mac[6], const uint8_t* d, size_t len, const char* name,
              const uint8_t* sealedAs = nullptr);
 
@@ -176,13 +176,13 @@ const uint8_t* ownMac();
 // ---- the roster -----------------------------------------------------------
 // Everybody ever heard holding our phrase, kept across restarts: who they
 // are, what they looked like last time, and how many separate times they
-// have turned up. The SQUAD screen under the PotsMesh menu shows it.
+// have turned up. The SQUAD screen under the PusiMesh menu shows it.
 // Sixteen at most; when full, whoever has been met the fewest times makes
 // room. Wiped with the phrase, because a new phrase is a new squad.
 constexpr uint8_t ROSTER_N = 16;
 struct Member {
     uint8_t          mac[6];
-    PotsMesh::Peer look;
+    PusiMesh::Peer look;
     uint16_t         met;
 };
 uint8_t       rosterCount();

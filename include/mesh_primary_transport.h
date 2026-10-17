@@ -1,4 +1,4 @@
-// Universal PotsMesh radio schedule for all supported board profiles.
+// Universal PusiMesh radio schedule for all supported board profiles.
 // Existing encrypted packets move from scan responses to PRIMARY legacy
 // advertising, which passive or active BLE scanners can both receive.
 // Keep the normal appearance/identity advertisement every (N+1)th slot.

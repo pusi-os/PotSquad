@@ -1,7 +1,7 @@
-// PotsSquad-Sim — a virtual PotsMesh peer: another PotsSquad, in the
+// PotsSquad-Sim — a virtual PusiMesh peer: another PotsSquad, in the
 // room, that only exists in the emulator.
 //
-// It does not fake the result. It builds a real PotsMesh advert and a real
+// It does not fake the result. It builds a real PusiMesh advert and a real
 // message frame and hands them to Mesh::onManufacturerData() -- the same call a
 // NimBLE scan callback makes on the device -- so everything downstream is the
 // firmware's own code: the decoder, the one-visitor rule, the staleness

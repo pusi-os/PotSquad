@@ -1,4 +1,4 @@
-// PotsSquad-CYD — PotsMesh messages: the pure half.
+// PotsSquad-CYD — PusiMesh messages: the pure half.
 //
 // Everything here is arithmetic over bytes: the word list, rolling a phrase,
 // the frame format, text packing, reassembly, replay rejection and counter
@@ -100,7 +100,7 @@ struct Crypto {
 };
 
 // ---- the frame --------------------------------------------------------------
-// Version 2. After the manufacturer company ID (0xFFFF, same as PotsMesh):
+// Version 2. After the manufacturer company ID (0xFFFF, same as PusiMesh):
 //
 //   0  2  magic 'S','T'
 //   2  1  version (high four bits) and kind (low four)
@@ -119,7 +119,7 @@ struct Crypto {
 // address in the nonce also binds a frame to the device that sent it -- the
 // same bytes replayed from any other address fail authentication.
 //
-// PotsMesh's own advert starts 'S','Q', so the two magics cannot collide.
+// PusiMesh's own advert starts 'S','Q', so the two magics cannot collide.
 constexpr uint8_t  MAGIC[2]    = { 'S', 'T' };
 constexpr uint8_t  VERSION     = 2;
 constexpr uint8_t  KIND_CANNED = 1;

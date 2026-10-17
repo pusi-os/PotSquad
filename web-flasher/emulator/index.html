@@ -226,10 +226,10 @@
 
     <div class="card">
       <h2>A PotsSquad nearby</h2>
-      <p>A second PotsSquad that only exists in this page. It sends real PotsMesh adverts into the real firmware, so it turns up exactly when a board nearby would &mdash; and it answers what you send it.</p>
+      <p>A second PotsSquad that only exists in this page. It sends real PusiMesh adverts into the real firmware, so it turns up exactly when a board nearby would &mdash; and it answers what you send it.</p>
       <div class="btns" style="margin-bottom:14px">
         <button id="meshHere">Bring it nearby</button>
-        <button id="meshSetup" class="ghost">Set up PotsMesh</button>
+        <button id="meshSetup" class="ghost">Set up PusiMesh</button>
       </div>
       <div class="pair">
         <label>Outfit <select id="meshOutfit"></select></label>
@@ -247,7 +247,7 @@
       </div>
       <div class="mesh-status" id="meshStatus" aria-live="polite"></div>
       <p class="fine">
-        On a real board PotsMesh starts behind a warning you have to accept, then a phrase you
+        On a real board PusiMesh starts behind a warning you have to accept, then a phrase you
         pick. Set up skips both &mdash; you can still walk through them yourself under Settings.
         Its look is copied once, when it arrives, just as a board does: to see a new outfit or name,
         send it away, let it leave, and bring it back.
@@ -411,7 +411,7 @@ $('wipe').onclick = () => {
 function meshHint(s) {
   if (!s.present) return ['Nobody nearby. Bring it nearby to start a visit.'];
   if (!s.detect) return ['It is in range, but your DETECT is off, so your Potsy cannot see it.',
-                         'Settings > POTSMESH > DETECT, or Set up.'];
+                         'Settings > PUSIMESH > DETECT, or Set up.'];
   if (!s.visiting) return ['In range. It turns up with its next advert.'];
   const out = ['Visiting your main screen.'];
   if (s.sending) {
@@ -431,7 +431,7 @@ function meshLines(el, lines) {
   el.replaceChildren(...lines.map(t => Object.assign(document.createElement('div'), {textContent: t})));
 }
 
-// ---- PotsMesh: a second PotsSquad that lives in this page ------------------
+// ---- PusiMesh: a second PotsSquad that lives in this page ------------------
 // sim/meshsim.cpp. Commands go straight in between frames -- one thread, so
 // nothing lands halfway through a loop().
 const meshCmd     = M.cwrap('sw_mesh','number',['string']);

@@ -1,5 +1,5 @@
 // PotsSquad-CYD — the SQUAD screen: every PotsSquad in range, and the inbox.
-// Or, opened from the PotsMesh menu, the roster: everybody who has ever
+// Or, opened from the PusiMesh menu, the roster: everybody who has ever
 // held the phrase, here or not, with FORGET in place of ADD TO SQUAD.
 //
 // Opened from the small "+N" beside a visitor, which only appears when more

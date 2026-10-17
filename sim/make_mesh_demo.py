@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renders the PotsMesh preview clip -- two devices, two Potsys, one
+"""Renders the PusiMesh preview clip -- two devices, two Potsys, one
 conversation.
 
 Same two-step shape as make_demo.py next door, and for the same reason:
@@ -29,7 +29,7 @@ import os, subprocess, sys, glob, shutil
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT  = os.path.join(HERE, "out", "meshdemo")
-GIF  = os.path.join(HERE, "..", "docs", "potsmesh.gif")
+GIF  = os.path.join(HERE, "..", "docs", "pusimesh.gif")
 
 ZOOM = 2      # integer only: nearest-neighbour has to keep device pixels square
 MS   = 50     # 20fps against the emulator's 33ms step, so slightly slow motion

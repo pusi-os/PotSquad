@@ -183,7 +183,7 @@ void uiInviteTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
         case InviteState::FAILED:
             if (s_showPhrase) {
                 centred(t, y, Theme::WHITE, Theme::tr("Read this out. They type it", "Прочти вслух. У них:"));
-                centred(t, y + Theme::bodyY(12), Theme::WHITE, Theme::tr("under POTSMESH, PHRASE.", "ПОТСМЕШ, ФРАЗА."));
+                centred(t, y + Theme::bodyY(12), Theme::WHITE, Theme::tr("under PUSIMESH, PHRASE.", "ПОТСМЕШ, ФРАЗА."));
                 // Five words on two lines, big enough to read across a table.
                 {
                     const char* p = MeshTalk::phrase();

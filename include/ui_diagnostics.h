@@ -18,7 +18,7 @@
 //
 // A panic reset tells you THAT it crashed and nothing else, which is what
 // made the first one useless: it happened during a drive, on a build with no
-// PotsMesh in it, and the only thing recoverable afterwards was the word
+// PusiMesh in it, and the only thing recoverable afterwards was the word
 // PANIC. Whether the heap was exhausted, which screen was up, how long it had
 // been running -- all gone.
 //

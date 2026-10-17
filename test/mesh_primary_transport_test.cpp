@@ -4,7 +4,7 @@
 #include "mesh_primary_transport.h"
 #include "mesh_airtime.h"
 #include "meshmsg.h"
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include <cassert>
 #include <cstdio>
 
@@ -38,8 +38,8 @@ int main() {
     uint8_t wire[LEGACY_ADV_BYTES] = {};
     wire[0] = (uint8_t)(1u + COMPANY_BYTES + MeshMsg::FRAME_MAX);
     wire[1] = 0xFF;
-    wire[2] = (uint8_t)PotsMesh::COMPANY_ID;
-    wire[3] = (uint8_t)(PotsMesh::COMPANY_ID >> 8);
+    wire[2] = (uint8_t)PusiMesh::COMPANY_ID;
+    wire[3] = (uint8_t)(PusiMesh::COMPANY_ID >> 8);
     wire[4] = MeshMsg::MAGIC[0];
     wire[5] = MeshMsg::MAGIC[1];
     wire[6] = (uint8_t)((MeshMsg::VERSION << 4) | MeshMsg::KIND_TEXT);
@@ -51,12 +51,12 @@ int main() {
 
     // Same receiver still recognizes its original appearance format;
     // it is never mistaken for an encrypted message.
-    PotsMesh::Peer me{2, 4, 1, false, ""}, decoded{};
-    uint8_t look[PotsMesh::LEN_MAX] = {};
-    const size_t lookLen = PotsMesh::encode(me, look);
-    assert(lookLen == PotsMesh::LEN_INDEXED);
+    PusiMesh::Peer me{2, 4, 1, false, ""}, decoded{};
+    uint8_t look[PusiMesh::LEN_MAX] = {};
+    const size_t lookLen = PusiMesh::encode(me, look);
+    assert(lookLen == PusiMesh::LEN_INDEXED);
     assert(!MeshMsg::isFrame(look, lookLen));
-    assert(PotsMesh::decode(look, lookLen, decoded));
+    assert(PusiMesh::decode(look, lookLen, decoded));
     assert(decoded.outfit == 4);
 
     // Period slot computation also tolerates 32-bit millis() wrap.

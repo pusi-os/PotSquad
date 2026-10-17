@@ -7,7 +7,7 @@
 // the test checked are the bytes the board runs. Packets are rare and short,
 // so software AES costs nothing worth measuring.
 //
-// This is not the PotsMesh cipher (include/meshcrypto.h); that one stays
+// This is not the PusiMesh cipher (include/meshcrypto.h); that one stays
 // on mbedtls with its own self-test. Nothing here is used to protect anything
 // of ours: it only opens what other networks publish the keys to, or what the
 // user holds the keys to.

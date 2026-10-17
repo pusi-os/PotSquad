@@ -1,13 +1,13 @@
-// PotsSquad-CYD — the PotsMesh consent gate.
+// PotsSquad-CYD — the PusiMesh consent gate.
 //
-// It stands in front of the PotsMesh menu, not in front of the TRANSMIT
+// It stands in front of the PusiMesh menu, not in front of the TRANSMIT
 // row, and that is deliberate: by the time somebody is looking at a switch
 // they are already deciding whether to flip it, and a warning read in that
 // position is read as an obstacle. This one is read as information, because
 // it arrives before there is anything to click.
 //
 // The device's whole purpose is telling people when something nearby is
-// broadcasting a stable identifier at them. PotsMesh asks the owner to do
+// broadcasting a stable identifier at them. PusiMesh asks the owner to do
 // exactly that on purpose. That is a defensible thing to offer and an
 // indefensible thing to switch on quietly, so the screen says plainly what
 // the advert contains, how often it goes out, and what somebody with a

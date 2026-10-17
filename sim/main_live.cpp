@@ -18,7 +18,7 @@
 //               type name for that type's first profile ("T AIRTAG")
 //   Y           every profile: one "DETS <json>" line on stdout
 //   R           report current AppState on stderr
-//   P <cmd>     the virtual PotsMesh peer -- see meshsim.h for <cmd>.
+//   P <cmd>     the virtual PusiMesh peer -- see meshsim.h for <cmd>.
 //               (P for peer: M was already touch-move.)
 //   K           the peer's pickers: one "CAT <json>" line on stdout
 //   Q           quit

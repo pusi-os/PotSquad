@@ -12,7 +12,7 @@ enum class UpdateHit : uint8_t {
     NONE,
     WIFI_START,      // UPDATE OVER WIFI
     BT_START,        // UPDATE OVER BLUETOOTH
-    SQUAD_START,     // UPDATE SQUAD: nudge every board in range (PotsMesh builds)
+    SQUAD_START,     // UPDATE SQUAD: nudge every board in range (PusiMesh builds)
     SWITCH,          // SWITCH TO <other version> -- asks first
     SWITCH_CONFIRM,
     SWITCH_CANCEL,

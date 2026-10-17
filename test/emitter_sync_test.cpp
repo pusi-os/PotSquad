@@ -33,7 +33,7 @@ static const DetectionType kWant[(uint8_t)EmitCategory::COUNT] = {
     DetectionType::RAVEN, DetectionType::AIRTAG, DetectionType::DRONE, DetectionType::ALPR,
     DetectionType::CAMERA, DetectionType::SAMSUNG_TAG, DetectionType::GOOGLE_TAG, DetectionType::TILE,
     DetectionType::RING, DetectionType::IBEACON, DetectionType::EVILTWIN, DetectionType::HACKER,
-    DetectionType::UNKNOWN,   // POTSMESH: a peer, never a detection
+    DetectionType::UNKNOWN,   // PUSIMESH: a peer, never a detection
 };
 
 // The Flock accessory service, as detection.cpp spells it, little-endian.

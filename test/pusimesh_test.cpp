@@ -1,4 +1,4 @@
-// The PotsMesh payload codec.
+// The PusiMesh payload codec.
 //
 // This runs inside the BLE advertisement callback, on every advert in the
 // air, against bytes a stranger composed. So -- exactly like the pwnagotchi
@@ -8,12 +8,12 @@
 // implies it, bytes hiding in the padding.
 //
 // The round trip is here too, but it is the cheap half.
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include "test_util.h"
 #include <cstring>
 #include <cstdio>
 
-using namespace PotsMesh;
+using namespace PusiMesh;
 
 static uint8_t buf[64];
 
@@ -305,7 +305,7 @@ int main() {
 
     suite("PotsEmit's hand-built payload decodes");
     {
-        // Byte-for-byte what PotsEmit lays out in firePotsMesh(), typed
+        // Byte-for-byte what PotsEmit lays out in firePusiMesh(), typed
         // out again rather than shared. That duplication IS the test: two
         // independent implementations agreeing about a format neither owns
         // proves something, whereas one implementation called from both

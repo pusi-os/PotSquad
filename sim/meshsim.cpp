@@ -1,4 +1,4 @@
-// PotsSquad-Sim — the virtual PotsMesh peer. See meshsim.h.
+// PotsSquad-Sim — the virtual PusiMesh peer. See meshsim.h.
 #include "meshsim.h"
 
 #if POTS_MESH
@@ -9,7 +9,7 @@
 #include <string.h>
 #include <strings.h>   // strcasecmp
 #include "detection.h"
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include "potsy.h"
 #include "settings.h"
 #include "meshmsg.h"
@@ -58,14 +58,14 @@ bool present = false, shares = true, autoReply = true, onAir = false;
 bool macSet  = false, advDue = true;
 // Defaults to the VOID EYE costume in pink: the most obviously not-you
 // Potsy there is, so nobody wonders which one is the visitor.
-PotsMesh::Peer look = { 4, 12, 1, false, "" };
+PusiMesh::Peer look = { 4, 12, 1, false, "" };
 
 // What the peer's frames are sealed under: its address as a board, or the
 // identity in its advert as a phone (see the "phone" command).
 const uint8_t* sealMac() {
     static uint8_t pm[6];
     if (!look.phone) return PEER_MAC;
-    PotsMesh::phoneMac(look.id, pm);
+    PusiMesh::phoneMac(look.id, pm);
     return pm;
 }
 
@@ -306,10 +306,10 @@ void tick(uint32_t now) {
     if (present && (advDue || now - lastAdv >= ADV_MS)) {
         advDue  = false;
         lastAdv = now;
-        uint8_t buf[2 + PotsMesh::LEN_MAX];
-        buf[0] = (uint8_t)(PotsMesh::COMPANY_ID & 0xFF);
-        buf[1] = (uint8_t)(PotsMesh::COMPANY_ID >> 8);
-        const size_t n = PotsMesh::encode(look, buf + 2);
+        uint8_t buf[2 + PusiMesh::LEN_MAX];
+        buf[0] = (uint8_t)(PusiMesh::COMPANY_ID & 0xFF);
+        buf[1] = (uint8_t)(PusiMesh::COMPANY_ID >> 8);
+        const size_t n = PusiMesh::encode(look, buf + 2);
         // One primary manufacturer field per broadcast, just like a
         // passive BLE scan receives; NO appended scan response.
         if (live(now)) {
@@ -325,7 +325,7 @@ void tick(uint32_t now) {
         // its scan response over in one callback, so nobody else's advert can
         // land between them and take the name the frame borrows.
         for (uint8_t i = 1; i < squad; i++) {
-            PotsMesh::Peer o = look;
+            PusiMesh::Peer o = look;
             o.custom = false;
             o.name[0] = '\0';
             o.aura = false;             // one Legend in the room is plenty
@@ -335,9 +335,9 @@ void tick(uint32_t now) {
             // Potsys rather than one in three names.
             o.outfit = (uint8_t)((look.outfit + i * 3) % Potsy::outfitCount());
             o.shade  = (uint8_t)((look.shade + i) % 4);
-            uint8_t ob[2 + PotsMesh::LEN_MAX];
+            uint8_t ob[2 + PusiMesh::LEN_MAX];
             ob[0] = buf[0]; ob[1] = buf[1];
-            const size_t on = PotsMesh::encode(o, ob + 2);
+            const size_t on = PusiMesh::encode(o, ob + 2);
             uint8_t mac[6];
             memcpy(mac, PEER_MAC, 6);
             mac[5] = (uint8_t)(0x10 + i);
@@ -389,7 +389,7 @@ bool command(const char* line) {
     }
     if (!strcmp(verb, "name")) {
         size_t i = 0;
-        for (; *arg && i < PotsMesh::NAME_LEN; arg++) {
+        for (; *arg && i < PusiMesh::NAME_LEN; arg++) {
             const char c = (char)toupper((unsigned char)*arg);
             if (c >= ' ' && c <= '~' && c != '"' && c != '\\') look.name[i++] = c;
         }

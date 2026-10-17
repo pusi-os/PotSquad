@@ -1,4 +1,4 @@
-// PotsSquad-CYD — the PotsMesh phrase screen. See include/ui_meshphrase.h.
+// PotsSquad-CYD — the PusiMesh phrase screen. See include/ui_meshphrase.h.
 #include "ui_meshphrase.h"
 
 #if POTS_MESH

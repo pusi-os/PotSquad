@@ -73,7 +73,7 @@ enum class Board : uint8_t { EN, RU };
 // Rows are un-staggered -- rows two and three share a left edge -- because
 // QWERTY's offset is a typewriter linkage artefact, and squaring it up is
 // where the middle row gets its extra width.
-// `message`: the board for a PotsMesh message -- a digit row on top, an
+// `message`: the board for a PusiMesh message -- a digit row on top, an
 // apostrophe after M, and , . ? ! - around the space bar. A name gets the
 // four-row letters-only board. The RU message board drops '-' for DEL, which
 // moves to the bottom row: 32 letters do not leave room for backspace beside

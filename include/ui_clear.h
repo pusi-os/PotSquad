@@ -45,9 +45,9 @@ void uiClearSetBatterySource(BatterySource fn);
 // SPIKE: the peer currently visiting, or nullptr. Owned by whatever discovers
 // peers -- for now that is only the emulator's --peer flag, so the CLEAR screen
 // can be built and looked at before any radio exists.
-namespace PotsMesh { struct Peer; }
-const PotsMesh::Peer* uiClearGuest();
-void uiClearSetGuest(const PotsMesh::Peer* p);
+namespace PusiMesh { struct Peer; }
+const PusiMesh::Peer* uiClearGuest();
+void uiClearSetGuest(const PusiMesh::Peer* p);
 // The little speech bubble beside a visitor, which opens the message screen.
 // Its rectangle is filled in by the draw; this reads it.
 bool uiClearBubbleHit(int x, int y);

@@ -214,7 +214,7 @@ EMSCRIPTEN_KEEPALIVE void sw_set_time(double epoch, int zone) {
 // [[index, "TYPE", "label"], ...] -- the page's picker, from the same table.
 EMSCRIPTEN_KEEPALIVE const char* sw_det_catalog() { return simProfileCatalog(); }
 
-// The virtual PotsMesh peer (meshsim.h). The same command language the
+// The virtual PusiMesh peer (meshsim.h). The same command language the
 // native harness's P line takes, so the two emulators cannot disagree about
 // what "outfit 12" means. Strings in, JSON out.
 EMSCRIPTEN_KEEPALIVE int         sw_mesh(const char* cmd) { return MeshSim::command(cmd) ? 1 : 0; }

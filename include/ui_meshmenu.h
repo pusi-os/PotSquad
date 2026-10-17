@@ -1,7 +1,7 @@
-// PotsSquad-CYD — the PotsMesh menu, reached via Settings' "POTSMESH"
+// PotsSquad-CYD — the PusiMesh menu, reached via Settings' "PUSIMESH"
 // row.
 //
-// It exists because PotsMesh is more than one decision and they are not
+// It exists because PusiMesh is more than one decision and they are not
 // the same decision. Detecting and transmitting have genuinely different
 // consequences -- one shows you other people's Potsys, the other tells
 // everybody with a scanner that you are here -- and collapsing them into a

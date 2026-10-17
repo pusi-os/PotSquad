@@ -1,7 +1,7 @@
 // PotsSquad-CYD — the payphone: a keypad (and a QWERTY bailout) for typing.
 //
 // Two jobs, one screen. Your Potsy's name -- twelve letters, saved on OK --
-// and a PotsMesh message -- up to 48 characters with digits and punctuation,
+// and a PusiMesh message -- up to 48 characters with digits and punctuation,
 // handed back to the message screen on OK to be read over before it is sent.
 // The keyboards grow the extra characters only for a message: a name has to
 // fit an advert every older board decodes, and letters are what they accept.

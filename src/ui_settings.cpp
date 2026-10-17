@@ -96,14 +96,14 @@ static const SettingsRow ALL_ROWS[] = {
 #endif
     // APPEARANCE opens the display page -- see APPEARANCE_ROWS. It sat at the
     // very top of this list, which put it under the first thumb that opened
-    // the screen and got pressed by accident. Down here with POTSMESH it is
+    // the screen and got pressed by accident. Down here with PUSIMESH it is
     // beside the other row that opens a page rather than changing a value.
     SettingsRow::APPEARANCE,
 #if POTS_MESH
-    // One row, not two: NAME moved inside the PotsMesh menu, which is a
+    // One row, not two: NAME moved inside the PusiMesh menu, which is a
     // row back on a list carrying twenty-five with three colliding in
     // portrait.
-    SettingsRow::POTSMESH,
+    SettingsRow::PUSIMESH,
 #endif
     // SIZE, OUTFIT, PET and SHADES COLOR all live on the APPEARANCE page now
     // -- see APPEARANCE_ROWS. Everything about how he LOOKS is on one page;
@@ -254,7 +254,7 @@ static bool isPotsyOnlyRow(SettingsRow r) {
            // are about Potsy. Listed here for one hour and boring mode lost
            // its brightness control -- see groupFor(), which moves the row to
            // SYSTEM in that mode instead of hiding it.
-           r == SettingsRow::POTSMESH ||
+           r == SettingsRow::PUSIMESH ||
            r == SettingsRow::SHADES_COLOR || r == SettingsRow::POTSY_SIZE ||
            r == SettingsRow::SHIRT_COLOR || r == SettingsRow::SHORTS_COLOR ||
            r == SettingsRow::SHOES_COLOR ||
@@ -354,7 +354,7 @@ static RowGroupId groupFor(SettingsRow r) {
             return RowGroupId::BEHAVIOR;
         case SettingsRow::POTSY_NAME:
         case SettingsRow::APPEARANCE:
-        case SettingsRow::POTSMESH:
+        case SettingsRow::PUSIMESH:
         case SettingsRow::REPLAY_INTRO:
         case SettingsRow::VIEW_DIARY:
         case SettingsRow::BINGO:
@@ -1489,8 +1489,8 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             value = Potsy::nickname();
             break;
         }
-        case SettingsRow::POTSMESH:
-            label = "POTSMESH";
+        case SettingsRow::PUSIMESH:
+            label = "PUSIMESH";
             value = Settings::meshSummary();
             break;
 #endif

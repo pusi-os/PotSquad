@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renders the release clip for PotsMesh messages -- a visitor, a message,
+"""Renders the release clip for PusiMesh messages -- a visitor, a message,
 an answer, and the phrase picker.
 
     python3 make_release_demo.py --render-only   # under WSL, after `make`
@@ -21,7 +21,7 @@ import json, os, shutil, struct, subprocess, sys, zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT  = os.path.join(HERE, "out", "releasedemo")
-GIF  = os.path.join(HERE, "..", "docs", "potsmesh-messages.gif")
+GIF  = os.path.join(HERE, "..", "docs", "pusimesh-messages.gif")
 
 ZOOM = 2          # integer only: nearest-neighbour has to keep device pixels square
 MS   = 60         # per captured frame; captures are two 33ms steps apart, so about real time
@@ -90,7 +90,7 @@ def render():
     shutil.rmtree(OUT, ignore_errors=True)
     os.makedirs(OUT)
 
-    # The GUI's saved settings -- past first boot, PotsMesh consented -- with
+    # The GUI's saved settings -- past first boot, PusiMesh consented -- with
     # the background pinned, in a copy so the GUI's own are left alone.
     nvs = os.path.join(OUT, "nvs")
     shutil.copytree(os.path.join(HERE, ".nvs"), nvs)

@@ -9,7 +9,7 @@ Drives potssim-live, so every screen and transition is the firmware's own
 main.cpp deciding what to draw; only the detection and the visitor are
 injected, and the one tap is staged. Seeds its own settings directory, so
 it does not depend on the GUI having been run: a board past first boot,
-PotsMesh consented, the outfit chosen and earned.
+PusiMesh consented, the outfit chosen and earned.
 """
 import json, os, shutil, struct, subprocess, sys, zlib
 

@@ -17,7 +17,7 @@ int16_t s_cx = 0, s_cy = 0, s_cw = 0, s_ch = 0;
 int16_t s_kx = 0, s_ky = 0, s_kw = 0, s_kh = 0;
 
 // A costume nobody wears by default, and a name that says what it is.
-PotsMesh::Peer s_demo = { 0, 12, 1, true, "DEMO" };
+PusiMesh::Peer s_demo = { 0, 12, 1, true, "DEMO" };
 
 // Every card is written to be read in one go, and the three on the message
 // screen are held to about 80 characters: they share the top of that screen
@@ -46,7 +46,7 @@ const char* body(Step s) {
         case Step::PHRASE:
             return Theme::tr("Only boards that share a five-word phrase can read each other. One of you "
                              "ROLLs a phrase and reads it out; the other ENTERs the same words. "
-                             "POTSMESH > PHRASE.",
+                             "PUSIMESH > PHRASE.",
                              "Читать друг друга могут лишь платы с общей фразой из пяти слов. Один "
                              "КИДАЕТ фразу и зачитывает; другой ВВОДИТ те же слова. "
                              "ПОТСМЕШ > ФРАЗА.");
@@ -95,7 +95,7 @@ void next() {
 
 bool waitsForTap() { return hint(s_step) != nullptr; }
 
-const PotsMesh::Peer* guest() { return active() ? &s_demo : nullptr; }
+const PusiMesh::Peer* guest() { return active() ? &s_demo : nullptr; }
 
 void drawCard(TFT_eSPI& t, bool atTop) {
     s_cardOn = false;

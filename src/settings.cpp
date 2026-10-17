@@ -1092,7 +1092,7 @@ const char* meshSummary() {
     // flip. The rows that DO open screens show data instead -- "14/14",
     // "3" -- because a number cannot be mistaken for a toggle state.
     //
-    // RX/TX rather than DETECT/SEND for width: "POTSMESH" plus
+    // RX/TX rather than DETECT/SEND for width: "PUSIMESH" plus
     // "DETECT+SEND" collides with itself on the 240px portrait rotation at
     // this row's size-2 text, which is the same trap already documented on
     // TYPE FILTER and IGNORED.

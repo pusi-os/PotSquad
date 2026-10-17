@@ -1,4 +1,4 @@
-// PotsMesh messages: everything but the cipher.
+// PusiMesh messages: everything but the cipher.
 //
 // The cipher is not here on purpose. CI has no crypto library, and the one the
 // device uses cannot be built on a desktop in any form worth trusting. So this
@@ -334,7 +334,7 @@ int main() {
         memcpy(f, good, sizeof good); f[0] = 'X';
         ck("another magic is not ours", openCanned(TOY, me, f, sizeof good, c, line) == Open::NOT_OURS);
         memcpy(f, good, sizeof good); f[1] = 'Q';
-        ck("PotsMesh's own advert magic is not ours",
+        ck("PusiMesh's own advert magic is not ours",
            openCanned(TOY, me, f, sizeof good, c, line) == Open::NOT_OURS);
         ck("one byte is not ours", openCanned(TOY, me, good, 1, c, line) == Open::NOT_OURS);
         memcpy(f, good, sizeof good); f[2] = (uint8_t)((1 << 4) | KIND_CANNED);

@@ -1,4 +1,4 @@
-// PotsSquad-CYD — BLE on-air cadence for PotsMesh.
+// PotsSquad-CYD — BLE on-air cadence for PusiMesh.
 // A sender changes scan-response frames only by stop/restarting advertising.
 // A frame held for 1,600 ms with the *same* 1,500 ms advertising interval
 // has little scheduling margin: one missed event can drop a multipart piece.

@@ -1,7 +1,7 @@
 // PotsSquad-CYD — DetectionEngine public API
 #pragma once
 #if POTS_MESH
-#include "potsmesh.h"
+#include "pusimesh.h"
 #endif
 #include "state.h"
 #include "sd_log.h"
@@ -84,7 +84,7 @@ namespace Mesh {
     bool onManufacturerData(const uint8_t* d, size_t len, const uint8_t* mac, uint32_t now);
 
     // The visitor, or nullptr. Goes stale on its own if the peer walks away.
-    const PotsMesh::Peer* peer();
+    const PusiMesh::Peer* peer();
     const uint8_t*          peerMac();
     // How many PotsSquads have been heard in the last twenty seconds (PEER_STALE_MS) --
     // the visitor and everybody else. For the small "+2" beside him.
@@ -93,13 +93,13 @@ namespace Mesh {
     // SQUAD screen. Sorted by address so the order holds still frame to frame.
     struct SquadMember {
         uint8_t          mac[6];
-        PotsMesh::Peer peer;
+        PusiMesh::Peer peer;
         uint32_t         seen;
     };
     uint8_t                 squadList(uint32_t now, SquadMember* out, uint8_t cap);
     // What that board looked like the last time its advert was heard, in
     // range or not. False if it has never been heard this boot.
-    bool                    peerLook(const uint8_t mac[6], PotsMesh::Peer& out);
+    bool                    peerLook(const uint8_t mac[6], PusiMesh::Peer& out);
     // Make this board the visitor. The one-visitor rule still holds; this only
     // says who wins it. The guest already here leaves on the next advert the
     // chosen one sends, and if the chosen one goes quiet, first-come applies.

@@ -1,4 +1,4 @@
-// PotsSquad-CYD — the PotsMesh menu. See include/ui_meshmenu.h.
+// PotsSquad-CYD — the PusiMesh menu. See include/ui_meshmenu.h.
 #include "ui_meshmenu.h"
 
 #if POTS_MESH
@@ -93,7 +93,7 @@ void uiMeshMenuTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     Theme::restorePalette(saved);
     Theme::dimRegion(t, 0, 0, w, h, 128);
 
-    Theme::drawListHeading(t, "POTSMESH", Theme::VAPOR_PINK);
+    Theme::drawListHeading(t, "PUSIMESH", Theme::VAPOR_PINK);
 
     int top, rowH;
     geom(t, top, rowH);

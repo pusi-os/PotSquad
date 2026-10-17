@@ -289,7 +289,7 @@ the screen.
 | **Watch list** | Hold a LOG row, then WATCH | When that device turns up you get **LOCKED ON**: a radar scope with its signal and whether it is getting closer, which stays until you tap it. A watched device always gets through AUTO SNOOZE and spam floods |
 | **HUNT MODE** | HUNT on the alert card, or hold a LOG row | A signal gauge to walk the device down. While a hunt runs, the HUNTING pill on the main screen takes you back to it; STOP HUNT ends it |
 | **Spam floods** | Automatic | A storm of fake tags (piles of addresses heard for a moment and never again) gets one alert with a SPAM: N FAKE TAGS banner, then quiet logging until it dies down |
-| **HEADS-UP** | Settings → POTSMESH | Serious catches from your squad's boards arrive as a banner; see [PotsMesh](#potsmesh) |
+| **HEADS-UP** | Settings → PUSIMESH | Serious catches from your squad's boards arrive as a banner; see [PusiMesh](#pusimesh) |
 
 ## Security and privacy
 
@@ -376,7 +376,7 @@ steps, and a TEST row that plays the lot in six seconds. Boards whose LED pins
 have not been checked (the AWOK and the 3.5") compile it out and say so on
 that screen.
 
-## PotsMesh
+## PusiMesh
 
 > **Work in progress.** It is in this release because it works — two boards
 > find each other and each draws the other's Potsy — but it has had days of
@@ -385,7 +385,7 @@ that screen.
 > switch.
 
 <p align="center">
-  <img src="docs/potsmesh.gif" width="640"
+  <img src="docs/pusimesh.gif" width="640"
        alt="Two PotsSquads in range of each other. One Potsy walks in, they greet each other, and the pair stand around talking.">
 </p>
 
@@ -395,7 +395,7 @@ talking — now and then breaking into one of the thirty-odd emotes on their
 own, a pie fight, a coin toss, a selfie, a dance-off, the same one on both
 screens with the same result — and he goes home when the other board does.
 His outfit, his shades and his name all travelled over the air in a
-twenty-byte BLE advert. The name is one row, **NAME** under POTSMESH: a
+twenty-byte BLE advert. The name is one row, **NAME** under PUSIMESH: a
 curated one until somebody types one on the payphone, where **SHUFFLE**
 steps through the curated list for anyone who would rather not type.
 Whichever it is, the visitor wears it on a sticker on his chest.
@@ -409,7 +409,7 @@ joining [without typing](#joining-without-typing); a roster and a fox hunt;
 and **HEADS-UP**. That last one means a serious catch on your board (Flock,
 Axon, a skimmer, Raven, a plate reader, a deauth flood, an evil twin or
 hacking gear; never trackers) shows on your squad's screens as an amber
-banner for eight seconds, at most once a minute. HEADS-UP in the PotsMesh
+banner for eight seconds, at most once a minute. HEADS-UP in the PusiMesh
 menu switches it off.
 
 It is deliberately not a network. No pairing, no connection, no
@@ -418,7 +418,7 @@ earshot may or may not catch it. A peer is recognised inside the scan callback
 and returns before the signature tables ever see it, so two of these can never
 set each other off.
 
-**Settings → POTSMESH**, and it asks first. `DETECT` is receive-only: you
+**Settings → PUSIMESH**, and it asks first. `DETECT` is receive-only: you
 see other people's Potsys and broadcast nothing at all. `TRANSMIT` is the
 half that makes you visible, and a full-screen warning stands in front of that
 menu spelling out what goes out, how often, and what somebody with a scanner
@@ -433,7 +433,7 @@ doing. Offering it is defensible; switching it on quietly would not be.
 ### Messages
 
 <p align="center">
-  <img src="docs/potsmesh-messages.gif" width="640"
+  <img src="docs/pusimesh-messages.gif" width="640"
        alt="A visiting Potsy sends a typed message that lands in a red speech bubble; a ready-made reply is chosen, confirmed and sent, the visitor answers, and the phrase picker shows its big alphabet and word list.">
 </p>
 
@@ -443,7 +443,7 @@ QWERTY board. A message arrives as a **red** bubble with the sender's name in
 it, so it is never mistaken for the Potsys' own chatter, and nothing is sent
 until you have confirmed it.
 
-**Settings → POTSMESH → MESSAGES**, then **PHRASE**: one of you ROLLs five
+**Settings → PUSIMESH → MESSAGES**, then **PHRASE**: one of you ROLLs five
 words and reads them out, the other ENTERs the same five. Setting a phrase
 freezes the screen for about three seconds on purpose — it is 20,000 rounds of
 PBKDF2, which every guess at your phrase has to pay too. A seven-card tutorial
@@ -483,7 +483,7 @@ phrase on every board.
 
 ### Your squad
 
-**Settings → POTSMESH → SQUAD** is the roster: everybody who has ever been
+**Settings → PUSIMESH → SQUAD** is the roster: everybody who has ever been
 heard holding your phrase, here or not, up to sixteen, kept across restarts.
 Each member shows in the outfit from their latest advert, with how many
 separate times you have met, those in range first. INVITE works when they
@@ -605,7 +605,7 @@ PotsSquad-CYD/
 │   ├── ignore_list.h             (per-device alert suppression)
 │   ├── status_light.h            (the RGB LED and its rules)
 │   ├── meshmsg.h                 (sealed frames: messages, emotes, nudges, invites)
-│   ├── potsmesh.h              (the PotsMesh wire format -- read first)
+│   ├── pusimesh.h              (the PusiMesh wire format -- read first)
 │   ├── settings.h
 │   ├── potsy.h                 (the mascot)
 │   ├── bangers_font.h            (generated 1bpp display face)
@@ -621,7 +621,7 @@ PotsSquad-CYD/
 │   ├── clock.cpp
 │   ├── ignore_list.cpp
 │   ├── pet.cpp
-│   ├── potsmesh.cpp            (PotsMesh encode/decode, no radio)
+│   ├── pusimesh.cpp            (PusiMesh encode/decode, no radio)
 │   ├── meshtalk.cpp              (messages, the squad update, the invite)
 │   ├── meshcrypto.cpp            (AES-CCM, PBKDF2, and X25519 for invites)
 │   ├── status_light.cpp
@@ -633,7 +633,7 @@ PotsSquad-CYD/
     ├── *.h                       (Arduino/TFT_eSPI/NVS shims)
     ├── make_readme_demo.py       (renders the animation at the top of this file)
     ├── make_demo.py              (the older background tour)
-    ├── make_mesh_demo.py         (renders the PotsMesh clip above)
+    ├── make_mesh_demo.py         (renders the PusiMesh clip above)
     ├── make_gallery.py           (renders the outfit sheet above)
     ├── make_social.py            (renders the repo's social preview card)
     └── web/                      (the browser build)

@@ -1,10 +1,10 @@
-// PotsMesh -- the wire format two PotsSquads use to recognise each
+// PusiMesh -- the wire format two PotsSquads use to recognise each
 // other and describe their own Potsy well enough for the other device to
 // draw it.
 //
 // This header is the whole protocol. It deliberately contains no radio: the
 // codec is arithmetic over a byte buffer, which is what lets the host tests
-// in test/potsmesh_test.cpp cover every refusal path without a board.
+// in test/pusimesh_test.cpp cover every refusal path without a board.
 //
 // WHY IT IS THIS SMALL. Everything about Potsy's appearance is already a
 // curated index rather than free text -- ten nicknames, fourteen outfits,
@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-namespace PotsMesh {
+namespace PusiMesh {
 
 // Company ID for the manufacturer-specific AD structure.
 static const uint16_t COMPANY_ID = 0xFFFF;
@@ -139,4 +139,4 @@ size_t encode(const Peer& p, uint8_t* out);
 // drawing the wrong hat is a better failure than refusing the peer.
 bool decode(const uint8_t* in, size_t len, Peer& out);
 
-} // namespace PotsMesh
+} // namespace PusiMesh

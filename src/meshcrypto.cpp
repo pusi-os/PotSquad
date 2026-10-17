@@ -1,4 +1,4 @@
-// PotsSquad-CYD — mbedtls behind PotsMesh messages. See include/meshcrypto.h.
+// PotsSquad-CYD — mbedtls behind PusiMesh messages. See include/meshcrypto.h.
 #include "meshcrypto.h"
 
 #if POTS_MESH

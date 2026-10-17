@@ -14,7 +14,7 @@
 #include "settings.h"
 #include "meshtalk.h"
 #if POTS_MESH
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include "mesh_visit_appearance.h"
 #include "meshtutor.h"
 #include "potsy.h"
@@ -29,8 +29,8 @@
 
 // A peer supplied from outside -- the emulator's --peer flag today, the radio
 // eventually. Always wins over the demo below.
-static const PotsMesh::Peer* s_guest = nullptr;
-void uiClearSetGuest(const PotsMesh::Peer* p) { s_guest = p; }
+static const PusiMesh::Peer* s_guest = nullptr;
+void uiClearSetGuest(const PusiMesh::Peer* p) { s_guest = p; }
 
 #if POTS_MESH_DEMO
 // LAB BUILDS ONLY. There is no radio yet, so a mesh build on real hardware
@@ -44,7 +44,7 @@ void uiClearSetGuest(const PotsMesh::Peer* p) { s_guest = p; }
 // this. A guest appearing unbidden in every sim render of the CLEAR screen
 // would corrupt the instrument that every other visual decision is measured
 // with -- the exact mistake the shim audit existed to undo.
-static PotsMesh::Peer s_demo;
+static PusiMesh::Peer s_demo;
 static bool     s_demoUp   = false;
 static uint32_t s_demoSeen = 0xFFFFFFFFu;
 
@@ -68,7 +68,7 @@ static void demoTick(uint32_t now) {
 
 // Defined below with the rest of the guest resolution, which reads more
 // naturally next to the demo it falls back to than it would hoisted up here.
-static const PotsMesh::Peer* rawGuest(uint32_t now);
+static const PusiMesh::Peer* rawGuest(uint32_t now);
 static uint32_t                rawGuestId(uint32_t now);
 
 // ---- the visit ------------------------------------------------------
@@ -288,7 +288,7 @@ static void visitBeat(uint32_t now, Potsy::VisitMoment m) {
                 vc.background = (uint8_t)Settings::background();
                 vc.caught     = (uint8_t)Potsy::lastCaught();
                 vc.hostOutfit = Potsy::outfitIndex();
-                if (const PotsMesh::Peer* g = uiClearGuest()) {
+                if (const PusiMesh::Peer* g = uiClearGuest()) {
                     vc.guestOutfit = g->outfit;
                     if (g->custom && g->name[0]) snprintf(vc.guestName, sizeof vc.guestName, "%s", g->name);
                     if (Mesh::peer()) vc.met = MeshTalk::rosterMet(Mesh::peerMac());
@@ -1526,19 +1526,19 @@ static void drawPieceFx(TFT_eSPI& t, uint32_t now, int hx, int gx, int headTop, 
 // throughout the goodbye walk. But a *same-MAC* guest who changes clothes or
 // shades while visiting should update in place; Squad already reflects the
 // latest radio appearance and CLEAR must not keep the arrival snapshot.
-static PotsMesh::Peer s_hosting{};
+static PusiMesh::Peer s_hosting{};
 static uint32_t         s_hostingId = 0;
 
 // What the screen should actually draw: the copy, for as long as the visit
 // lasts, and nothing once it is over.
-static const PotsMesh::Peer* visitHosting() {
+static const PusiMesh::Peer* visitHosting() {
     return (s_vp == VisitPhase::GONE) ? nullptr : &s_hosting;
 }
 
 // Public answer to "who is visiting": the hosted copy, not the raw radio
 // state. Anything asking should see the same visitor the screen does,
 // including while he is still walking out after the peer has gone.
-const PotsMesh::Peer* uiClearGuest() { return visitHosting(); }
+const PusiMesh::Peer* uiClearGuest() { return visitHosting(); }
 
 // ---- messages ---------------------------------------------------------------
 // A received message is drawn in RED, filled, so it can never be mistaken for
@@ -2245,14 +2245,14 @@ void uiClearDrawCrowd(TFT_eSPI& t, uint32_t now, const Mesh::SquadMember* crowd,
         return allNames || (s_tapName && memcmp(s_tapMac, crowd[i].mac, 6) == 0);
     };
     auto peerName = [&](uint8_t i) -> const char* {
-        const PotsMesh::Peer& p = crowd[i].peer;
+        const PusiMesh::Peer& p = crowd[i].peer;
         return (p.custom && p.name[0]) ? p.name : Potsy::nicknameAt(p.nick);
     };
 
     // One of them, body only. Records where he landed so a tap can find him,
     // and reports whether he is holding a bubble.
     auto drawOne = [&](uint8_t i, int cx, int baseY, bool isGuest) {
-        const PotsMesh::Peer& p = crowd[i].peer;
+        const PusiMesh::Peer& p = crowd[i].peer;
         Potsy::setOutfitPreview((int8_t)p.outfit);
         Potsy::setShadesPreview((int8_t)p.shade);
         Potsy::setAuraPreview(p.aura ? 1 : 0);
@@ -2552,7 +2552,7 @@ static void visitTick(uint32_t now) {
 
     if (s_vp == VisitPhase::GONE) {
         if (!id) return;
-        const PotsMesh::Peer* g = rawGuest(now);
+        const PusiMesh::Peer* g = rawGuest(now);
         if (!g) return;
         s_hosting   = *g;                   // copy on arrival; live same-peer edits refresh below
         s_hostingId = id;
@@ -2703,13 +2703,13 @@ static const uint32_t DEMO_COOLDOWN_MS = 15000;
 
 // Whoever WOULD be visiting right now, before the visit machine has decided
 // what to do about it. Not what gets drawn -- see visitHosting().
-static const PotsMesh::Peer* rawGuest(uint32_t now) {
+static const PusiMesh::Peer* rawGuest(uint32_t now) {
     // The tutorial's DEMO visitor comes first: while it runs, it is the
     // lesson, and a real peer turning up must not walk onto the stage.
-    if (const PotsMesh::Peer* d = MeshTutor::guest()) return d;
+    if (const PusiMesh::Peer* d = MeshTutor::guest()) return d;
     if (s_guest) return s_guest;          // the emulator's --peer, when set
     if (Settings::meshCrowd() == 0) return nullptr;   // CROWD NONE: nobody visits
-    if (const PotsMesh::Peer* p = Mesh::peer()) { s_realSeenAt = now; return p; }
+    if (const PusiMesh::Peer* p = Mesh::peer()) { s_realSeenAt = now; return p; }
 #if POTS_MESH_DEMO
     // The synthetic visitor is a FALLBACK, not the feature: it fills an empty
     // room in a lab build and stands aside for anybody real. The cooldown is
@@ -3110,7 +3110,7 @@ static float crowdGrow(TFT_eSPI& t, uint8_t bodies) {
     return 1.0f;
 }
 
-static void drawVisit(TFT_eSPI& t, uint32_t now, const PotsMesh::Peer* guest,
+static void drawVisit(TFT_eSPI& t, uint32_t now, const PusiMesh::Peer* guest,
                       int titleBottom, int potsyBottom, bool advance, bool msgFresh) {
     const int w = t.width();
     const int SMALL_PCT = 70;
@@ -3251,7 +3251,7 @@ void uiClearVisitTick(uint32_t now) {
 }
 
 bool uiClearDrawVisit(TFT_eSPI& t, uint32_t now, int top, int floorY, bool advance) {
-    const PotsMesh::Peer* guest = visitHosting();
+    const PusiMesh::Peer* guest = visitHosting();
     if (!guest) return false;
     s_msgGuestOn = false;
     drawVisit(t, now, guest, top, floorY, advance, false);
@@ -3514,7 +3514,7 @@ void uiClearTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
 #if POTS_MESH_DEMO
         demoTick(now);
 #endif
-        // PotsMesh: when a peer is visiting, BOTH Potsys drop to SMALL and
+        // PusiMesh: when a peer is visiting, BOTH Potsys drop to SMALL and
         // stand apart. Small is not a courtesy to the guest, it is what makes
         // two of them fit at all -- at the default size he is already most of
         // the usable height, and two of those would overlap before either had
@@ -3527,7 +3527,7 @@ void uiClearTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         // The hosted COPY, refreshed for the *same* visitor's outfit/shades/
         // name changes but never swapped for a different MAC mid-visit.
         // It stays intact through LEAVING even after radio presence is lost.
-        const PotsMesh::Peer* guest = visitHosting();
+        const PusiMesh::Peer* guest = visitHosting();
         // A message in the air replaces his scripted line and his nameplate
         // while it is up -- it carries the sender's name itself, in red.
         const bool msgFresh = messageShowing(now) || tutorReply();

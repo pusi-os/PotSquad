@@ -1,4 +1,4 @@
-// PotsSquad-CYD — the real cipher behind PotsMesh messages: mbedtls,
+// PotsSquad-CYD — the real cipher behind PusiMesh messages: mbedtls,
 // AES-128-CCM with an 8-byte tag and PBKDF2-HMAC-SHA256, on the ESP32's
 // hardware AES and SHA.
 //

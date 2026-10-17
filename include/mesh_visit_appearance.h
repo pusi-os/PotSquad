@@ -1,4 +1,4 @@
-// PotsMesh CLEAR-screen hosted guest appearance refresh.
+// PusiMesh CLEAR-screen hosted guest appearance refresh.
 //
 // UI holds a copy so an arriving/leaving visitor stays visually stable and a
 // different peer does not replace them mid-animation. Once the *same* visitor
@@ -7,18 +7,18 @@
 #pragma once
 #include <stdint.h>
 #include <string.h>
-#include "potsmesh.h"
+#include "pusimesh.h"
 
 namespace MeshVisitAppearance {
-inline bool refresh(PotsMesh::Peer& hosting, uint32_t hostingId,
-                    uint32_t presentId, const PotsMesh::Peer* present,
+inline bool refresh(PusiMesh::Peer& hosting, uint32_t hostingId,
+                    uint32_t presentId, const PusiMesh::Peer* present,
                     bool leaving) {
     // Identity comes from the visit's existing MAC-based identity key.
     // A stale/absent peer or an exiting guest must retain its hosted copy.
     if (!present || !hostingId || presentId != hostingId || leaving) return false;
     if (hosting.nick == present->nick && hosting.outfit == present->outfit &&
         hosting.shade == present->shade && hosting.custom == present->custom &&
-        strncmp(hosting.name, present->name, PotsMesh::NAME_LEN + 1) == 0)
+        strncmp(hosting.name, present->name, PusiMesh::NAME_LEN + 1) == 0)
         return false;
     hosting = *present;
     return true;

@@ -1,4 +1,4 @@
-// PotsSquad-CYD — the PotsMesh phrase words and the canned lines.
+// PotsSquad-CYD — the PusiMesh phrase words and the canned lines.
 //
 // THE WORDS. A phrase is five of these, rolled by the device's hardware random
 // number generator -- never chosen by a person, which is where nearly all of a

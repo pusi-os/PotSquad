@@ -208,7 +208,7 @@ Ordered so that a failure early explains the failures after it.
       (proves SD on the shared display bus)
 - [ ] **Settings persist** across a power cycle (proves the 16 MB partition
       table kept NVS where the bootloader expects it)
-- [ ] **PotsMesh**: two boards see each other. Needs a second device.
+- [ ] **PusiMesh**: two boards see each other. Needs a second device.
 - [ ] **OTA**: an update applies and the board still boots (proves both 6 MB
       app slots and the ported ECDSA signature check)
 - [ ] **Soak**: left running for an hour without a reset or a heap collapse

@@ -24,7 +24,7 @@ static inline uint32_t tempo(uint32_t ms) { return ms * s_tempoPct / 100; }
 #include "emote_script.h"   // spokenName, for the banter
 #include "draw_band.h"
 #include "fast_sprite.h"
-#include "potsmesh.h"     // OUTFIT_N, checked against OutfitId::COUNT below
+#include "pusimesh.h"     // OUTFIT_N, checked against OutfitId::COUNT below
 #endif
 #include <Arduino.h>
 #include <Preferences.h>
@@ -644,7 +644,7 @@ static bool     s_godsMode         = false;  // one-way: everything unlocked, se
 // accessors: ensurePrefsLoaded() reads it far earlier in the file.
 //
 // Gated with the rest of the feature. The plan says a typed name stands on
-// its own merits whether or not PotsMesh ever ships -- and it does -- but
+// its own merits whether or not PusiMesh ever ships -- and it does -- but
 // nothing in a non-mesh build can SET one, so shipping the storage there
 // would be dead weight AND would break the guarantee that a shipping binary
 // is untouched by this work. Promoting it out of the flag is one deliberate
@@ -905,7 +905,7 @@ static int   s_lastCrownY = 0;
 // Set while drawBody() is drawing somebody who is NOT our Potsy: a visiting
 // peer, the alert screen's cameo, the boot splash's wave. They all go through
 // the same body code, and drawBody() publishes the live crown -- so the last
-// one drawn won. On a PotsMesh visit the guest is drawn after the host, so
+// one drawn won. On a PusiMesh visit the guest is drawn after the host, so
 // the pet stood on the GUEST's head and rode the GUEST's bounce.
 static bool  s_cameo = false;
 // Top of the region the caller gave us. Costume detail that reaches ABOVE
@@ -1209,7 +1209,7 @@ static_assert(OUTFITS_N == (uint8_t)OutfitId::COUNT, "OUTFITS must match OutfitI
 // The mesh clamps a visitor's outfit index to what this build can draw. If
 // a new outfit lands here without that count moving, the newest outfit
 // wraps to NONE on every visit -- which is how the shark suit went missing.
-static_assert(PotsMesh::OUTFIT_N == (uint8_t)OutfitId::COUNT, "PotsMesh::OUTFIT_N must match OutfitId::COUNT");
+static_assert(PusiMesh::OUTFIT_N == (uint8_t)OutfitId::COUNT, "PusiMesh::OUTFIT_N must match OutfitId::COUNT");
 #endif
 
 // Was a prefix count -- "how many from the front of the list qualify" --
@@ -3288,7 +3288,7 @@ static const char* const WINK_LINES[] = {
 };
 
 #if POTS_MESH
-// ---- PotsMesh: the conversation two Potsys have -------------------
+// ---- PusiMesh: the conversation two Potsys have -------------------
 //
 // Four beats, because a visit has a shape: somebody turns up, somebody
 // answers, they stand around, somebody leaves. Split into host and guest

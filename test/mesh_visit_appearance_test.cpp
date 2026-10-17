@@ -7,8 +7,8 @@
 #include <cstring>
 
 int main() {
-    PotsMesh::Peer hosting = { 1, 2, 0, false, "" };
-    PotsMesh::Peer live = hosting;
+    PusiMesh::Peer hosting = { 1, 2, 0, false, "" };
+    PusiMesh::Peer live = hosting;
     const uint32_t alice = 0x1234u, bob = 0x5678u;
 
     // Unchanged look: no needless updates or animation state churn.
@@ -33,7 +33,7 @@ int main() {
     assert(MeshVisitAppearance::refresh(hosting, alice, alice, &live, false));
     assert(!hosting.custom && hosting.name[0] == '\0');
 
-    const PotsMesh::Peer snapshot = hosting;
+    const PusiMesh::Peer snapshot = hosting;
     // A different Potsy may arrive, but must not overwrite this guest's
     // face until the old one has completed the goodbye walk.
     live.outfit = 10;

@@ -1,4 +1,4 @@
-// PotsSquad-CYD — the PotsMesh message screen: the last message received,
+// PotsSquad-CYD — the PusiMesh message screen: the last message received,
 // and something to say back -- a ready-made line, or your own typed on the
 // payphone. Opened from the speech bubble on the main screen.
 #pragma once

@@ -35,7 +35,7 @@
 #include "ui_diary.h"
 #include "ui_hunt.h"
 #include "ui_rawscan.h"
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include "ui_phone.h"
 #include "qwerty.h"
 #include "ui_meshmenu.h"
@@ -309,7 +309,7 @@ static void usage() {
         "  --gps             a fresh GPS fix: CLEAR's GPS label, DIAGNOSTICS' GPS lines,\n"
         "                    the ALERT card's place\n"
         "  --pet N           companion: 0 off, 1 VAPOR SHAGGY, 2 the yeti, 3 C1iPPY, 4 T0@$TY, 5 the ball, 6 MEATY\n"
-        "  --peer N          draw a visiting PotsMesh peer in outfit N\n"
+        "  --peer N          draw a visiting PusiMesh peer in outfit N\n"
         "  --peername NAME   give that visitor a custom name\n"
         "  --crowd N         clear screen: N squad members in range, roaming with ours\n"
         "  --ondesk          desk screen: the squad under the clock (DESK MODE > SQUAD ON DESK)\n"
@@ -507,7 +507,7 @@ int main(int argc, char** argv) {
         for (int k = 0; k < 8 && (int)Potsy::petChoice() != petIdx; k++) Potsy::cyclePet();
     }
 
-    PotsMesh::Peer guest{};
+    PusiMesh::Peer guest{};
     if (peerOutfit >= 0) {
         guest.nick = 4; guest.outfit = (uint8_t)peerOutfit; guest.shade = 1;
         guest.custom = !peerName.empty();
@@ -562,12 +562,12 @@ int main(int argc, char** argv) {
         uint32_t ctr = 100;
         for (int k = 0; k < crowdN && k < 7; k++) {
             const uint8_t mac[6] = { 0x24, 0x0A, 0xC4, (uint8_t)(k + 1), 0x00, (uint8_t)(k + 1) };
-            PotsMesh::Peer p{};
+            PusiMesh::Peer p{};
             p.nick = (uint8_t)(3 + k * 2); p.outfit = (uint8_t)((k * 5 + 1) % Potsy::outfitCount()); p.shade = (uint8_t)(k % 4);
             if (NAMES[k]) { p.custom = true; snprintf(p.name, sizeof p.name, "%s", NAMES[k]); }
             p.aura = k == 0 && getenv("POTSSIM_PEERAURA") != nullptr;   // the first of them, the Legend
-            uint8_t ad[PotsMesh::LEN_MAX + 2] = { (uint8_t)(PotsMesh::COMPANY_ID & 0xFF), (uint8_t)(PotsMesh::COMPANY_ID >> 8) };
-            const size_t an = PotsMesh::encode(p, ad + 2);
+            uint8_t ad[PusiMesh::LEN_MAX + 2] = { (uint8_t)(PusiMesh::COMPANY_ID & 0xFF), (uint8_t)(PusiMesh::COMPANY_ID >> 8) };
+            const size_t an = PusiMesh::encode(p, ad + 2);
             Mesh::onManufacturerData(ad, an + 2, mac, millis());
             uint8_t f[MeshMsg::FRAME_MAX];
             const uint8_t hv[3] = { 1, 7, 9 };
@@ -1054,11 +1054,11 @@ int main(int argc, char** argv) {
         SimClock::nowMs = renderNow - 3u * 3600000u;
         uint32_t ctr = 100;
         for (const Seed& sd : SEEDS) {
-            PotsMesh::Peer p{};
+            PusiMesh::Peer p{};
             p.nick = sd.nick; p.outfit = sd.outfit; p.shade = sd.shade;
             if (sd.name) { p.custom = true; snprintf(p.name, sizeof p.name, "%s", sd.name); }
-            uint8_t ad[PotsMesh::LEN_MAX + 2] = { (uint8_t)(PotsMesh::COMPANY_ID & 0xFF), (uint8_t)(PotsMesh::COMPANY_ID >> 8) };
-            const size_t an = PotsMesh::encode(p, ad + 2);
+            uint8_t ad[PusiMesh::LEN_MAX + 2] = { (uint8_t)(PusiMesh::COMPANY_ID & 0xFF), (uint8_t)(PusiMesh::COMPANY_ID >> 8) };
+            const size_t an = PusiMesh::encode(p, ad + 2);
             Mesh::onManufacturerData(ad, an + 2, sd.mac, millis());
             // met N times: N hellos, each after the six-minute freshness ran out.
             for (uint8_t k = 0; k < sd.met; k++) {
@@ -1074,10 +1074,10 @@ int main(int argc, char** argv) {
         MeshTalk::tick(millis());
         // Only the first is still around: the others were heard long ago.
         if (poseIdx == 1) {
-            PotsMesh::Peer p{}; p.nick = 4; p.outfit = 12; p.shade = 2; p.custom = true;
+            PusiMesh::Peer p{}; p.nick = 4; p.outfit = 12; p.shade = 2; p.custom = true;
             snprintf(p.name, sizeof p.name, "%s", "BIGFOOT");
-            uint8_t ad[PotsMesh::LEN_MAX + 2] = { (uint8_t)(PotsMesh::COMPANY_ID & 0xFF), (uint8_t)(PotsMesh::COMPANY_ID >> 8) };
-            const size_t an = PotsMesh::encode(p, ad + 2);
+            uint8_t ad[PusiMesh::LEN_MAX + 2] = { (uint8_t)(PusiMesh::COMPANY_ID & 0xFF), (uint8_t)(PusiMesh::COMPANY_ID >> 8) };
+            const size_t an = PusiMesh::encode(p, ad + 2);
             Mesh::onManufacturerData(ad, an + 2, SEEDS[0].mac, millis());
         }
         uiSquadInit(frame, screen == "roster");

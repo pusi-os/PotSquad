@@ -20,11 +20,11 @@ import json, os, shutil, struct, subprocess, sys, zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT  = os.path.join(HERE, "out", "emotedemo")
-GIF  = os.path.join(HERE, "..", "docs", "potsmesh-emotes.gif")
+GIF  = os.path.join(HERE, "..", "docs", "pusimesh-emotes.gif")
 
 ZOOM = 2          # integer only: nearest-neighbour has to keep device pixels square
 MS   = 60         # per captured frame; captures are two 33ms steps apart, so about real time
-BG   = 8          # the same background the two earlier PotsMesh clips used
+BG   = 8          # the same background the two earlier PusiMesh clips used
 
 # Where things are. See the note above.
 ICON   = (282, 88)     # the speech bubble beside the visitor

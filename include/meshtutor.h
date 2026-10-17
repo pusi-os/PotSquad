@@ -12,13 +12,13 @@
 // NOTHING IN IT TRANSMITS. The visitor is drawn from a local stand-in, SEND
 // moves the lesson on without calling MeshTalk, and the reply is painted, not
 // received. That is what makes it safe to run before anybody has a phrase, and
-// it must stay that way: the whole premise of PotsMesh is that the radio does
+// it must stay that way: the whole premise of PusiMesh is that the radio does
 // nothing the owner did not agree to.
 #pragma once
 #if POTS_MESH
 #include <stdint.h>
 #include <TFT_eSPI.h>
-#include "potsmesh.h"
+#include "pusimesh.h"
 
 namespace MeshTutor {
 
@@ -48,7 +48,7 @@ void next();
 bool waitsForTap();
 
 // The stand-in visitor while the tutorial runs, else nullptr.
-const PotsMesh::Peer* guest();
+const PusiMesh::Peer* guest();
 
 // The card: at the top of the screen or the bottom. It records where it and
 // its SKIP corner landed, for cardTap().

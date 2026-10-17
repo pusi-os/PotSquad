@@ -413,7 +413,7 @@ namespace Settings {
     uint8_t     lightBrightness();       // 1..7, caps everything
     void        cycleLightBrightness();
 
-    // REMOTE UPDATE: whether a squad update nudge over PotsMesh may start
+    // REMOTE UPDATE: whether a squad update nudge over PusiMesh may start
     // an update on this board. OFF by default -- a board in a pocket that
     // reboots on its own is a surprise nobody signed up for -- and on the
     // SECURITY screen, because it is about who can do things to this board.
@@ -497,7 +497,7 @@ namespace Settings {
     // conservative than what they solved for. Above 100 would invalidate
     // both, which is a different and much larger job.
 #if POTS_MESH
-    // The two halves of PotsMesh, separately switchable, because they are
+    // The two halves of PusiMesh, separately switchable, because they are
     // genuinely different things to consent to.
     //
     // TRANSMIT is the privacy-relevant one and defaults OFF. This device

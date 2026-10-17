@@ -1,4 +1,4 @@
-// PotsMesh payload codec. See include/potsmesh.h for the layout and
+// PusiMesh payload codec. See include/pusimesh.h for the layout and
 // for why it is as small as it is.
 //
 // Everything here runs against bytes a stranger composed, inside the BLE
@@ -6,7 +6,7 @@
 // file is the same as the pwnagotchi parser next door in signatures.cpp:
 // the interesting code is the refusals, and the test suite is mostly cases
 // that must NOT parse.
-#include "potsmesh.h"
+#include "pusimesh.h"
 
 // Compiled ONLY into the mesh build. Without this the codec links into
 // every board -- measured at +8,680 bytes of flash on cyd-fast -- and the
@@ -16,7 +16,7 @@
 
 #include <string.h>
 
-namespace PotsMesh {
+namespace PusiMesh {
 
 static inline uint8_t maskOf(uint8_t bits) { return (uint8_t)((1u << bits) - 1u); }
 
@@ -139,6 +139,6 @@ bool decode(const uint8_t* in, size_t len, Peer& out) {
     return true;
 }
 
-} // namespace PotsMesh
+} // namespace PusiMesh
 
 #endif // POTS_MESH

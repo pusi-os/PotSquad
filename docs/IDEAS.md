@@ -116,7 +116,7 @@ log, something in the fire.
 > v1.27.0), the owl on the FIRE background (SHAMBLER, v1.29.0), and the red
 > glyph in the DIGITAL rain (TH3 0N3, v1.30.0).
 
-### 7. TWO-BOARD GAMES OVER POTSMESH
+### 7. TWO-BOARD GAMES OVER PUSIMESH
 
 Tic-tac-toe or battleship between two boards in range.
 

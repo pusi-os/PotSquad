@@ -314,7 +314,7 @@ def live_step(params):
     if trig != "":
         rssi = params.get("rssi", [""])[0]
         cmds.append("T %d %d" % (int(trig), int(rssi) if rssi else 0))
-    # The virtual PotsMesh peer: one command per request, as its panel
+    # The virtual PusiMesh peer: one command per request, as its panel
     # sends them. See sim/meshsim.h for the language.
     mesh = params.get("mesh", [""])[0]
     if mesh:
@@ -419,7 +419,7 @@ PAGE = """<!doctype html>
     <label>A PotsSquad nearby</label>
     <div class="row">
       <button id="meshHere">Bring it nearby</button>
-      <button id="meshSetup" class="ghost" title="Emulator only: accepts the warning, turns DETECT, TRANSMIT and MESSAGES on and sets a phrase">Set up PotsMesh</button>
+      <button id="meshSetup" class="ghost" title="Emulator only: accepts the warning, turns DETECT, TRANSMIT and MESSAGES on and sets a phrase">Set up PusiMesh</button>
     </div>
     <div class="row">
       <select id="meshOutfit" title="Outfit"></select>
@@ -442,7 +442,7 @@ PAGE = """<!doctype html>
     <div id="meshStatus" class="hint"></div>
     <p class="hint">
       A second PotsSquad that only exists in the emulator (sim/meshsim.cpp).
-      It feeds real PotsMesh adverts and message frames into the firmware's
+      It feeds real PusiMesh adverts and message frames into the firmware's
       own Mesh code, so it turns up exactly when a board would. Its look is
       copied once, on arrival, as on a board: to see a new outfit or name,
       send it away, let it leave, and bring it back. Set up is emulator-only
@@ -720,7 +720,7 @@ $('trigBtn').onclick = () => {
 function meshHint(s) {
   if (!s.present) return ['Nobody nearby. Bring it nearby to start a visit.'];
   if (!s.detect) return ['It is in range, but your DETECT is off, so your Potsy cannot see it.',
-                         'Settings > POTSMESH > DETECT, or Set up.'];
+                         'Settings > PUSIMESH > DETECT, or Set up.'];
   if (!s.visiting) return ['In range. It turns up with its next advert.'];
   const out = ['Visiting your main screen.'];
   if (s.sending) {
@@ -740,7 +740,7 @@ function meshLines(el, lines) {
   el.replaceChildren(...lines.map(t => Object.assign(document.createElement('div'), {textContent: t})));
 }
 
-/* --------------------------- PotsMesh ---------------------------- */
+/* --------------------------- PusiMesh ---------------------------- */
 // The virtual peer in sim/meshsim.cpp. Commands ride the same queue as a
 // touch, so each lands between two loop() iterations like everything else,
 // and its status comes back on every frame in X-Mesh.

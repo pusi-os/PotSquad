@@ -4,7 +4,7 @@
 #if POTS_MESH
 #include "theme.h"
 #include "potsy.h"
-#include "potsmesh.h"
+#include "pusimesh.h"
 #include "meshtalk.h"
 #include "detection.h"
 #include <Arduino.h>
@@ -43,7 +43,7 @@ int16_t btnW() { return Theme::large() ? 96 : 68; }
 int16_t btnH() { return Theme::large() ? 34 : 26; }
 const float SCALE = 1.5f;
 
-const char* memberName(const PotsMesh::Peer& p) {
+const char* memberName(const PusiMesh::Peer& p) {
     return (p.custom && p.name[0]) ? p.name : Potsy::nicknameAt(p.nick);
 }
 

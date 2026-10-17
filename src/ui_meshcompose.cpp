@@ -1,4 +1,4 @@
-// PotsSquad-CYD — the PotsMesh message screen. See include/ui_meshcompose.h.
+// PotsSquad-CYD — the PusiMesh message screen. See include/ui_meshcompose.h.
 #include "ui_meshcompose.h"
 
 #if POTS_MESH
@@ -83,7 +83,7 @@ static inline int BHof(TFT_eSPI& t) { return t.width() >= 400 ?  36 : 26; }
 // Held to 36 characters. Portrait is 240 wide and these start 8 in, so 38 is
 // the most that fits; the first versions ran to 41 and lost their last words
 // off the edge -- "you can read, not repl" -- which the emulator caught.
-const char* const NEED_PHRASE  = "Set a phrase: POTSMESH > PHRASE.";
+const char* const NEED_PHRASE  = "Set a phrase: PUSIMESH > PHRASE.";
 const char* const NEED_PHRASE_RU = "Задай фразу: ПОТСМЕШ > ФРАЗА.";
 const char* const TRANSMIT_OFF = "TRANSMIT off: can read, not reply.";
 const char* const TRANSMIT_OFF_RU = "ПЕРЕДАЧА выкл: читаешь, не отвечаешь.";
