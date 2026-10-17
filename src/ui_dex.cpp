@@ -11,6 +11,8 @@ namespace {
 
 const int TOP = 16;
 int8_t s_card = -1;   // the entry whose card is up, or -1 for the index
+int s_cardScroll = 0;   // card body pixels scrolled away at the top
+int s_cardMax = 0;      // last frame's scroll range, for clamping input
 
 // The DEX draws either script: every card field has an EN and an RU form and
 // the screen picks by language through Theme::tr. Measure, wrap and print must
@@ -23,6 +25,13 @@ static int wid(TFT_eSPI& t, const char* s) {
     return Theme::isRu(s) ? Theme::textWidthRU(t, s) : t.textWidth(s);
 }
 static uint8_t wrap(TFT_eSPI& t, const char* s, int maxW, char lines[][48], uint8_t maxLines) {
+    return Theme::isRu(s) ? Theme::wrapTextRU(t, s, maxW, lines, maxLines)
+                          : Theme::wrapText(t, s, maxW, lines, maxLines);
+}
+// Wide rows for the lore: at 48 bytes a line the byte cap binds before
+// the pixels do (23 Cyrillic letters), wasting a third of the card's
+// width and pushing long lores past any sane line cap.
+static uint8_t wrap80(TFT_eSPI& t, const char* s, int maxW, char lines[][80], uint8_t maxLines) {
     return Theme::isRu(s) ? Theme::wrapTextRU(t, s, maxW, lines, maxLines)
                           : Theme::wrapText(t, s, maxW, lines, maxLines);
 }
@@ -156,6 +165,16 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
     const bool wide = w > h;
     const int top = TOP + Theme::listHeadingH() + 4;
     const int bottom = bar.y - 4;
+    // A long card (the MESH lore in Russian) runs past the buttons: the
+    // body scrolls under a fixed heading and button bar, a few pixels per
+    // drag, with a scrollbar while there is anywhere to go. Elements
+    // straddling the region edge are clipped, never drawn over chrome.
+    const int regionTop = top, regionBottom = bottom;
+    const int oy = -s_cardScroll;
+    const int regionH = regionBottom - regionTop;
+    auto rowIn = [&](int y) { return y >= regionTop && y + lh <= regionBottom; };
+    auto boxIn = [&](int y, int hh) { return y + hh > regionTop && y < regionBottom; };
+    auto boxFull = [&](int y, int hh) { return y >= regionTop && y + hh <= regionBottom; };
 
     // Left (or top): the icon in a box, and the record under it.
     // A third of the width and a bit under a third of the height: 104x74 on
@@ -166,102 +185,169 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
     // cut to what fits beside them.
     const bool tiny = Theme::compact();
     const int boxH = tiny ? 26 : wide ? (h * 31) / 100 : 60;
-    const int bx = 6, by = top;
-    panel(t, bx, by, boxW, boxH, col);
-    const int s = (boxW < boxH ? boxW : boxH) / 2 - 8;
-    Theme::drawTypeIcon(t, type, bx + boxW / 2, by + boxH / 2, s);
-    if (!have) {
-        for (int ly = by + 1; ly < by + boxH - 1; ly += 2) t.drawFastHLine(bx + 1, ly, boxW - 2, panelFill());
-        const char* nyc = Theme::tr("NOT CAUGHT", "НЕ ПОЙМАН");
-        t.setTextColor(Theme::VAPOR_PINK, panelFill());
-        t.setCursor(bx + (boxW - wid(t, nyc)) / 2, by + boxH / 2 - 4);
-        put(t, nyc);
+    const int bx = 6, by = top + oy;
+    if (boxIn(by, boxH)) {
+        const int y0 = by < regionTop ? regionTop : by;
+        const int y1 = by + boxH > regionBottom ? regionBottom : by + boxH;
+        t.fillRect(bx, y0, boxW, y1 - y0, panelFill());
+        if (boxFull(by, boxH)) {
+            t.drawRect(bx, by, boxW, boxH, col);
+            const int s = (boxW < boxH ? boxW : boxH) / 2 - 8;
+            Theme::drawTypeIcon(t, type, bx + boxW / 2, by + boxH / 2, s);
+        }
     }
-    t.setTextColor(Theme::W95_SHADOW, panelFill());
-    const char* kd = Theme::tr(Dex::kind(type), Dex::kindRU(type));
-    t.setCursor(bx + boxW - wid(t, kd) - 2, by + boxH - t.fontHeight() - 1);
-    put(t, kd);
-    if (have && Dex::nemesis(eng) == type) {
-        // The type he has caught most: his sworn enemy, stamped on the card.
-        t.setTextColor(Theme::RED, panelFill());
-        t.setCursor(bx + 3, by + boxH - t.fontHeight() - 1);
-        put(t, Theme::tr("NEMESIS", "НЕМЕЗИС"));
+    if (!have) {
+        for (int ly = by + 1 > regionTop ? by + 1 : regionTop; ly < by + boxH - 1 && ly < regionBottom; ly += 2)
+            if (boxIn(by, boxH)) t.drawFastHLine(bx + 1, ly, boxW - 2, panelFill());
+        if (boxIn(by, boxH)) {
+            const char* nyc = Theme::tr("NOT CAUGHT", "НЕ ПОЙМАН");
+            t.setTextColor(Theme::VAPOR_PINK, panelFill());
+            t.setCursor(bx + (boxW - wid(t, nyc)) / 2, by + boxH / 2 - 4);
+            put(t, nyc);
+        }
+    }
+    if (boxIn(by, boxH)) {
+        t.setTextColor(Theme::W95_SHADOW, panelFill());
+        const char* kd = Theme::tr(Dex::kind(type), Dex::kindRU(type));
+        t.setCursor(bx + boxW - wid(t, kd) - 2, by + boxH - t.fontHeight() - 1);
+        put(t, kd);
+        if (have && Dex::nemesis(eng) == type) {
+            // The type he has caught most: his sworn enemy, stamped on the card.
+            t.setTextColor(Theme::RED, panelFill());
+            t.setCursor(bx + 3, by + boxH - t.fontHeight() - 1);
+            put(t, Theme::tr("NEMESIS", "НЕМЕЗИС"));
+        }
     }
 
     // The record, in a panel of its own under the icon; and the text column
     // in one beside it (or below, in portrait), sized from what it holds.
     const int recH = (tiny ? 3 : 5) * lh + 6;
-    panel(t, bx, by + boxH + 3, boxW, recH, Theme::PURPLE);
-    int ry = by + boxH + 3 + 4;
+    const int recY = by + boxH + 3;
+    if (boxIn(recY, recH)) {
+        const int r0 = recY < regionTop ? regionTop : recY;
+        const int r1 = recY + recH > regionBottom ? regionBottom : recY + recH;
+        t.fillRect(bx, r0, boxW, r1 - r0, panelFill());
+        if (boxFull(recY, recH)) t.drawRect(bx, recY, boxW, recH, Theme::PURPLE);
+    }
+    int ry = recY + 4;
     const int rx = bx + 3, rw = boxW - 6;
     char v[16];
     snprintf(v, sizeof v, "%lu", (unsigned long)eng.lifetimeTypeCount(type));
-    drawRow(t, rx, ry, rw, Theme::tr("CAUGHT", "ПОЙМАНО"), have ? v : "0", col, text); ry += lh;
+    if (rowIn(ry)) drawRow(t, rx, ry, rw, Theme::tr("CAUGHT", "ПОЙМАНО"), have ? v : "0", col, text); ry += lh;
     when(rec.firstEpoch, v, sizeof v);
-    if (!tiny) { drawRow(t, rx, ry, rw, Theme::tr("FIRST", "ПЕРВЫЙ"), have ? v : "--", col, text); ry += lh; }
+    if (!tiny) { if (rowIn(ry)) drawRow(t, rx, ry, rw, Theme::tr("FIRST", "ПЕРВЫЙ"), have ? v : "--", col, text); ry += lh; }
     when(rec.lastEpoch, v, sizeof v);
-    drawRow(t, rx, ry, rw, Theme::tr("LAST", "ПОСЛЕДНИЙ"), have ? v : "--", col, text); ry += lh;
+    if (rowIn(ry)) drawRow(t, rx, ry, rw, Theme::tr("LAST", "ПОСЛЕДНИЙ"), have ? v : "--", col, text); ry += lh;
     if (rec.bestRssi > -128) snprintf(v, sizeof v, tiny ? "%d" : "%d dBm", (int)rec.bestRssi); else snprintf(v, sizeof v, "--");
-    drawRow(t, rx, ry, rw, Theme::tr("CLOSEST", "БЛИЖАЙШИЙ"), have ? v : "--", col, text); ry += lh;
+    if (rowIn(ry)) drawRow(t, rx, ry, rw, Theme::tr("CLOSEST", "БЛИЖАЙШИЙ"), have ? v : "--", col, text); ry += lh;
     snprintf(v, sizeof v, "%u", (unsigned)rec.night);
-    if (!tiny) { drawRow(t, rx, ry, rw, Theme::tr("AT NIGHT", "НОЧЬЮ"), have ? v : "--", col, text); ry += lh; }
+    if (!tiny) { if (rowIn(ry)) drawRow(t, rx, ry, rw, Theme::tr("AT NIGHT", "НОЧЬЮ"), have ? v : "--", col, text); ry += lh; }
 
     // Right (or below): two panels. The lore (or, uncaught, its blanked
     // shape) in one sized to its lines; where it lives and what Potsy says
     // in a second that takes the rest of the height.
     const int px = wide ? bx + boxW + 4 : 6;
     const int pw = wide ? w - px - 6 : w - 12;
-    const int py = wide ? top : ry + 4;
+    const int py = (wide ? top : ry + 4) + oy;
     const int tx = px + 4, tw = pw - 8;
-    char lines[8][48];
+    char lines[9][80];
     uint8_t n;
 
-    // First panel.
+    // First panel. Sized to the wrapped lore, uncapped by guesswork: the
+    // longest RU lore needs 8 pixel-bound lines at card width, so the caps
+    // sit above that (9/8) and the panel simply grows; the second panel
+    // below sizes the same way, and both still fit the 320px layouts.
     int ty = py + 3;
     if (have) {
-        n = wrap(t, Theme::tr(Dex::lore(type), Dex::loreRU(type)), tw, lines, wide ? 8 : 4);
+        n = wrap80(t, Theme::tr(Dex::lore(type), Dex::loreRU(type)), tw, lines, wide ? 9 : 8);
         if (tiny && n > (bottom - py - 6) / lh) n = (uint8_t)((bottom - py - 6) / lh);
-        panel(t, px, py, pw, n * lh + 6, Theme::PURPLE);
+        if (boxIn(py, n * lh + 6)) {
+            const int q0 = py < regionTop ? regionTop : py;
+            const int q1 = py + n * lh + 6 > regionBottom ? regionBottom : py + n * lh + 6;
+            t.fillRect(px, q0, pw, q1 - q0, panelFill());
+            if (boxFull(py, n * lh + 6)) t.drawRect(px, py, pw, n * lh + 6, Theme::PURPLE);
+        }
         t.setTextColor(Theme::WHITE, panelFill());
-        for (uint8_t i = 0; i < n && ty + lh <= bottom; i++) { t.setCursor(tx, ty); put(t, lines[i]); ty += lh; }
+        for (uint8_t i = 0; i < n; i++, ty += lh) {
+            if (!rowIn(ty)) continue;
+            t.setCursor(tx, ty); put(t, lines[i]);
+        }
     } else {
         // Blanked lore: the shape of a paragraph, none of the words.
         n = wide ? 4 : 2;
-        panel(t, px, py, pw, n * lh + 6, Theme::W95_SHADOW);
-        for (uint8_t i = 0; i < n && ty + lh <= bottom; i++) {
+        if (boxIn(py, n * lh + 6)) {
+            const int q0 = py < regionTop ? regionTop : py;
+            const int q1 = py + n * lh + 6 > regionBottom ? regionBottom : py + n * lh + 6;
+            t.fillRect(px, q0, pw, q1 - q0, panelFill());
+            if (boxFull(py, n * lh + 6)) t.drawRect(px, py, pw, n * lh + 6, Theme::W95_SHADOW);
+        }
+        for (uint8_t i = 0; i < n; i++, ty += lh) {
+            if (!rowIn(ty)) continue;
             const int len = (i == n - 1 ? tw / 2 : tw) - 6;
             for (int x = tx; x < tx + len; x += 8) t.fillRect(x, ty + 1, 6, 6, Theme::W95_SHADOW);
-            ty += lh;
         }
     }
 
     // Second panel, sized to what it holds: where it lives (or the hint),
     // what Potsy says, and the radio it uses as a tag in the corner.
+    // Habitat and quip wrap to what they need (up to 4 lines each) rather
+    // than a fixed 2: the longer RU ones were losing their last line.
+    // Past the buttons the card scrolls instead of clipping: drag the body.
     const int p2y = py + n * lh + 6 + 3;
-    char hab[2][48], say[2][48];
+    char hab[4][48], say[4][48];
     const uint8_t nh = wrap(t, have ? Theme::tr(Dex::habitat(type), Dex::habitatRU(type))
-                                    : Theme::tr(Dex::hint(type),    Dex::hintRU(type)), tw, hab, 2);
-    const uint8_t ns = wrap(t, Theme::tr(Dex::quip(type), Dex::quipRU(type)), tw, say, 2);
+                                    : Theme::tr(Dex::hint(type),    Dex::hintRU(type)), tw, hab, 4);
+    const uint8_t ns = wrap(t, Theme::tr(Dex::quip(type), Dex::quipRU(type)), tw, say, 4);
     int p2h = 3 + lh + nh * lh + 3 + lh + ns * lh + 3 + lh + 3;
-    if (p2y + p2h > bottom) p2h = bottom - p2y;
-    if (p2h >= 2 * lh + 6) {
-        panel(t, px, p2y, pw, p2h, Theme::PURPLE);
+    // Not clamped to the buttons: past them the card scrolls instead, and
+    // the clipped fill plus the row guards below keep every line inside
+    // the body region while it does.
+    if (boxIn(p2y, p2h) && p2h >= 2 * lh + 6) {
+        const int q0 = p2y < regionTop ? regionTop : p2y;
+        const int q1 = p2y + p2h > regionBottom ? regionBottom : p2y + p2h;
+        t.fillRect(px, q0, pw, q1 - q0, panelFill());
+        if (boxFull(p2y, p2h)) t.drawRect(px, p2y, pw, p2h, Theme::PURPLE);
         const int p2b = p2y + p2h;
         ty = p2y + 3;
-        t.setTextColor(Theme::CYAN, panelFill()); t.setCursor(tx, ty); put(t, Theme::tr(have ? "HABITAT" : "HINT", have ? "СРЕДА" : "ПОДСКАЗКА")); ty += lh;
+        if (rowIn(ty)) {
+            t.setTextColor(Theme::CYAN, panelFill()); t.setCursor(tx, ty);
+            put(t, Theme::tr(have ? "HABITAT" : "HINT", have ? "СРЕДА" : "ПОДСКАЗКА"));
+        }
+        ty += lh;
         t.setTextColor(Theme::W95_LIGHT, panelFill());
-        for (uint8_t i = 0; i < nh && ty + lh <= p2b; i++) { t.setCursor(tx, ty); put(t, hab[i]); ty += lh; }
+        for (uint8_t i = 0; i < nh; i++, ty += lh) {
+            if (!rowIn(ty) || ty + lh > p2b) continue;
+            t.setCursor(tx, ty); put(t, hab[i]);
+        }
         ty += 3;
-        if (ty + 2 * lh <= p2b) {
+        if (ty + 2 * lh <= p2b && rowIn(ty)) {
             t.setTextColor(Theme::CYAN, panelFill()); t.setCursor(tx, ty); put(t, Theme::tr("POTSY SAYS", "ПОТСИ ГОВОРИТ")); ty += lh;
             t.setTextColor(Theme::AMBER, panelFill());
-            for (uint8_t i = 0; i < ns && ty + lh <= p2b; i++) { t.setCursor(tx, ty); put(t, say[i]); ty += lh; }
+            for (uint8_t i = 0; i < ns; i++, ty += lh) {
+                if (!rowIn(ty) || ty + lh > p2b) continue;
+                t.setCursor(tx, ty); put(t, say[i]);
+            }
         }
-        if (ty + lh <= p2b - 3) {
+        if (rowIn(p2b - t.fontHeight() - 3)) {
             t.setTextColor(col, panelFill());
             t.setCursor(tx, p2b - t.fontHeight() - 3);
             put(t, Theme::tr(Dex::radio(type), Dex::radioRU(type)));
         }
+    }
+    // Scroll range for this frame: the next drag is clamped to it, and a
+    // scrollbar shows while there is anywhere to go.
+    {
+        int contentEnd = p2y + p2h;
+        const int recEnd = by + boxH + 3 + recH;
+        if (recEnd > contentEnd) contentEnd = recEnd;
+        int maxS = contentEnd - regionBottom;
+        if (maxS < 0) maxS = 0;
+        s_cardMax = maxS;
+        // s_cardMax is 0 until the first frame measures the card: don't
+        // clamp a seeded scroll to an unknown range (it would stick at 0).
+        if (s_cardMax > 0 && s_cardScroll > s_cardMax) s_cardScroll = s_cardMax;
+        if (s_cardMax > 0)
+            Theme::drawScrollbar(t, w - 4, regionTop, regionH, regionH + s_cardMax, regionH, s_cardScroll);
     }
 
     Theme::bodyFontOff(t);
@@ -277,7 +363,18 @@ void uiDexInit(TFT_eSPI& t) {
     t.fillRect(0, 0, t.width(), t.height(), Theme::BG);
 }
 
-void uiDexOpenCard(uint8_t entry) { s_card = entry < Dex::ENTRIES ? (int8_t)entry : -1; }
+void uiDexOpenCard(uint8_t entry) {
+    s_card = entry < Dex::ENTRIES ? (int8_t)entry : -1;
+    s_cardScroll = 0;
+    s_cardMax = 0;
+}
+
+void uiDexCardScroll(int pixels) {
+    // Floor only: the ceiling comes from the draw, which is the only
+    // place that knows this card's content height.
+    s_cardScroll += pixels;
+    if (s_cardScroll < 0) s_cardScroll = 0;
+}
 
 uint8_t uiDexCaught(const DetectionEngine& eng) {
     uint8_t n = 0;
@@ -333,9 +430,9 @@ DexTap uiDexHitTest(TFT_eSPI& t, int x, int y, int screenW, int screenH) {
         return DexTap::HANDLED;
     }
     switch (Theme::hitTestButtonBar(x, y, screenW, screenH)) {
-        case ButtonId::SCAN: s_card = (int8_t)((s_card + Dex::ENTRIES - 1) % Dex::ENTRIES); return DexTap::HANDLED;
+        case ButtonId::SCAN: s_card = (int8_t)((s_card + Dex::ENTRIES - 1) % Dex::ENTRIES); s_cardScroll = 0; s_cardMax = 0; return DexTap::HANDLED;
         case ButtonId::LOG:  s_card = -1; return DexTap::HANDLED;
-        case ButtonId::CLR:  s_card = (int8_t)((s_card + 1) % Dex::ENTRIES); return DexTap::HANDLED;
+        case ButtonId::CLR:  s_card = (int8_t)((s_card + 1) % Dex::ENTRIES); s_cardScroll = 0; s_cardMax = 0; return DexTap::HANDLED;
         default: return DexTap::NONE;
     }
 }

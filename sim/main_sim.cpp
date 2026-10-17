@@ -1042,8 +1042,31 @@ int main(int argc, char** argv) {
                 Dex::note(ty, d.rssi);
             }
         }
+        // POTSDEX_ALL=1: catch the rest too, so every card (including the
+        // longest lores) can be rendered caught for layout checks.
+        if (getenv("POTSDEX_ALL")) {
+            static const DetectionType rest[] = {
+                DetectionType::SKIMMER, DetectionType::MESH, DetectionType::GOOGLE_TAG,
+                DetectionType::DEAUTH, DetectionType::EVILTWIN, DetectionType::HACKER };
+            for (DetectionType ty : rest)
+                for (int k = 0; k < 3; k++) {
+                    Detection d{};
+                    d.mac[0] = 0x02; d.mac[4] = (uint8_t)k; d.mac[5] = (uint8_t)serial++;
+                    d.type = ty;
+                    d.conf = confidenceFor(ty);
+                    d.rssi = -60;
+                    d.firstSeen = d.lastSeen = now;
+                    d.hits = 1;
+                    d.active = true;
+                    engine.postBle(d);
+                    Dex::note(ty, d.rssi);
+                }
+        }
         uiDexInit(frame);
         if (poseIdx > 0) uiDexOpenCard((uint8_t)(poseIdx - 1));
+        // POTSDEX_SCROLL=N: start the card scrolled N pixels, to check the
+        // scrolled layout (clip + scrollbar) without scripting a drag.
+        if (const char* sc = getenv("POTSDEX_SCROLL")) uiDexCardScroll(atoi(sc));
     }
     else if (screen == "bingo") {
         // A card part-way through, so the marked, the lined and the

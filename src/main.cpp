@@ -6503,11 +6503,25 @@ void loop() {
         }
         case AppState::DEX: {
             drawTwoBand([&](TFT_eSPI& t, bool advance) { uiDexTick(t, now, engine, advance); });
+            // A long card scrolls under a fixed heading and button bar: a
+            // drag that starts on the body (not the buttons) moves the card
+            // a few pixels; a tap still answers on the way down as before.
+            static bool dxActive = false, dxBody = false;
+            static int dxLastY = 0;
             if (touchJustDown) {
                 lastTouch = now;
+                const Theme::ButtonBarGeom bar = Theme::computeButtonBar(tft.width(), tft.height());
+                dxBody = tp.y < bar.y;
+                dxActive = true;
+                dxLastY = tp.y;
                 if (uiDexHitTest(*canvas, tp.x, tp.y, tft.width(), tft.height()) == DexTap::BACK)
                     goHome();
             }
+            if (tp.valid && dxActive && dxBody) {
+                const int dy = tp.y - dxLastY;
+                if (dy > 3 || dy < -3) { uiDexCardScroll(-dy); dxLastY = tp.y; }
+            }
+            if (touchJustUp) dxActive = false;
             break;
         }
         case AppState::SYS_PROPS: {

@@ -22,6 +22,9 @@ enum class DexTap : uint8_t { NONE, HANDLED, BACK };
 // Where a cursor should stop, for the boards with no touch panel.
 uint8_t uiDexStops(int screenW, int screenH, int16_t* xs, int16_t* ys, uint8_t cap);
 DexTap uiDexHitTest(TFT_eSPI& t, int x, int y, int screenW, int screenH);
+// A long card (the MESH lore in Russian) runs past the buttons: drag the
+// body to scroll it, a few pixels at a time. Positive moves content up.
+void uiDexCardScroll(int pixels);
 
 // For the Settings row: "11/17".
 uint8_t uiDexCaught(const DetectionEngine& eng);
