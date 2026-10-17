@@ -147,7 +147,7 @@ void trendLine(TFT_eSPI& t, int x, int y, const WatchView& v, uint16_t col, bool
     const int tw = (tru ? Theme::textWidthRU(t, buf) : t.textWidth(buf)) + 10;
     const int x0 = centreIn ? x + (w - tw) / 2 : x;
     t.setCursor(x0 + 10, y);
-    if (tru) Theme::printRU(t, buf); else t.print(buf);
+    Theme::rowPrint(t, buf, x0 + 10, y);
     const uint16_t ac = v.trend > 0 ? (uint16_t)0xF920 : v.trend < 0 ? (uint16_t)0x06C0 : col;
     if (v.trend > 0)      t.fillTriangle(x0, y + 7, x0 + 6, y + 7, x0 + 3, y, ac);
     else if (v.trend < 0) t.fillTriangle(x0, y, x0 + 6, y, x0 + 3, y + 7, ac);
@@ -332,10 +332,9 @@ void drawOperator(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, int hin
         if (v.trend > 0)      t.fillTriangle(nx, ay + 7, nx + 6, ay + 7, nx + 3, ay, ac);
         else if (v.trend < 0) t.fillTriangle(nx, ay, nx + 6, ay, nx + 3, ay + 7, ac);
         else                  t.fillRect(nx, ay + 3, 7, 2, ac);
-        t.setTextSize(1);
-        t.setTextColor(g3);
-        t.setCursor(nx + 10, ay);
-        t.print(word);
+    t.setTextSize(1);
+    t.setTextColor(g3);
+    Theme::rowPrint(t, word, nx + 10, ay);
     }
     Theme::bodyFontOff(t);
 }

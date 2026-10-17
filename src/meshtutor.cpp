@@ -104,15 +104,15 @@ void drawCard(TFT_eSPI& t, bool atTop) {
     t.setTextWrap(false);
     const int w = t.width(), h = t.height();
     const int cw = w - 8;
-    // Theme::wrapText fills 48-character rows; cap the width at 47 of them.
+    // Theme::wrapText fills fixed 48-char rows; cap the width at 47 of them.
     const int charW = t.textWidth("M");
     int maxW = cw - 16;
     if (maxW > 47 * charW) maxW = 47 * charW;
-    char lines[6][48];
+    char lines[8][48];
     const char* bd = body(s_step);
     const bool ru = Theme::isRu(bd);
-    const uint8_t n = ru ? Theme::wrapTextRU(t, bd, maxW, lines, 6)
-                         : Theme::wrapText(t, bd, maxW, lines, 6);
+    const uint8_t n = ru ? Theme::wrapTextRU(t, bd, maxW, lines, 8)
+                         : Theme::wrapText(t, bd, maxW, lines, 8);
     const char* hn = hint(s_step);
     const int lh = t.fontHeight() + 1;
     const int ch = 16 + n * lh + (hn ? lh + 2 : 0) + 4;

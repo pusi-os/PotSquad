@@ -1,5 +1,6 @@
 // PotsSquad-CYD — persistent touch calibration
 #include "touch_cal.h"
+#include "theme.h"
 #include <Preferences.h>
 #include <Arduino.h>
 #include <math.h>
@@ -147,10 +148,25 @@ struct Screen {
 
 void centred(const Screen& s, const char* text, int y, uint8_t size, uint16_t colour) {
     s.t.setTextFont(1);
-    s.t.setTextSize(size);
     s.t.setTextColor(colour, s.bg);
-    s.t.setCursor((s.w - s.t.textWidth(text)) / 2, y);
-    s.t.print(text);
+    // RU has no scaled GLCD face: heads go through the 16px RU face,
+    // body through the 8px one, measured with the same face that draws.
+    const bool ru = Theme::isRu(text);
+    if (ru && size > 1) {
+        s.t.setTextSize(1);
+        const int tw = Theme::textWidthRU16(s.t, text);
+        s.t.setCursor((s.w - tw) / 2, y);
+        Theme::printRU16(s.t, text);
+    } else if (ru) {
+        s.t.setTextSize(1);
+        const int tw = Theme::textWidthRU(s.t, text);
+        s.t.setCursor((s.w - tw) / 2, y);
+        Theme::printRU(s.t, text);
+    } else {
+        s.t.setTextSize(size);
+        s.t.setCursor((s.w - s.t.textWidth(text)) / 2, y);
+        s.t.print(text);
+    }
 }
 
 // A full-screen notice, up to three lines, held for `ms`.
@@ -292,15 +308,15 @@ IntroChoice intro(const Screen& s, RawReader readRaw, uint8_t rot, const TouchFi
     s.t.fillRect(0, 0, s.w, s.h, s.bg);
     const int lh = 8 * s.bodySize;
     int y = s.h / 6;
-    centred(s, "TOUCH SETUP", y, s.headSize, s.accent);
+    centred(s, Theme::tr("TOUCH SETUP", "НАСТРОЙКА ТАЧА"), y, s.headSize, s.accent);
     y += 8 * s.headSize + 12;
     // 24 characters at most per line: the 3.5" in portrait fits no more at
     // its bigger text size.
-    centred(s, "Tap and hold 1 second", y, s.bodySize, s.fg);
+    centred(s, Theme::tr("Tap and hold 1 second", "Жми и держи 1 секунду"), y, s.bodySize, s.fg);
     y += lh + 4;
-    centred(s, "on each target.", y, s.bodySize, s.fg);
+    centred(s, Theme::tr("on each target.", "на каждой метке."), y, s.bodySize, s.fg);
     y += lh + 12;
-    centred(s, "Tap anywhere to start.", y, s.bodySize, GREEN);
+    centred(s, Theme::tr("Tap anywhere to start.", "Жми в любом месте."), y, s.bodySize, GREEN);
 
     int skipX = 0, skipY = 0, skipW = 0, skipH = 0;
     if (current) {
@@ -312,8 +328,16 @@ IntroChoice intro(const Screen& s, RawReader readRaw, uint8_t rot, const TouchFi
         s.t.setTextFont(1);
         s.t.setTextSize(s.bodySize);
         s.t.setTextColor(s.fg, s.bg);
-        s.t.setCursor(skipX + (skipW - s.t.textWidth("SKIP")) / 2, skipY + (skipH - lh) / 2);
-        s.t.print("SKIP");
+        const char* skip = Theme::tr("SKIP", "ПРОПУСТИТЬ");
+        const bool sru = Theme::isRu(skip);
+        int skw;
+        if (sru && s.bodySize > 1) { s.t.setTextSize(1); skw = Theme::textWidthRU16(s.t, skip); }
+        else if (sru) { s.t.setTextSize(1); skw = Theme::textWidthRU(s.t, skip); }
+        else skw = s.t.textWidth(skip);
+        s.t.setCursor(skipX + (skipW - skw) / 2, skipY + (skipH - lh) / 2);
+        if (sru && s.bodySize > 1) Theme::printRU16(s.t, skip);
+        else if (sru) Theme::printRU(s.t, skip);
+        else s.t.print(skip);
     }
 
     // Anything already on the glass (the finger that opened this) has to
@@ -371,12 +395,12 @@ Outcome runInteractive(TFT_eSPI& t, RawReader readRaw, uint8_t rot,
             TouchFit::targetFrac(i, fx, fy);
             sxs[i] = fx * w;
             sys[i] = fy * h;
-            char line[32];
-            snprintf(line, sizeof(line), "TAP AND HOLD 1 SECOND  %d/%d", i + 1, TouchFit::TARGETS);
+            char line[48];
+            snprintf(line, sizeof(line), Theme::tr("TAP AND HOLD 1 SECOND  %d/%d", "ЖМИ И ДЕРЖИ 1 СЕКУНДУ  %d/%d"), i + 1, TouchFit::TARGETS);
             status(s, line);
             int16_t ra, rb;
             if (!holdSample(s, readRaw, (int)sxs[i], (int)sys[i], false, 900, ra, rb)) {
-                notice(s, AMBER, "NO TOUCH", "Nothing changed.", nullptr, 1500);
+                notice(s, AMBER, Theme::tr("NO TOUCH", "НЕТ КАСАНИЯ"), Theme::tr("Nothing changed.", "Ничего не изменилось."), nullptr, 1500);
                 t.fillRect(0, 0, w, h, bg);
                 return Outcome::NO_TOUCH;
             }
@@ -404,14 +428,14 @@ Outcome runInteractive(TFT_eSPI& t, RawReader readRaw, uint8_t rot,
         Serial.printf("[touchcal] attempt %d: %s, worst tap %.1f px (limit %.1f)\n",
                       attempt + 1, ok ? "fits" : "does not fit", worst, residualTol);
         if (!ok) {
-            if (attempt == 0) notice(s, AMBER, "ONCE MORE", "A tap slipped.", "Hold each target steady.", 1800);
+            if (attempt == 0) notice(s, AMBER, Theme::tr("ONCE MORE", "ЕЩЁ РАЗ"), Theme::tr("A tap slipped.", "Палец соскользнул."), Theme::tr("Hold each target steady.", "Держи каждую метку ровно."), 1800);
             continue;
         }
 
         // The proof: one more dot, somewhere none of the five were, mapped
         // through the new fit. Shows where it landed either way.
         t.fillRect(0, 0, w, h, bg);
-        status(s, "NOW TAP THE DOT");
+        status(s, Theme::tr("NOW TAP THE DOT", "ТЕПЕРЬ ЖМИ В ТОЧКУ"));
         const int dx = (int)(0.62f * w), dy = (int)(0.32f * h);
         int16_t ra, rb;
         if (!holdSample(s, readRaw, dx, dy, true, 200, ra, rb)) {
@@ -432,15 +456,15 @@ Outcome runInteractive(TFT_eSPI& t, RawReader readRaw, uint8_t rot,
         t.drawLine((int)gx - 6, (int)gy + 6, (int)gx + 6, (int)gy - 6, mark);
         delay(700);
         if (good) {
-            notice(s, GREEN, "TOUCH SET", "Works in every rotation.", nullptr, 1100);
+            notice(s, GREEN, Theme::tr("TOUCH SET", "ТАЧ ГОТОВ"), Theme::tr("Works in every rotation.", "Работает в любом повороте."), nullptr, 1100);
             t.fillRect(0, 0, w, h, bg);
             out = fit;
             return Outcome::SAVED;
         }
-        if (attempt == 0) notice(s, AMBER, "ONCE MORE", "That tap missed the dot.", nullptr, 1600);
+        if (attempt == 0) notice(s, AMBER, Theme::tr("ONCE MORE", "ЕЩЁ РАЗ"), Theme::tr("That tap missed the dot.", "Мимо точки."), nullptr, 1600);
     }
 
-    notice(s, RED, "NOT SAVED", "Touch is unchanged.", "Try again from SETTINGS.", 2200);
+    notice(s, RED, Theme::tr("NOT SAVED", "НЕ СОХРАНЕНО"), Theme::tr("Touch is unchanged.", "Тач без изменений."), Theme::tr("Try again from SETTINGS.", "Попробуй ещё из НАСТРОЕК."), 2200);
     t.fillRect(0, 0, w, h, bg);
     return Outcome::FAILED;
 }

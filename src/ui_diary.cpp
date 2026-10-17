@@ -30,15 +30,19 @@ static void formatDuration(uint32_t ms, char* buf, size_t n) {
 }
 
 static void drawStat(TFT_eSPI& t, int w, int y, int h, const char* label, const char* value) {
+    // Measure and draw in the same face: bodyFontOn leaves the size
+    // wherever the previous screen left it, and a row measured at size 2
+    // but drawn at size 1 lands its label and value on different lines.
     Theme::bodyFontOn(t);
+    t.setTextSize(1);
     t.setTextColor(Theme::CYAN, Theme::BG);
     const bool lru = Theme::isRu(label);
-    if (lru) { t.setTextFont(1); t.setTextSize(1); }
+    if (lru) { t.setTextFont(1); }
     t.setCursor(8, y + (h - t.fontHeight()) / 2);
     if (lru) Theme::printRU(t, label); else t.print(label);
     t.setTextColor(Theme::WHITE, Theme::BG);
     const bool vru = Theme::isRu(value);
-    if (vru && !lru) { t.setTextFont(1); t.setTextSize(1); }
+    if (vru) { t.setTextFont(1); }
     int vw = vru ? Theme::textWidthRU(t, value) : t.textWidth(value);
     t.setCursor(w - 8 - vw, y + (h - t.fontHeight()) / 2);
     if (vru) Theme::printRU(t, value); else t.print(value);
@@ -60,7 +64,7 @@ void uiDiaryTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     // no room for the hint, which the cursor makes unneeded there.
     // 30 on the large panels, whose rows are the 16-row body font.
     const int rowH = Theme::compact() ? 13 : Theme::large() ? 30 : 22;
-    char buf[24];
+    char buf[40];
 
     snprintf(buf, sizeof(buf), "%lu", (unsigned long)eng.lifetimeTotal());
     drawStat(t, w, top + 0 * rowH, rowH, Theme::tr("LIFETIME CATCHES", "НАХОДОК ВСЕГО"), buf);

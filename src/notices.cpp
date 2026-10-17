@@ -13,9 +13,12 @@ namespace Notices {
 
 namespace {
 
-char s_buf[96];
+char s_buf[256];
 
-// The first sentence of a card's text, so it fits a two-line bubble.
+// The first sentence of a card's text, in full: the bubble sizes itself to
+// what he says, so nothing is cut. First sentences are kept short on
+// purpose (about a two-line bubble); the 74-character force-cut that used
+// to live here is gone.
 void firstSentence(const char* text, char* out, size_t cap) {
     size_t n = 0;
     while (text[n] && n + 1 < cap) {
@@ -23,12 +26,14 @@ void firstSentence(const char* text, char* out, size_t cap) {
         if (text[n] == '.' || text[n] == '!' || text[n] == '?') { n++; break; }
         n++;
     }
+    // A cap hit must still land on a character edge, or the bubble draws
+    // half a Cyrillic letter. Only when text remains (a real cut); a
+    // sentence copied whole is already complete.
     out[n] = 0;
-    // Too long for the bubble even so: cut at a word and add a dot.
-    if (n > 74) {
-        size_t k = 70;
-        while (k > 40 && out[k] != ' ') k--;
-        out[k] = '.'; out[k + 1] = 0;
+    if (text[n] != 0) {
+        while (n > 0 && ((uint8_t)out[n - 1] & 0xC0) == 0x80) n--;
+        if (n > 0 && (uint8_t)out[n - 1] >= 0xC0) n--;
+        out[n] = 0;
     }
 }
 
@@ -46,7 +51,7 @@ DetectionType pickType(const DetectionEngine& eng, bool caught) {
 const char* loreLine(const DetectionEngine& eng) {
     const DetectionType t = pickType(eng, true);
     if (t == DetectionType::UNKNOWN) return nullptr;
-    char s[80];
+    char s[160];
     firstSentence(Dex::lore(t), s, sizeof s);
     static const char* const OPENERS[] = { "Did you know? ", "Fun fact. ", "From the DEX: ", "" };
     snprintf(s_buf, sizeof s_buf, "%s%s", OPENERS[random(0, 4)], s);
@@ -56,7 +61,7 @@ const char* loreLine(const DetectionEngine& eng) {
 const char* nudgeLine(const DetectionEngine& eng) {
     const DetectionType t = pickType(eng, false);
     if (t == DetectionType::UNKNOWN) return nullptr;
-    char s[72];
+    char s[144];
     firstSentence(Dex::hint(t), s, sizeof s);
     static const char* const OPENERS[] = { "Card %02u is still blank. %s", "Still no %02u. %s", "No. %02u? Never met one. %s" };
     snprintf(s_buf, sizeof s_buf, OPENERS[random(0, 3)], (unsigned)(Dex::indexOf(t) + 1), s);

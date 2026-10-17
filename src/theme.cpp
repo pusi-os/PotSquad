@@ -393,11 +393,18 @@ void drawListHeading(TFT_eSPI& t, const char* text, uint16_t color) {
     t.setTextColor(color, BG);
     if (text && isRu(text)) {
         // RU headings take the 16px face at size 1: the same 16px line
-        // the size-2 GLCD heading stands.
+        // the size-2 GLCD heading stands. Past the right edge (a long card
+        // heading on a narrow panel) they step down to the 8px face
+        // instead of running off the screen.
         t.setTextFont(1);
         t.setTextSize(1);
-        t.setCursor(8, listHeadingY(t));
-        printRU16(t, text);
+        if (textWidthRU16(t, text) > t.width() - 16) {
+            t.setCursor(8, listHeadingY(t));
+            printRU(t, text);
+        } else {
+            t.setCursor(8, listHeadingY(t));
+            printRU16(t, text);
+        }
     } else {
         t.setTextSize(large() && fontDelta(Settings::FontKind::TEXT) >= 0 ? 2 : 1);
         t.setCursor(8, listHeadingY(t));
@@ -4876,8 +4883,8 @@ void dimRegion(TFT_eSPI& t, int x, int y, int w, int h, uint8_t amount) {
         t.drawFastHLine(x, yy, w, BG);
 }
 
-static char     s_toastHead[18] = {0};
-static char     s_toastSub[22]  = {0};
+static char     s_toastHead[48] = {0};
+static char     s_toastSub[128] = {0};
 static uint16_t s_toastAccent   = 0;
 static uint32_t s_toastUntil    = 0;
 
@@ -4900,16 +4907,31 @@ void drawToast(TFT_eSPI& t, uint32_t now) {
     const bool headCyr = needsRuFace(s_toastHead);
     const bool subCyr = needsRuFace(s_toastSub);
     const int w = t.width(), h = t.height();
-    t.setTextSize(headCyr ? 1 : 2);
-    int bw = (headCyr ? textWidthRU16(t, s_toastHead) : t.textWidth(s_toastHead)) + 30;
+    // The sub wraps to two lines at the body size instead of running off
+    // the box: a 22-byte buffer and a single line used to cut RU subs like
+    // "Включи ПЕРЕДАЧУ в ПотсМеш" mid-word and draw past the frame.
+    char sub[2][48];
+    uint8_t ns = 0;
     if (s_toastSub[0]) {
         bodyFontOn(t);
-        const int sw = (subCyr ? textWidthRU(t, s_toastSub) : t.textWidth(s_toastSub)) + 30;
-        if (sw > bw) bw = sw;
+        t.setTextSize(1);
+        ns = subCyr ? wrapTextRU(t, s_toastSub, w - 20 - 30, sub, 2)
+                    : wrapText(t, s_toastSub, w - 20 - 30, sub, 2);
         bodyFontOff(t);
     }
+    t.setTextSize(headCyr ? 1 : 2);
+    int bw = (headCyr ? textWidthRU16(t, s_toastHead) : t.textWidth(s_toastHead)) + 30;
+    bodyFontOn(t);
+    t.setTextSize(1);
+    for (uint8_t i = 0; i < ns; i++) {
+        const int sw = (subCyr ? textWidthRU(t, sub[i]) : t.textWidth(sub[i])) + 30;
+        if (sw > bw) bw = sw;
+    }
+    bodyFontOff(t);
     if (bw > w - 20) bw = w - 20;
-    const int bh = s_toastSub[0] ? (s_large ? 56 : 48) : 34;
+    const int headH = 16;
+    const int subLH = t.fontHeight() + 2;
+    const int bh = 8 + headH + (ns ? 4 + ns * subLH + 6 : 0) + 6;
     const int bx = (w - bw) / 2, by = (h - bh) / 2;
 
     t.fillRect(bx, by, bw, bh, BG);
@@ -4917,24 +4939,30 @@ void drawToast(TFT_eSPI& t, uint32_t now) {
     t.drawRect(bx + 1, by + 1, bw - 2, bh - 2, blend(s_toastAccent, BG, 160));
 
     t.setTextColor(s_toastAccent, BG);
+    int ty = by + 8;
     if (headCyr) {
         t.setTextSize(1);
-        t.setCursor(bx + (bw - textWidthRU16(t, s_toastHead)) / 2, by + 8);
+        t.setCursor(bx + (bw - textWidthRU16(t, s_toastHead)) / 2, ty);
         printRU16(t, s_toastHead);
     } else {
         t.setTextSize(2);
-        t.setCursor(bx + (bw - t.textWidth(s_toastHead)) / 2, by + 8);
+        t.setCursor(bx + (bw - t.textWidth(s_toastHead)) / 2, ty);
         t.print(s_toastHead);
     }
-    if (s_toastSub[0]) {
+    ty += headH + 4;
+    if (ns) {
         bodyFontOn(t);
+        t.setTextSize(1);
         t.setTextColor(WHITE, BG);
-        if (subCyr) {
-            t.setCursor(bx + (bw - textWidthRU(t, s_toastSub)) / 2, by + 31);
-            printRU(t, s_toastSub);
-        } else {
-            t.setCursor(bx + (bw - t.textWidth(s_toastSub)) / 2, by + 31);
-            t.print(s_toastSub);
+        for (uint8_t i = 0; i < ns; i++) {
+            if (subCyr) {
+                t.setCursor(bx + (bw - textWidthRU(t, sub[i])) / 2, ty);
+                printRU(t, sub[i]);
+            } else {
+                t.setCursor(bx + (bw - t.textWidth(sub[i])) / 2, ty);
+                t.print(sub[i]);
+            }
+            ty += subLH;
         }
         bodyFontOff(t);
     }
@@ -10692,12 +10720,17 @@ static void printRUFace(TFT_eSPI& t, const char* s, const RuFace& f) {
             // System Properties window leave font 2 active, and writing ASCII
             // in font 2 at size 2 drew 32px letters over the row. The RU face
             // owns its ASCII, so it takes the GLCD font for it and gives the
-            // caller's font back.
+            // caller's font back. Glyph-only, like the Cyrillic above: an
+            // opaque space used to paint its whole cell over the scene, so
+            // every space in an RU16 headline showed as a black box.
             const uint8_t keep = t.textsize ? t.textsize : 1;
             const uint8_t keepFont = t.textfont;
+            const uint16_t keepFg = t.textcolor, keepBg = t.textbgcolor;
             if (keepFont != 1) t.setTextFont(1);
             if (keep != f.glcdSize) t.setTextSize(f.glcdSize);
+            t.setTextColor(keepFg);
             t.write((uint8_t)cp);
+            t.setTextColor(keepFg, keepBg);
             if (keep != f.glcdSize) t.setTextSize(keep);
             if (keepFont != 1) t.setTextFont(keepFont);
         } else if (cp >= f.gfx->first && cp <= f.gfx->last) {
@@ -10738,9 +10771,12 @@ int textWidthRU16(TFT_eSPI& t, const char* s) {
 template <size_t N>
 static uint8_t wrapIntoRU(TFT_eSPI& t, const char* text, int maxW,
                           char lines[][N], uint8_t maxLines) {
-    // 320 for the compact 48-letter rows; the large panels' 80-letter
-    // form takes 640, the same split wrapInto() uses for the EN face.
-    char buf[N == 80 ? 640 : 320];
+    // 640 for the compact 48-letter rows (RU lore runs past 320: the MESH
+    // card alone is 436 bytes, and strncpy was silently eating the end of
+    // the sentence before a single word ever got wrapped); the large
+    // panels' 80-letter form takes 1024, the same split wrapInto() uses
+    // for the EN face, scaled for two-byte letters.
+    char buf[N == 80 ? 1024 : 640];
     strncpy(buf, text, sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = 0;
 
