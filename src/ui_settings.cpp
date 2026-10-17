@@ -135,7 +135,11 @@ static const SettingsRow APPEARANCE_ROWS[] = {
     // change, and they were a scroll away on the main list. AURA only
     // appears once it has been earned; see buildDisplayList().
     SettingsRow::POTSY_SIZE, SettingsRow::OUTFIT, SettingsRow::PET,
-    SettingsRow::SHADES_COLOR, SettingsRow::GLASSES, SettingsRow::BANTER, SettingsRow::AURA,
+    SettingsRow::SHADES_COLOR,
+    // The bare look's clothes. Three rows, one palette; they only show on
+    // the NONE outfit, since every costume dresses him its own way.
+    SettingsRow::SHIRT_COLOR, SettingsRow::SHORTS_COLOR, SettingsRow::SHOES_COLOR,
+    SettingsRow::GLASSES, SettingsRow::BANTER, SettingsRow::AURA,
     // Then how the SCREEN looks.
     SettingsRow::THEME, SettingsRow::BACKGROUND, SettingsRow::BACKGROUND_LOCK, SettingsRow::DET_STYLE,
     SettingsRow::BRIGHTNESS,
@@ -252,6 +256,8 @@ static bool isPotsyOnlyRow(SettingsRow r) {
            // SYSTEM in that mode instead of hiding it.
            r == SettingsRow::POTSMESH ||
            r == SettingsRow::SHADES_COLOR || r == SettingsRow::POTSY_SIZE ||
+           r == SettingsRow::SHIRT_COLOR || r == SettingsRow::SHORTS_COLOR ||
+           r == SettingsRow::SHOES_COLOR ||
            r == SettingsRow::OUTFIT ||
            r == SettingsRow::PET || r == SettingsRow::AURA;
 }
@@ -307,6 +313,9 @@ static RowGroupId groupFor(SettingsRow r) {
         case SettingsRow::ROTATION_LOCK:
         case SettingsRow::STATUS_LIGHT:
         case SettingsRow::SHADES_COLOR:
+        case SettingsRow::SHIRT_COLOR:
+        case SettingsRow::SHORTS_COLOR:
+        case SettingsRow::SHOES_COLOR:
         case SettingsRow::GLASSES:
         case SettingsRow::AURA:
         // SIZE, OUTFIT and PET moved onto the APPEARANCE page with the rest of
@@ -495,7 +504,9 @@ static uint8_t buildDisplayList(DisplayItem* out) {
 // later, which is why this beats shrinking the text or truncating it.
 static bool isTwoLineRow(SettingsRow r) {
     return r == SettingsRow::BACKGROUND || r == SettingsRow::DESK_BACKGROUND ||
-           r == SettingsRow::OUTFIT;
+           r == SettingsRow::OUTFIT ||
+           r == SettingsRow::SHIRT_COLOR || r == SettingsRow::SHORTS_COLOR ||
+           r == SettingsRow::SHOES_COLOR;
 }
 
 // The preview's height, from computeGeom(): it depends on the kind shown and
@@ -1434,6 +1445,18 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             break;
         case SettingsRow::SHADES_COLOR:
             label = "SHADES COLOR"; value = Potsy::shadesColorName();
+            break;
+        case SettingsRow::SHIRT_COLOR:
+            label = Theme::tr("SHIRT COLOR", "ЦВЕТ ФУТБОЛКИ");
+            value = Potsy::shirtColorName();
+            break;
+        case SettingsRow::SHORTS_COLOR:
+            label = Theme::tr("SHORTS COLOR", "ЦВЕТ ШОРТ");
+            value = Potsy::shortsColorName();
+            break;
+        case SettingsRow::SHOES_COLOR:
+            label = Theme::tr("SHOES COLOR", "ЦВЕТ КРОССОВОК");
+            value = Potsy::shoesColorName();
             break;
         case SettingsRow::GLASSES:
             // TH3 0N3 owns its shades (round lenses, falling code): the

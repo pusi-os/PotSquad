@@ -174,6 +174,18 @@ namespace Potsy {
     void        cycleNickname();
     const char* shadesColorName();
     void        cycleShadesColor();
+    // The base outfit's colours: a tee, shorts and sneakers, each cycled
+    // through one shared eight-tone palette on the APPEARANCE page. Worn
+    // only by the bare (NONE) look; every costume steps aside for it.
+    const char* shirtColorName();
+    const char* shortsColorName();
+    const char* shoesColorName();
+    void        cycleShirtColor();
+    void        cycleShortsColor();
+    void        cycleShoesColor();
+    uint16_t    shirtColor();
+    uint16_t    shortsColor();
+    uint16_t    shoesColor();
     // Removable glasses: the shades are a separate sprite layer drawn over
     // the base face (Simpson big eyes underneath). Persisted; default ON so
     // the classic look survives the restyle. Settings > GLASSES flips it.

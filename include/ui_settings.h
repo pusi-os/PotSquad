@@ -34,6 +34,9 @@ enum class SettingsRow : uint8_t {
     REPLAY_INTRO,
     SHOW_OFF,
     SHADES_COLOR,
+    SHIRT_COLOR,     // base outfit: the plain look's tee colour
+    SHORTS_COLOR,    // base outfit: its shorts colour
+    SHOES_COLOR,     // base outfit: its sneaker colour
     GLASSES,         // Simpson restyle: removable shades layer, ON/OFF (default ON)
     GODS_MODE,       // one-way unlock: every outfit/pet/shade/stage open
     POTSY_SIZE,

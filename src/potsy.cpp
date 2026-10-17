@@ -632,6 +632,11 @@ static uint32_t s_bestClearMs      = 0;  // longest-ever gap between detections
 static uint32_t s_bestSessionCount = 0;  // most detections seen in one boot
 static uint8_t  s_firstType        = (uint8_t)DetectionType::UNKNOWN;
 static uint8_t  s_shadeIdx         = 0;
+// The base outfit's colours, indices into CLOTH_COLORS: a deep-blue tee,
+// indigo shorts and white sneakers to start.
+static uint8_t  s_shirtIdx         = 1;
+static uint8_t  s_shortsIdx        = 0;
+static uint8_t  s_shoeIdx          = 7;
 static bool     s_glassesOn        = true;   // removable shades layer; Simpson eyes show when off
 static bool     s_godsMode         = false;  // one-way: everything unlocked, see enableGodsMode()
 #if POTS_MESH
@@ -1077,9 +1082,16 @@ static const char* const JUGGLE_LINES[] = {
     "Juggling the evidence.",
 };
 
+// The curated names, cycled on the payphone and shown on the nameplate.
+// Short on purpose (the tag has a fixed height and gets wider with every
+// letter), a mix of punks with a Simpsons / South Park / Rick and Morty
+// streak, plus a few Russian ones for the RU default. Both scripts render:
+// the nameplate goes through Theme::printRU(), which falls back to the
+// glcd for ASCII and to the 8px RU face for Cyrillic.
 static const char* const NICKNAMES[] = {
-    "POTSY", "BIGSY", "FOOTS", "STOMPER", "SHADOW",
-    "TRACKER", "CHONK", "WOODS", "YETI", "SASSY",
+    "POTS", "BART", "MILHOUSE", "NELSON", "KRUSTY",
+    "KENNY", "CARTMAN", "MORTY", "PICKLE", "SIGMA",
+    "RIZZ", "SUSSY", "ЧУВАК", "КОРЕШ", "СИГМА", "ЛЕГЕНДА",
 };
 static const uint8_t NICKNAMES_N = sizeof(NICKNAMES) / sizeof(NICKNAMES[0]);
 
@@ -1088,6 +1100,26 @@ static const uint8_t NICKNAMES_N = sizeof(NICKNAMES) / sizeof(NICKNAMES[0]);
 static const char* const SHADE_NAMES[] = { "CYAN", "PINK", "GREEN", "PURPLE" };
 static const char* const SHADE_RU[] = { "ГОЛУБЫЕ", "РОЗОВЫЕ", "ЗЕЛЁНЫЕ", "ФИОЛЕТ" };
 static const uint8_t SHADE_NAMES_N = sizeof(SHADE_NAMES) / sizeof(SHADE_NAMES[0]);
+
+// The base outfit's palette: eight deep tones that all sit on his yellow
+// and beside each other, so any shirt/shorts/shoe combination is
+// guaranteed to harmonise. Shared by all three rows; each garment keeps
+// its own index into it.
+static const uint16_t CLOTH_COLORS[] = {
+    (uint16_t)0x4810,  // INDIGO
+    (uint16_t)0x19D1,  // BLUE
+    (uint16_t)0xC0B1,  // MAGENTA
+    (uint16_t)0x0BEF,  // TEAL
+    (uint16_t)0xC143,  // CRIMSON
+    (uint16_t)0x69F3,  // PURPLE
+    (uint16_t)0xE301,  // ORANGE
+    (uint16_t)0xFFFF,  // WHITE
+};
+static const char* const CLOTH_NAMES[] = { "INDIGO", "BLUE", "MAGENTA", "TEAL",
+                                           "CRIMSON", "PURPLE", "ORANGE", "WHITE" };
+static const char* const CLOTH_RU[]    = { "ИНДИГО", "СИНИЙ", "МАДЖЕНТА", "БИРЮЗА",
+                                           "МАЛИНОВЫЙ", "ФИОЛЕТОВЫЙ", "ОРАНЖ", "БЕЛЫЙ" };
+static const uint8_t CLOTH_N = sizeof(CLOTH_COLORS) / sizeof(CLOTH_COLORS[0]);
 
 static uint8_t unlockedShadeCount() {
     if (s_godsMode) return 4;
@@ -1519,6 +1551,9 @@ static void ensurePrefsLoaded() {
     s_bestSessionCount = s_petPrefs.getUInt("bestSess", 0);
     s_firstType       = s_petPrefs.getUChar("firstType", (uint8_t)DetectionType::UNKNOWN);
     s_shadeIdx        = s_petPrefs.getUChar("shadeIdx", 0);
+    s_shirtIdx        = s_petPrefs.getUChar("shirtIdx", 1);
+    s_shortsIdx       = s_petPrefs.getUChar("shortsIdx", 0);
+    s_shoeIdx         = s_petPrefs.getUChar("shoeIdx", 7);
     s_glassesOn       = s_petPrefs.getBool("glasses", true);
     s_godsMode        = s_petPrefs.getBool("gods", false);
 #if POTS_MESH
@@ -2506,6 +2541,20 @@ void cycleShadesColor() {
     s_shadeIdx = (s_shadeIdx + 1) % unlocked;
     s_petPrefs.putUChar("shadeIdx", s_shadeIdx);
 }
+
+// ---- base outfit colours ------------------------------------------------
+// Three independent indices over one shared palette. Unlike the shades,
+// none of these is gated: a bare Potsy should be able to dress however he
+// likes from the first boot.
+const char* shirtColorName()  { ensurePrefsLoaded(); return Theme::tr(CLOTH_NAMES[s_shirtIdx  % CLOTH_N], CLOTH_RU[s_shirtIdx  % CLOTH_N]); }
+const char* shortsColorName() { ensurePrefsLoaded(); return Theme::tr(CLOTH_NAMES[s_shortsIdx % CLOTH_N], CLOTH_RU[s_shortsIdx % CLOTH_N]); }
+const char* shoesColorName()  { ensurePrefsLoaded(); return Theme::tr(CLOTH_NAMES[s_shoeIdx   % CLOTH_N], CLOTH_RU[s_shoeIdx   % CLOTH_N]); }
+uint16_t shirtColor()  { ensurePrefsLoaded(); return CLOTH_COLORS[s_shirtIdx  % CLOTH_N]; }
+uint16_t shortsColor() { ensurePrefsLoaded(); return CLOTH_COLORS[s_shortsIdx % CLOTH_N]; }
+uint16_t shoesColor()  { ensurePrefsLoaded(); return CLOTH_COLORS[s_shoeIdx   % CLOTH_N]; }
+void cycleShirtColor()  { ensurePrefsLoaded(); s_shirtIdx  = (uint8_t)((s_shirtIdx  + 1) % CLOTH_N); s_petPrefs.putUChar("shirtIdx",  s_shirtIdx); }
+void cycleShortsColor() { ensurePrefsLoaded(); s_shortsIdx = (uint8_t)((s_shortsIdx + 1) % CLOTH_N); s_petPrefs.putUChar("shortsIdx", s_shortsIdx); }
+void cycleShoesColor()  { ensurePrefsLoaded(); s_shoeIdx   = (uint8_t)((s_shoeIdx   + 1) % CLOTH_N); s_petPrefs.putUChar("shoeIdx",   s_shoeIdx); }
 
 bool glassesOn() { ensurePrefsLoaded(); return s_glassesOn; }
 void toggleGlasses() { ensurePrefsLoaded(); s_glassesOn = !s_glassesOn; s_petPrefs.putBool("glasses", s_glassesOn); }
@@ -6674,7 +6723,11 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             // bow's or howl's head offset both move the head, and an outline
             // left at the base position showed as a black cap above a bowed
             // head.
-            t.fillRoundRect(cx2 - S(16), hy + s_headDrop + actHead - S(1), S(32), S(26), S(8), keyCol);
+            // One unit proud of the head fill's own half-width (12 now), so the
+            // outline stays a hairline rather than the thick ring it became
+            // when the head was narrowed and this copy was left at the old
+            // width.
+            t.fillRoundRect(cx2 - S(13), hy + s_headDrop + actHead - S(1), S(26), S(26), S(5), keyCol);
         if (robeEnd < hy + S(22) + S(20))
             t.fillRoundRect(cx2 - S(torsoHalf() + 1), hy + S(22), S(2 * torsoHalf() + 2), S(20), S(6), keyCol);
     }
@@ -6840,21 +6893,19 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     if (!torsoHidden)
         t.fillRoundRect(cx2 - S(torsoHalf()), hy + S(23), S(2 * torsoHalf()), S(18), S(5), furMain);
 
-    // ---- base clothing -------------------------------------------------
-    // A plain t-shirt and shorts, so he is not bare under a hat-only
-    // costume. Drawn from his OWN palette -- a light tint for the shirt, a
-    // dark one for the shorts -- so every costume that recolours his fur
-    // takes the clothes with it and none of them clash; the outfits that
-    // dress the torso themselves (SPACE, the bros, PARKA, YZZERD, the gi)
-    // draw over this a few lines below. Skipped wherever the bare torso is
-    // skipped, so a robe or a gi never shows a shirt under it.
-    if (!torsoHidden) {
+    // ---- base outfit ---------------------------------------------------
+    // The bare look's clothes: a tee, shorts and sneakers in the colours
+    // picked on the APPEARANCE page. ONLY the NONE outfit wears them --
+    // every costume dresses or recolours him its own way (VOID EYE, for
+    // one, wants bare legs), so the base outfit steps aside entirely
+    // rather than fighting the costume for the same pixels.
+    if (outfitNow == OutfitId::NONE) {
         const int th = torsoHalf();
-        const uint16_t teeC   = blend(furMain, WHITE, 120);
-        const uint16_t teeDk  = blend(furMain, BLACK, 60);
-        const uint16_t shrtC  = blend(furMain, BLACK, 118);
-        const uint16_t shrtDk = blend(furMain, BLACK, 168);
-        // Shirt: shoulders to the waist, with a collar and a hem line.
+        const uint16_t teeC   = shirtColor();
+        const uint16_t teeDk  = blend(teeC, BLACK, 90);
+        const uint16_t shrtC  = shortsColor();
+        const uint16_t shrtDk = blend(shrtC, BLACK, 90);
+        // Tee: shoulders to the waist, with a collar and a hem line.
         t.fillRoundRect(cx2 - S(th), hy + S(23), S(2 * th), S(12), S(3), teeC);
         t.fillRect(cx2 - S(th), hy + S(23), S(2 * th), S(1) + 1, teeDk);
         t.fillRect(cx2 - S(th), hy + S(34), S(2 * th), S(1) + 1, teeDk);
@@ -6864,6 +6915,17 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         t.fillRect(cx2 - S(th), hy + S(35), S(2 * th), S(1) + 1, shrtDk);
         // A centre seam, so the shorts read as two legs rather than a skirt.
         t.fillRect(cx2 - 1, hy + S(38), 2, S(9), shrtDk);
+        // Sneakers over the feet, wherever the current pose put them.
+        const uint16_t shoeC  = shoesColor();
+        const uint16_t shoeDk = blend(shoeC, BLACK, 70);
+        for (int k = 0; k < 2; k++) {
+            const int fx = k == 0 ? s_footLx : s_footRx;
+            const int fy = k == 0 ? s_footLy : s_footRy;
+            t.fillRoundRect(fx - kb, fy - kb, S(12) + 2 * kb, S(6) + 2 * kb, 3, keyCol);
+            t.fillRoundRect(fx, fy, S(12), S(6), 2, shoeC);
+            t.fillRect(fx, fy + S(6) - S(2), S(12), S(2), shoeDk);          // sole
+            t.drawFastHLine(fx + S(1), fy + S(1), S(4), shoeDk);            // lace mark
+        }
     }
     // No highlight down the sides. There used to be a light strip down each
     // edge, exactly under where the arms hang, so it was invisible at rest and
@@ -7249,6 +7311,29 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         t.fillRoundRect(cx2 + S(10), hy + S(22) + armSwingR, S(8), S(22), S(3), furLight);
     }
 
+    // The base tee's short sleeves, over each shoulder. Drawn after the arm
+    // chain, which has recorded both arms' endpoints by now, so a raised arm
+    // takes its sleeve with it instead of leaving it hanging at the old spot.
+    if (outfitNow == OutfitId::NONE) {
+        const uint16_t teeC  = shirtColor();
+        const uint16_t teeDk = blend(teeC, BLACK, 90);
+        const int sw = S(9);
+        for (int k = 0; k < 2; k++) {
+            const int x0 = k == 0 ? s_armL0x : s_armR0x, y0 = k == 0 ? s_armL0y : s_armR0y;
+            const int x1 = k == 0 ? s_armL1x : s_armR1x, y1 = k == 0 ? s_armL1y : s_armR1y;
+            const int mx = x0 + (x1 - x0) * 3 / 10;
+            const int my = y0 + (y1 - y0) * 3 / 10;
+            wideLine(t, x0, y0, mx, my, sw, teeC);
+            const float dx = (float)(x1 - x0), dy = (float)(y1 - y0);
+            const float ln = sqrtf(dx * dx + dy * dy);
+            if (ln > 0.1f) {   // cuff line, square across the sleeve end
+                const float px = -dy / ln, py = dx / ln;
+                wideLine(t, mx - px * sw * 0.5f, my - py * sw * 0.5f,
+                            mx + px * sw * 0.5f, my + py * sw * 0.5f, S(1), teeDk);
+            }
+        }
+    }
+
     // ---- PARKA's hood shell ----------------------------------------------
     // Drawn HERE: after every arm and shoulder, before his head. In the
     // garment slot it went on before the sleeves, so their outlines were
@@ -7344,17 +7429,17 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         }
     }
 
-    // Head — narrower (half-width 13, was 15 two passes ago) and squarer:
-    // the corner radii pulled in so the skull reads as a rounded box, the
-    // Simpson way, rather than an oval. Ears, cheeks and mouth below moved
-    // in with the edge; eyes, nose, shades and every outfit's headgear keep
-    // their absolute anchors.
-    t.fillRoundRect(cx2 - S(13), hh, S(26), S(24), S(5), furLight);
+    // Head — narrower again (half-width 12, was 13, and 15 before that) and
+    // squarer: the corner radii pulled in so the skull reads as a rounded
+    // box, the Simpson way, rather than an oval. Ears, cheeks and mouth
+    // below moved in with the edge; eyes, nose, shades and every outfit's
+    // headgear keep their absolute anchors.
+    t.fillRoundRect(cx2 - S(12), hh, S(24), S(24), S(4), furLight);
     // The ring between the skull and the muzzle: once his saturated yellow,
     // now a light tint of it, so the band around the eyes that runs down to
     // the cheeks sits close to the face instead of reading as a dark mask.
-    t.fillRoundRect(cx2 - S(10), hh + S(2), S(20), S(19), S(4), blend(furMain, furLight, 150));
-    t.fillRoundRect(cx2 - S(8),  hh + S(7), S(16), S(11), S(3),
+    t.fillRoundRect(cx2 - S(9), hh + S(2), S(18), S(19), S(3), blend(furMain, furLight, 150));
+    t.fillRoundRect(cx2 - S(7),  hh + S(7), S(14), S(11), S(3),
                      outfitNow == OutfitId::SHAMBLER ? SH_SKIN : SKIN_TAN);
 
     // A cowlick, plus a couple of smaller shaggy fringe tufts either side.
@@ -7412,33 +7497,34 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         t.fillTriangle(cx2 + S(5),  hh + S(3), cx2 + S(9), hh - S(4), cx2 + S(13),hh + S(3), furLight);
     }
 
-    // Ears — upright ellipses hugging the narrower face, with a dark ring
-    // and a yellow centre instead of a solid dark dot. Same centres as
-    // before, so the headset cups still sit on them either way.
+    // Ears — small upright ellipses hugging the narrower face. Outer in his
+    // own yellow, inner only a shade darker, so they read as ears without
+    // the strong dark ring they had; moved in with the edge of the head.
     {
-        const int erx = (S(4) * 9) / 10, ery = (S(4) * 14) / 10;
+        const int erx = (S(4) * 7) / 10, ery = (S(4) * 11) / 10;
         for (int8_t sg = -1; sg <= 1; sg += 2) {
-            const int ex = cx2 + sg * S(13);
+            const int ex = cx2 + sg * S(12);
             t.fillEllipse(ex, hh + S(13), erx, ery, furMain);
-            t.fillEllipse(ex, hh + S(13), (erx * 8) / 10, (ery * 8) / 10, SKIN_DARK);
-            t.fillEllipse(ex, hh + S(13), (erx * 6) / 10, (ery * 6) / 10, furMain);
+            t.fillEllipse(ex, hh + S(13), (erx * 6) / 10, (ery * 6) / 10,
+                          blend(furMain, SKIN_DARK, 70));
         }
     }
 
-    // Cheeks — a light, warm Simpson shading rather than blush: furMain
-    // only barely walked toward the ear's dark tone now, so they sit close
-    // to the face's own yellow. Not on SHAMBLER: nothing about him glows.
+    // Cheeks — a light, warm Simpson shading with a rounded-rectangle
+    // outline, close to the face's own yellow and squarer to match the rest
+    // of him. Not on SHAMBLER: nothing about him glows.
     if (outfitNow != OutfitId::SHAMBLER) {
-        const uint16_t cheek = blend(furMain, SKIN_DARK, 34);
-        t.fillCircle(cx2 - S(7), hh + S(15), S(2) + 1, cheek);
-        t.fillCircle(cx2 + S(7), hh + S(15), S(2) + 1, cheek);
+        const uint16_t cheek = blend(furMain, SKIN_DARK, 20);
+        const int cw = S(4), ch2 = S(4);
+        t.fillRoundRect(cx2 - S(7) - cw / 2, hh + S(13), cw, ch2, S(1), cheek);
+        t.fillRoundRect(cx2 + S(7) - cw / 2, hh + S(13), cw, ch2, S(1), cheek);
     }
 
-    // Nose — a light knob with its own keyline, so it reads against the
-    // muzzle instead of melting into it. Hidden behind the shades while
-    // they are on, like the rest of the muzzle.
-    t.fillEllipse(cx2, hh + S(12), S(2) + 1, S(1) + 2, BLACK);
-    t.fillEllipse(cx2, hh + S(12), S(2), S(1) + 1, furLight);
+    // Nose — a small rounded rectangle with its own keyline, so it reads
+    // against the muzzle instead of melting into it. Hidden behind the
+    // shades while they are on, like the rest of the muzzle.
+    t.fillRoundRect(cx2 - S(2) - 1, hh + S(11), S(4) + 2, S(3) + 2, S(1), BLACK);
+    t.fillRoundRect(cx2 - S(2), hh + S(12), S(4), S(3), S(1), furLight);
 
     // Where the shades are, for the scouter's tap. Our own Potsy only.
     if (s_outfitOverride < 0) {
@@ -7582,9 +7668,9 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             // Smaller and squarer than the tall ovals they were, so they sit
             // in the face like the rest of him, with a pair of tiny lashes on
             // each outer top corner.
-            const int eex = S(7) / 2;      // centre offset from the nose
-            const int erx = S(5) / 2;      // half width
-            const int ery = S(6) / 2;      // half height
+            const int eex = (S(7) + S(1)) / 2;   // centre offset from the nose
+            const int erx = S(5) / 2;            // half width
+            const int ery = S(5) / 2;            // half height
             if (blink) {
                 t.drawLine(cx2 - eex - erx, hh + S(9), cx2 - eex + erx, hh + S(9), BLACK);
                 t.drawLine(cx2 + eex - erx, hh + S(9), cx2 + eex + erx, hh + S(9), BLACK);
@@ -7817,7 +7903,10 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     if (s_nameTag) {
         t.setTextSize(1);
         t.setTextWrap(false);
-        const int tw = t.textWidth(s_nameTag);
+        // Measured and drawn through the RU helpers: a Cyrillic name would
+        // come out blank through the glcd, and its byte length is not its
+        // width, so the sticker would be sized wrong besides.
+        const int tw = Theme::textWidthRU(t, s_nameTag);
         const int bw = tw + 6, bh = 12;
         const int bx = cx2 - bw / 2;
         const int by = hy + S(32) - bh / 2;   // mid-chest, clear of the chin
@@ -7827,7 +7916,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         t.fillRect(bx, by, bw, 2, (uint16_t)0xD945);   // the red band along the top
         t.setTextColor(BLACK, paper);
         t.setCursor(bx + 3, by + 3);
-        t.print(s_nameTag);
+        Theme::printRU(t, s_nameTag);
     }
 }
 
