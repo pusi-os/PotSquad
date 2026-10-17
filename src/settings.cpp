@@ -21,6 +21,10 @@ static bool        s_colorChecked = false;
 static bool        s_meshDetect   = false;
 static bool        s_meshTransmit = false;
 static bool        s_meshConsent  = false;
+// Which radio PusiMesh rides on: 0 BLE (default), 1 ESP-NOW. Stored as a byte
+// rather than the enum so settings.cpp does not have to include the enum's
+// definition order; setMeshRadio() is the only writer.
+static uint8_t     s_meshRadio    = 0;
 static bool        s_phoneQwerty  = false;
 static bool        s_phoneQwertyRu = false;
 static bool        s_messagesOn   = false;
@@ -514,6 +518,8 @@ void load() {
     s_deskFullVisit = s_prefs.getBool("dskvisit", false);
     s_meshTransmit = s_prefs.getBool("meshtx", false);
     s_meshConsent  = s_prefs.getBool("meshok", false);
+    s_meshRadio    = s_prefs.getUChar("meshradio", 0);
+    if (s_meshRadio > 1) s_meshRadio = 0;   // a leftover value falls back to BLE
     s_phoneQwerty  = s_prefs.getBool("qwerty", false);
     s_messagesOn   = s_prefs.getBool("msgon", false);
     s_meshHeadsUp  = s_prefs.getBool("headsup", true);
@@ -1086,6 +1092,17 @@ void cycleDeskCrowd() {
 
 void cycleMeshDetect()   { s_meshDetect   = !s_meshDetect;   s_prefs.putBool("meshrx", s_meshDetect); }
 void cycleMeshTransmit() { s_meshTransmit = !s_meshTransmit; s_prefs.putBool("meshtx", s_meshTransmit); }
+
+Settings::MeshRadio meshRadio() { return (Settings::MeshRadio)s_meshRadio; }
+void setMeshRadio(MeshRadio r) {
+    s_meshRadio = (uint8_t)r;
+    s_prefs.putUChar("meshradio", s_meshRadio);
+}
+// BLE and ESP-NOW, never abbreviated further: the menu row already carries
+// PUSIMESH above it, and these two words are the whole value.
+const char* meshRadioLabel() {
+    return s_meshRadio == 0 ? Theme::tr("BLE", "BLE") : Theme::tr("ESP-NOW", "ESP-NOW");
+}
 
 const char* meshSummary() {
     // Never bare "ON"/"OFF", and always with the arrow.

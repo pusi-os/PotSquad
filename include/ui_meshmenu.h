@@ -23,10 +23,20 @@ class DetectionEngine;
 
 // What a tap landed on. NONE means it hit a gap.
 // In the order they are drawn -- the hit test maps a row index straight onto
-// this, so the two orders must never differ.
-enum class MeshMenuRow : uint8_t { DETECT, TRANSMIT, MESSAGES, HEADSUP, CROWD, SQUAD, PHRASE, NAME, BACK, NONE };
+// this, so the two orders must never differ. TRANSPORT is the ninth row; the
+// two CONFIRM values are returned instead of a row while the switch-to-ESP-NOW
+// warning is up.
+enum class MeshMenuRow : uint8_t { DETECT, TRANSMIT, MESSAGES, HEADSUP, CROWD, SQUAD, PHRASE, NAME, TRANSPORT, BACK, NONE, CONFIRM_YES, CONFIRM_NO };
 
 void uiMeshMenuInit(TFT_eSPI& t);
+
+// The switch-to-ESP-NOW warning. Raising it draws the explanation over the
+// menu; the menu is on screen the whole time (nothing changes until YES), so
+// the caller raises it, and the hit test answers CONFIRM_YES / CONFIRM_NO
+// until it ends.
+void uiMeshMenuStartConfirm();
+void uiMeshMenuEndConfirm();
+bool uiMeshMenuConfirming();
 // Rows, on a screen too short to show all of them at once (the StickS3).
 void uiMeshMenuScroll(int delta);
 // Takes the engine only for the backdrop: THE GIBSON reads the log and the

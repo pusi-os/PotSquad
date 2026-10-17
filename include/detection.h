@@ -293,6 +293,13 @@ public:
     // stopUpdateRadio(). Call startUpdateRadio() BEFORE OtaBle::begin().
     void     startUpdateRadio();
     void     stopUpdateRadio();
+    // Hand the squad radio to the transport Settings::meshRadio() names, and
+    // take it back. BLE is the default and detection keeps the antenna; ESP-NOW
+    // stops the BLE scan and advertising, so DETECTION IS PAUSED while it runs
+    // (that is the trade the menu warns about). Idempotent, and a no-op while
+    // an update owns the radio -- whoever asked for the update gets it back
+    // when stopUpdateRadio() re-applies the setting.
+    void     applyMeshRadio();
     // The watch's duty cycle: WiFi off (and BLE scanning too, if asked)
     // until wakeRadios(). False when something else owns the radio.
     bool     restRadios(bool bleToo);

@@ -168,6 +168,7 @@ const uint8_t* DetectionEngine::rawWifiBssid(uint8_t) const { return nullptr; }
 void DetectionEngine::stopRawScan() {}
 void DetectionEngine::startUpdateRadio() {}
 void DetectionEngine::stopUpdateRadio() {}
+void DetectionEngine::applyMeshRadio() {}
 
 // ---- watch / hunt ----------------------------------------------------
 void DetectionEngine::watchBle(const uint8_t* mac, const char* name) {

@@ -1055,7 +1055,14 @@ int main(int argc, char** argv) {
             uiBingoHitTest(frame, bar.x[1] + bar.w[1] / 2, bar.y + bar.h / 2, frame.width(), frame.height());
         }
     }
-    else if (screen == "meshmenu")   uiMeshMenuInit(frame);
+    else if (screen == "meshmenu") {
+        uiMeshMenuInit(frame);
+        // POTSSIM_MESHSCROLL=n: show the list scrolled, for the rows that a
+        // short landscape screen cannot fit. POTSSIM_MESHCONFIRM=1: raise the
+        // switch-to-ESP-NOW warning, which is otherwise two taps deep.
+        if (const char* s = getenv("POTSSIM_MESHSCROLL")) uiMeshMenuScroll(atoi(s));
+        if (getenv("POTSSIM_MESHCONFIRM")) uiMeshMenuStartConfirm();
+    }
     else if (screen == "roster" || screen == "squad") {
         // Three members, through the real paths: an advert each so Mesh knows
         // their look, then a sealed HELLO each so MeshTalk puts them on the

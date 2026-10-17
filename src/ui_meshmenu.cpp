@@ -17,7 +17,12 @@ namespace {
 // Under the heading. Asked at draw time: the heading grows on the large
 // panels, and that is only known once setLarge() has run at boot.
 int topMargin() { return Theme::LIST_TOP + Theme::listHeadingH(); }
-const uint8_t ROW_N = 8;     // BACK is pinned to the bottom edge now, not a row
+const uint8_t ROW_N = 9;     // BACK is pinned to the bottom edge now, not a row
+
+// The switch-to-ESP-NOW warning. Drawn over the menu, so nothing the setting
+// does happens until YES; the hit test answers CONFIRM_* while it is up.
+bool s_confirm = false;
+int  s_cYesX = 0, s_cYesY = 0, s_cNoX = 0, s_cNoY = 0, s_cBW = 0, s_cBH = 0;
 
 // Row height from live font metrics, shared by drawing and hit-testing so
 // the two cannot drift -- the same reason every other row list in this
@@ -75,9 +80,73 @@ void row(TFT_eSPI& t, int w, int y, int hgt, const char* label,
     t.setTextFont(1);
 }
 
+// The switch-to-ESP-NOW warning: what changes, and why it costs detection. It
+// is not a yes/no for its own sake -- ESP-NOW really does park the BLE scan, so
+// the owner is told that before the radio moves, not after he notices the log
+// has gone quiet.
+void drawConfirm(TFT_eSPI& t, int w, int h) {
+    const bool ru = Settings::lang() == 1;
+    const int px = 14, pw = w - 2 * px;
+    const int py = Theme::LIST_TOP + 4;
+    const int ph = h - py - 34;
+    t.fillRoundRect(px, py, pw, ph, 6, Theme::BLACK);
+    t.drawRoundRect(px, py, pw, ph, 6, Theme::AMBER);
+
+    const uint8_t keepF = t.textfont;
+    Theme::bodyFontOn(t);
+    int y = py + 6;
+    // Heading.
+    t.setTextColor(Theme::AMBER, Theme::BLACK);
+    {
+        const char* head = Theme::tr("SWITCH TO ESP-NOW?", "ПЕРЕЙТИ НА ESP-NOW?");
+        const int tw = ru ? Theme::textWidthRU(t, head) : t.textWidth(head);
+        t.setCursor(px + (pw - tw) / 2, y);
+        if (ru) Theme::printRU(t, head); else t.print(head);
+    }
+    y += t.fontHeight() + 4;
+
+    // Body, wrapped to the panel.
+    t.setTextColor(Theme::WHITE, Theme::BLACK);
+    const char* body = Theme::tr(
+        "ESP-NOW uses the WiFi radio. While it is on the BLE scan stands down, "
+        "so DETECTION IS PAUSED -- new cameras, tags and trackers will not be "
+        "caught. The squad still works, and reaches further. Switch back to BLE "
+        "to detect again.",
+        "ESP-NOW использует радиомодуль WiFi. Пока он включён, BLE-сканирование "
+        "останавливается, и ПОИСК ПРИОСТАНАВЛИВАЕТСЯ — новые камеры, метки и "
+        "трекеры не будут найдены. Сквад продолжит работать, с большей "
+        "дальностью. Верните BLE, чтобы снова искать.");
+    const uint8_t linesMax = 9;
+    char lines[9][80];   // the wide variant: RU lines are two bytes a letter
+    const uint8_t n = ru ? Theme::wrapTextRU(t, body, pw - 12, lines, linesMax)
+                         : Theme::wrapText(t, body, pw - 12, lines, linesMax);
+    for (uint8_t i = 0; i < n; i++) {
+        t.setCursor(px + 6, y);
+        if (ru) Theme::printRU(t, lines[i]); else t.print(lines[i]);
+        y += t.fontHeight() + 1;
+    }
+    if (ru) t.setTextFont(keepF);
+    Theme::bodyFontOff(t);
+
+    // Buttons, side by side at the foot of the panel.
+    s_cBW = (pw - 24) / 2;
+    s_cBH = Theme::large() ? 30 : 22;
+    const int by = py + ph - s_cBH - 8;
+    s_cYesX = px + 8;                 s_cYesY = by;
+    s_cNoX  = px + 12 + s_cBW;        s_cNoY  = by;
+    Theme::drawButton(t, s_cYesX, s_cYesY, s_cBW, s_cBH,
+                      Theme::tr("[ SWITCH ]", "[ ПЕРЕКЛЮЧИТЬ ]"), true);
+    Theme::drawButton(t, s_cNoX, s_cNoY, s_cBW, s_cBH,
+                      Theme::tr("[ KEEP BLE ]", "[ ОСТАТЬСЯ BLE ]"), false);
+}
+
 } // namespace
 
 void uiMeshMenuScroll(int delta) { g_scroll += delta; if (g_scroll < 0) g_scroll = 0; }
+
+void uiMeshMenuStartConfirm() { s_confirm = true; }
+void uiMeshMenuEndConfirm()   { s_confirm = false; }
+bool uiMeshMenuConfirming()   { return s_confirm; }
 
 void uiMeshMenuInit(TFT_eSPI& t) {
     t.fillRect(0, 0, t.width(), t.height(), Theme::BG);
@@ -94,6 +163,10 @@ void uiMeshMenuTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     Theme::dimRegion(t, 0, 0, w, h, 128);
 
     Theme::drawListHeading(t, "PUSIMESH", Theme::VAPOR_PINK);
+
+    // The warning replaces the list, not sits beside it: nothing about the
+    // radio moves until YES, and a warning you can tap past is not one.
+    if (s_confirm) { drawConfirm(t, w, h); return; }
 
     int top, rowH;
     geom(t, top, rowH);
@@ -140,6 +213,10 @@ void uiMeshMenuTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
         MeshTalk::havePhrase() ? Theme::tr("SET >", "ЕСТЬ >") : Theme::tr("NONE >", "НЕТ >"),
         MeshTalk::havePhrase() ? Theme::VAPOR_YELLOW : Theme::W95_SHADOW);
     row(t, w, rowY(7), rowH, Theme::tr("NAME", "ИМЯ"),     nm, Theme::VAPOR_YELLOW);
+    // Which radio the squad rides on. Coloured when ESP-NOW is on, because
+    // that is the state worth noticing: detection is paused while it is.
+    row(t, w, rowY(8), rowH, Theme::tr("TRANSPORT", "ТРАНСПОРТ"), Settings::meshRadioLabel(),
+        Settings::meshRadio() == Settings::MeshRadio::ESPNOW ? Theme::VAPOR_BLUE : Theme::W95_SHADOW);
 
     // One line saying what the two switches actually mean together, because
     // "DETECT off, TRANSMIT on" is not self-evidently "they can see you but
@@ -228,6 +305,14 @@ void uiMeshMenuTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
 
 MeshMenuRow uiMeshMenuHitTest(TFT_eSPI& t, int x, int y, int screenW, int screenH) {
     (void)screenW; (void)screenH;
+    // While the warning is up it owns every tap: two buttons, or nothing.
+    if (s_confirm) {
+        if (x >= s_cYesX && x <= s_cYesX + s_cBW && y >= s_cYesY && y <= s_cYesY + s_cBH)
+            return MeshMenuRow::CONFIRM_YES;
+        if (x >= s_cNoX && x <= s_cNoX + s_cBW && y >= s_cNoY && y <= s_cNoY + s_cBH)
+            return MeshMenuRow::CONFIRM_NO;
+        return MeshMenuRow::NONE;
+    }
     int top, rowH;
     geom(t, top, rowH);
     if (x < 0 || y < top) return MeshMenuRow::NONE;

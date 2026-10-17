@@ -562,6 +562,17 @@ namespace Settings {
     void        cycleMeshTransmit();
     // For the one-line summary on the Settings row that opens the menu.
     const char* meshSummary();
+    // Which radio carries PusiMesh. BLE is what the firmware always had --
+    // peer-to-peer adverts, and the same scan doubles as the detector's, so
+    // nothing is lost. ESP-NOW puts the squad on WiFi instead: more range and
+    // a real ACK per frame, but the WiFi radio takes the antenna and the BLE
+    // scan has to stand down, which parks DETECTION while it runs. Switching
+    // TO ESP-NOW is warned about first (see the PUSIMESH menu); switching
+    // back needs no warning because it gives the radio back.
+    enum class MeshRadio : uint8_t { BLE = 0, ESPNOW = 1 };
+    MeshRadio   meshRadio();
+    const char* meshRadioLabel();
+    void        setMeshRadio(MeshRadio r);
     // Which board the payphone screen shows. The keypad is the default and
     // the point; QWERTY is the bailout for people who hate multi-tap, and it
     // is remembered because somebody who hates it hates it every time.

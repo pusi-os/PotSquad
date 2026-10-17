@@ -5941,6 +5941,10 @@ void loop() {
 #if POTS_MESH
     MeshProbe::tick(now);
     Mesh::tick(now);
+    // Idempotent: hands the radio to ESP-NOW when the setting says so, and
+    // back to BLE when it does not. Every loop so an NVS change takes without
+    // a reboot; the menu also calls it the instant the row is tapped.
+    engine.applyMeshRadio();
     MeshTalk::tick(now);
     {
         char who[13];
@@ -8054,7 +8058,10 @@ void loop() {
         }
         case AppState::MESH_MENU: {
             drawTwoBand([&](TFT_eSPI& t, bool advance) { uiMeshMenuTick(t, now, engine, advance); });
-            if (touchJustDown && Theme::pinnedBackHit(tp.x, tp.y, canvas->width(), canvas->height())) {
+            // BACK is out while the ESP-NOW warning is up: the two buttons are
+            // the only answers, the same as any other confirmation here.
+            if (touchJustDown && !uiMeshMenuConfirming() &&
+                Theme::pinnedBackHit(tp.x, tp.y, canvas->width(), canvas->height())) {
                 lastTouch = now;
                 enterSettings();
                 break;
@@ -8088,6 +8095,25 @@ void loop() {
                     case MeshMenuRow::SQUAD:    enterSquad(true);              break;
                     case MeshMenuRow::PHRASE:   enterMeshPhrase();             break;
                     case MeshMenuRow::NAME:     enterPhone();                  break;
+                    case MeshMenuRow::TRANSPORT:
+                        // Switching TO ESP-NOW pauses detection, so it asks
+                        // first; switching back to BLE gives the radio back and
+                        // needs no ceremony.
+                        if (Settings::meshRadio() == Settings::MeshRadio::BLE) {
+                            uiMeshMenuStartConfirm();
+                        } else {
+                            Settings::setMeshRadio(Settings::MeshRadio::BLE);
+                            engine.applyMeshRadio();
+                        }
+                        break;
+                    case MeshMenuRow::CONFIRM_YES:
+                        Settings::setMeshRadio(Settings::MeshRadio::ESPNOW);
+                        engine.applyMeshRadio();
+                        uiMeshMenuEndConfirm();
+                        break;
+                    case MeshMenuRow::CONFIRM_NO:
+                        uiMeshMenuEndConfirm();
+                        break;
                     case MeshMenuRow::BACK:     enterSettings();               break;
                     default: break;
                 }

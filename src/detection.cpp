@@ -33,6 +33,7 @@ void bootStage(uint8_t s);   // main.cpp: the power diary's steps through setup(
 #endif
 #if POTS_MESH
 #include "pusimesh.h"
+#include "pusimesh_espnow.h"
 #include "potsy.h"
 #include "settings.h"
 #endif
@@ -64,7 +65,10 @@ static DetectionEngine* g_engine = nullptr;
 // REST is the watch's radio duty cycle: WiFi stopped, BLE scanning stopped
 // or left running (s_restBle). Detections that do arrive are handled as
 // usual, which is what sets it apart from UPDATE.
-enum class RawScanMode : uint8_t { NONE, BLE, WIFI, UPDATE, REST };
+// ESPNOW: the PusiMesh squad owns the radio over WiFi (PusiMeshEsp), so BLE
+// scanning and advertising stand down. Detection is paused for the duration;
+// see DetectionEngine::applyMeshRadio().
+enum class RawScanMode : uint8_t { NONE, BLE, WIFI, UPDATE, REST, ESPNOW };
 static bool g_restBle = false;   // REST: is the BLE scan resting too?
 static RawScanMode g_rawMode        = RawScanMode::NONE;
 static uint32_t    g_rawBleStartMs  = 0;
@@ -1259,6 +1263,9 @@ static void setAdvertising(bool on, uint32_t now) {
 }
 
 void radioTick(uint32_t now) {
+    // ESP-NOW has the radio: the squad's presence and sealed frames go out
+    // from its own tick, and there is no BLE advertiser to drive.
+    if (PusiMeshEsp::active()) { PusiMeshEsp::tick(now); return; }
     // Update mode owns the advertiser; see DetectionEngine::startUpdateRadio().
     // Resting radios have nothing to advertise with unless BLE stayed up.
     if (g_rawMode == RawScanMode::UPDATE) return;
@@ -1936,6 +1943,8 @@ void DetectionEngine::postRawBle(RawBleResult r) {
 }
 
 void DetectionEngine::startRawBleScan() {
+    // ESP-NOW owns the radio; the BLE scan it would focus on is stopped.
+    if (PusiMeshEsp::active()) return;
     if (g_rawMode == RawScanMode::WIFI) WiFi.scanDelete();
     _rawBleCount = 0;
     // The continuous NimBLE scan (started once, forever, in init())
@@ -1959,6 +1968,8 @@ const RawBleResult* DetectionEngine::rawBleAt(uint8_t idx) const {
 }
 
 void DetectionEngine::startRawWifiScan() {
+    // A WiFi sweep and ESP-NOW cannot share the radio, and ESP-NOW has it.
+    if (PusiMeshEsp::active()) return;
     // Gate the BLE callback off first (it'd otherwise still be live
     // during the scan) before touching the radio.
     g_rawMode = RawScanMode::WIFI;
@@ -2009,6 +2020,9 @@ const uint8_t* DetectionEngine::rawWifiBssid(uint8_t idx) const {
 }
 
 void DetectionEngine::stopRawScan() {
+    // Never yank the radio out from under ESP-NOW: its mode is not a raw scan
+    // and does not end here.
+    if (PusiMeshEsp::active()) return;
     if (g_rawMode == RawScanMode::WIFI) WiFi.scanDelete();
     g_rawMode = RawScanMode::NONE;
     esp_wifi_set_promiscuous(true);
@@ -2032,6 +2046,50 @@ static void updScanStartOnHost(struct ble_npl_event*) {
     if (g_rawMode == RawScanMode::NONE && scan && !scan->isScanning()) scan->start(0, false, false);
 }
 
+// Hand the squad radio to the transport the setting names, and take it back.
+// Idempotent. BLE is default and detection keeps the antenna; ESPNOW parks the
+// BLE scan (detection pauses) and runs the squad over WiFi instead. Never while
+// an update owns the radio -- stopUpdateRadio() re-applies it afterwards.
+void DetectionEngine::applyMeshRadio() {
+#if POTS_MESH
+    if (g_rawMode == RawScanMode::UPDATE) return;
+    const bool wantEsp = Settings::meshRadio() == Settings::MeshRadio::ESPNOW;
+    if (wantEsp == PusiMeshEsp::active()) return;
+    if (!s_updEvReady) {
+        ble_npl_event_init(&s_updStopEv,  updScanStopOnHost,  nullptr);
+        ble_npl_event_init(&s_updStartEv, updScanStartOnHost, nullptr);
+        s_updEvReady = true;
+    }
+    if (wantEsp) {
+        Serial.println("[radio] BLE -> ESPNOW (detection paused)");
+        if (g_rawMode == RawScanMode::WIFI) WiFi.scanDelete();
+        g_rawMode = RawScanMode::ESPNOW;
+        esp_wifi_set_promiscuous(false);
+        Mesh::stopAdvertisingForUpdate();
+        ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &s_updStopEv);
+        if (!PusiMeshEsp::begin()) {
+            // The radio refused: put BLE back rather than leave the squad deaf.
+            Serial.println("[radio] ESPNOW refused, BLE back on");
+            g_rawMode = RawScanMode::NONE;
+            esp_wifi_set_promiscuous(true);
+            ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &s_updStartEv);
+        }
+    } else {
+        Serial.println("[radio] ESPNOW -> BLE (detection back)");
+        PusiMeshEsp::end();
+        // The nonce of every frame we send is bound to our own address, and
+        // ESP-NOW bound it to the STA MAC. Back on BLE the advert carries the
+        // BLE address, so a peer could not derive the same nonce and would drop
+        // every message. Rebind it here; radioTick() only sets it once.
+        const NimBLEAddress a = NimBLEDevice::getAddress();
+        MeshTalk::setOwnMac(a.getBase()->val);
+        g_rawMode = RawScanMode::NONE;
+        esp_wifi_set_promiscuous(true);
+        ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &s_updStartEv);
+    }
+#endif
+}
+
 void DetectionEngine::startUpdateRadio() {
     if (!s_updEvReady) {
         ble_npl_event_init(&s_updStopEv,  updScanStopOnHost,  nullptr);
@@ -2042,6 +2100,9 @@ void DetectionEngine::startUpdateRadio() {
     g_rawMode = RawScanMode::UPDATE;
     esp_wifi_set_promiscuous(false);
 #if POTS_MESH
+    // An update needs the WiFi/Bluetooth stack for itself; park ESP-NOW first
+    // or the join and the squad channel fight. applyMeshRadio() brings it back.
+    if (PusiMeshEsp::active()) PusiMeshEsp::end();
     Mesh::stopAdvertisingForUpdate();
 #endif
     ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &s_updStopEv);
@@ -2050,6 +2111,14 @@ void DetectionEngine::startUpdateRadio() {
 void DetectionEngine::stopUpdateRadio() {
     if (g_rawMode != RawScanMode::UPDATE) return;
     g_rawMode = RawScanMode::NONE;
+#if POTS_MESH
+    if (Settings::meshRadio() == Settings::MeshRadio::ESPNOW) {
+        // The owner asked for ESP-NOW: give it back rather than flash BLE on
+        // and off. applyMeshRadio() sees g_rawMode == NONE and starts it.
+        applyMeshRadio();
+        return;
+    }
+#endif
     esp_wifi_set_promiscuous(true);
     if (s_updEvReady) ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &s_updStartEv);
 }
