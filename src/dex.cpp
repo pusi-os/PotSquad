@@ -113,8 +113,105 @@ const Entry ENTRY[ENTRIES] = {
       "A pocket toy for attacking radios. It announces itself." },
 };
 
-Record   s_rec[ENTRIES];
-bool     s_newBest[ENTRIES];
+// The same cards in Russian, in the same type order, so indexOf() serves both
+// tables and the UI picks by Settings::lang(). Keeping the two tables beside
+// each other -- and switching on the LANGUAGE rather than the string -- is
+// what makes "every type has a card in both languages" checkable by reading
+// the file, not by rendering seventeen screens. The protocol never sees these
+// bytes; they are display only.
+const Entry ENTRY_RU[ENTRIES] = {
+    { DetectionType::FLOCK, Rarity::UNCOMMON, "ФЛОК", "ПОЛИЦЕЙСКИЙ НАБОР", "WIFI",
+      "Камера распознавания номеров на столбе, продаётся городам по подписке. Фотографирует каждую проезжающую машину, хранит номер и делится списком с теми, кто платит.",
+      "Перекрёстки. Выезды с парковок. Единственная дорога в район.",
+      "Он фотографирует машины. Я не машина. Шах и мат, Flock.",
+      "Смотрит на каждую проезжающую машину. На столбе, с солнечной панелью." },
+    { DetectionType::AXON, Rarity::RARE, "AXON", "ПОЛИЦЕЙСКИЙ НАБОР", "BLUETOOTH",
+      "Нательная камера на груди офицера и кобура, которая её будит. Общается по Bluetooth с телефоном на поясе -- так себя и выдаёт.",
+      "Остановки на дороге. Везде, где есть значок.",
+      "Молчи. Говори медленно. Я тренировался.",
+      "Носят на груди. Прилагается значок." },
+    { DetectionType::META, Rarity::UNCOMMON, "ОЧКИ", "ПОЛИЦЕЙСКИЙ НАБОР", "BLUETOOTH",
+      "Очки с камерой в дужке, всегда в паре с телефоном. Маленький огонёк говорит, что идёт запись. Огонёк маленький специально.",
+      "Кофейни. Туристические места. Лицо того, кто рад рассказать.",
+      "Они встроили камеры в очки. Я нашёл укрытие получше.",
+      "Кто-то это носит. Ищи крошечный огонёк." },
+    { DetectionType::SKIMMER, Rarity::RARE, "СКИМ", "СКИММЕР", "BLUETOOTH",
+      "Считыватель карт, спрятанный внутри настоящего, обычно на колонке. Внутри дешёвый Bluetooth-модуль, чтобы вор забирал карты с парковки, не подходя.",
+      "Топливные колонки. Банкомат, которым больше никто не пользуется.",
+      "Скиммер! Не проводи там карту. Нигде не проводи. Меняй.",
+      "Живёт внутри щели для карты. Назван как набор для хобби." },
+    { DetectionType::RAVEN, Rarity::RARE, "ВОРОН", "ДАТЧИК", "WIFI",
+      "Детектор выстрелов. Микрофоны на столбе слушают хлопки и говорят диспетчерской, откуда они. Всё остальное время он тоже слушает.",
+      "Фонари на улицах тех районов, где пригодилось.",
+      "Ни разу не видел. Ни разу не слышал. В этом весь он.",
+      "Слушает громкие хлопки. На столбах в городах, что могут это позволить." },
+    { DetectionType::AIRTAG, Rarity::COMMON, "МЕТКА", "ТРЕКЕР", "BLUETOOTH",
+      "Маленькая белая шайба Apple. Чирикает каждые две секунды всем iPhone в слышимости, чтобы Apple сказала владельцу, куда он делся. Меняет адрес каждые пятнадцать минут, чтобы чужие гадали.",
+      "Брелоки. Багаж. Дно твоей машины, если не повезло.",
+      "Ни один из них не потерялся. Подозрительно.",
+      "Маленький, белый, круглый. У половины аэропорта такой есть." },
+    { DetectionType::DRONE, Rarity::UNCOMMON, "ДРОН", "ТРЕКЕР", "WIFI",
+      "Дрон, объявляющий свой серийный номер, позицию и пилота, потому что теперь так требует закон. DEX читает это прямо из воздуха.",
+      "Парки. Пляжи. Над твоим забором.",
+      "Кто всё это запускает? Скажи мне. Я справлюсь.",
+      "Летает. Говорит, где стоит пилот. Грубо, если честно." },
+    { DetectionType::ALPR, Rarity::UNCOMMON, "ALPR", "ДАТЧИК", "WIFI",
+      "Считыватель номеров, но не Flock: старый образец на полицейской машине или эвакуаторе, читает каждый номер мимо и хранит нужные.",
+      "Крыша патрульной машины. Зад эвакуатора.",
+      "Считыватель номеров замечен. Классика. У меня нет номера. Классика.",
+      "Читает номера с движущейся машины. Motorola делает их немало." },
+    { DetectionType::CAMERA, Rarity::COMMON, "КАМ", "КАМЕРА", "WIFI",
+      "Сетевая камера обычного вида от известного производителя. Одни смотрят на подъездную дорожку. Другие -- на всю парковку. Все они в сети.",
+      "Дверные проёмы. Карнизы. Угол каждого магазина.",
+      "Камера обнаружена. Улыбнись, легенда. Или нет. Тебе решать.",
+      "Самый обычный. Под карнизом, смотрит на дверь." },
+    { DetectionType::SAMSUNG_TAG, Rarity::COMMON, "САМС", "ТРЕКЕР", "BLUETOOTH",
+      "Ответ Samsung на AirTag, его находит каждый проходящий Galaxy. Тот же трюк, другая сеть, тот же меняющийся адрес.",
+      "Брелоки. Сумки. Собачьи ошейники.",
+      "Тот же трюк, что у яблочного. Меня обманывают дважды в день.",
+      "Трекер, который звонит домой через телефоны Galaxy." },
+    { DetectionType::GOOGLE_TAG, Rarity::UNCOMMON, "GTAG", "ТРЕКЕР", "BLUETOOTH",
+      "Трекер в сети Google Find My Device: Chipolo, Pebblebee, Moto Tag. Его сообщает каждый Android рядом, где бы ни был его владелец.",
+      "Кошельки. Велосипеды. Пульт.",
+      "Третья сеть, та же идея. Все хотят найти ключи.",
+      "Его находят Android-телефоны. Несколько марок, одна сеть." },
+    { DetectionType::TILE, Rarity::COMMON, "ПЛИТ", "ТРЕКЕР", "BLUETOOTH",
+      "Трекер, что был раньше остальных. Маленький квадрат, чирикает, когда просит приложение, и объявляет себя каждому телефону с приложением.",
+      "Ключи. Кошельки. Однажды его прицепили к коту.",
+      "Плитка. Не плитка на полу. Я проверил. Дважды.",
+      "Квадратный. Старше яблочного." },
+    { DetectionType::RING, Rarity::COMMON, "РИНГ", "КАМЕРА", "WIFI",
+      "Дверной звонок с камерой внутри и прожекторная версия на гараже. Принадлежит Amazon. Записи передавали полиции, не спрашивая владельца.",
+      "Входные двери. Вся улица, дверь за дверью.",
+      "Камера в звонке. Я не стучу. Я нависаю.",
+      "На входной двери. Есть кнопка. Следит за улицей." },
+    { DetectionType::DEAUTH, Rarity::RARE, "ДЕАУТ", "АТАКА", "WIFI",
+      "Не устройство, а атака. Кто-то заливает эфир кадрами разъединения, чтобы сбить устройства с WiFi. Камеры отваливаются. Звонки слепнут. Никто рядом не задумал добро.",
+      "Везде, где кто-то хочет заглушить камеру на минуту.",
+      "Кто-то сбрасывает всех с WiFi. Не я. Я только слушаю.",
+      "Это не то, что можно взять в руки. Поток кадров \"уйди\"." },
+    { DetectionType::EVILTWIN, Rarity::RARE, "ДВОЙН", "АТАКА", "WIFI",
+      "Сеть под именем другой сети из второй, чужой коробки. Телефоны подключаются, потому что имя совпадает, и всё, что они шлют, идёт через самозванца.",
+      "Аэропорты. Кафе. Везде, где ждут бесплатную сеть.",
+      "Сеть под маской. Я узнаю маскировку с первого взгляда. Я сам маскировка.",
+      "Две сети, одно имя, две разные коробки." },
+    { DetectionType::IBEACON, Rarity::COMMON, "МАЯК", "ТРЕКЕР", "BLUETOOTH",
+      "Маячок близости. Магазины и площадки ставят их, чтобы приложение на телефоне знало, в каком ты ряду. Он существует, чтобы замечать, как ты проходишь.",
+      "Полки. Стены музеев. Коридоры стадионов.",
+      "Он не идёт за мной. Он меня ждёт. Это хуже.",
+      "Закреплён на полке или стене. Ждёт телефоны." },
+    { DetectionType::HACKER, Rarity::RARE, "ХАК", "АТАКА", "WIFI",
+      "Железо для радиоатак, объявляющее себя: Flipper Zero, Pwnagotchi, WiFi Pineapple, ESP-деаузер. Только точные сигнатуры, поэтому совпадение значит, что инструмент в комнате.",
+      "Конференции. Зад худи. Через два стола.",
+      "Инструмент для радиоатак в комнате. Веди себя естественно. Я лампа.",
+      "Карманная игрушка для атак на радио. Объявляет себя." },
+};
+
+// The rarity label, which the card prints beside the stars.
+const char* RARITY_EN[3] = { "COMMON", "UNCOMMON", "RARE" };
+const char* RARITY_RU[3] = { "ОБЫЧНЫЙ", "НЕОБЫЧНЫЙ", "РЕДКИЙ" };
+
+Record   s_rec[ENTRIES];bool     s_newBest[ENTRIES];
 bool     s_dirty   = false;
 uint32_t s_changed = 0;
 bool     s_began   = false;
@@ -128,6 +225,11 @@ void emptyRecord(Record& r) { r.firstEpoch = 0; r.lastEpoch = 0; r.bestRssi = -1
 const Entry& entry(DetectionType t) {
     const uint8_t i = indexOf(t);
     return ENTRY[i < ENTRIES ? i : 0];
+}
+
+const Entry& entryRU(DetectionType t) {
+    const uint8_t i = indexOf(t);
+    return ENTRY_RU[i < ENTRIES ? i : 0];
 }
 
 }  // namespace
@@ -146,6 +248,13 @@ const char* rarityName(Rarity r) {
         default:               return "COMMON";
     }
 }
+const char* rarityNameRU(Rarity r) {
+    switch (r) {
+        case Rarity::RARE:     return RARITY_RU[2];
+        case Rarity::UNCOMMON: return RARITY_RU[1];
+        default:               return RARITY_RU[0];
+    }
+}
 uint8_t stars(Rarity r) { return r == Rarity::RARE ? 3 : r == Rarity::UNCOMMON ? 2 : 1; }
 
 const char* shortName(DetectionType t) { return entry(t).shortName; }
@@ -155,6 +264,14 @@ const char* habitat(DetectionType t)   { return entry(t).habitat; }
 const char* quip(DetectionType t)      { return entry(t).quip; }
 const char* hint(DetectionType t)      { return entry(t).hint; }
 const char* radio(DetectionType t)     { return entry(t).radio; }
+
+const char* shortNameRU(DetectionType t) { return entryRU(t).shortName; }
+const char* kindRU(DetectionType t)      { return entryRU(t).kind; }
+const char* loreRU(DetectionType t)      { return entryRU(t).lore; }
+const char* habitatRU(DetectionType t)   { return entryRU(t).habitat; }
+const char* quipRU(DetectionType t)      { return entryRU(t).quip; }
+const char* hintRU(DetectionType t)      { return entryRU(t).hint; }
+const char* radioRU(DetectionType t)     { return entryRU(t).radio; }
 
 void begin() {
     for (uint8_t i = 0; i < ENTRIES; i++) { emptyRecord(s_rec[i]); s_newBest[i] = false; }

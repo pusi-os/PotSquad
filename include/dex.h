@@ -23,10 +23,13 @@ uint8_t       indexOf(DetectionType t);
 enum class Rarity : uint8_t { COMMON, UNCOMMON, RARE };
 Rarity      rarity(DetectionType t);
 const char* rarityName(Rarity r);        // "COMMON" ...
+const char* rarityNameRU(Rarity r);      // ...and its Russian label
 uint8_t     stars(Rarity r);             // 1..3
 
 // The card's text. Written for the screen: lore wraps to a few lines at
-// text size 1, the rest are one line each.
+// text size 1, the rest are one line each. The RU variants are the same
+// cards in Russian, in the same type order; the UI picks by Settings::lang()
+// and the protocol never sees either. Display only.
 const char* shortName(DetectionType t);  // the tile: "GLASS", "STAG"
 const char* kind(DetectionType t);       // "TRACKER", "CAMERA", "POLICE KIT"...
 const char* lore(DetectionType t);
@@ -34,6 +37,13 @@ const char* habitat(DetectionType t);
 const char* quip(DetectionType t);       // Potsy, on the record
 const char* hint(DetectionType t);       // for an uncaught card
 const char* radio(DetectionType t);      // "BLUETOOTH" / "WIFI"
+const char* shortNameRU(DetectionType t);
+const char* kindRU(DetectionType t);
+const char* loreRU(DetectionType t);
+const char* habitatRU(DetectionType t);
+const char* quipRU(DetectionType t);
+const char* hintRU(DetectionType t);
+const char* radioRU(DetectionType t);
 
 // This board's record. Loaded once at boot; note() on every sighting (RAM
 // only -- it is called from the Bluetooth host task); tick() writes it

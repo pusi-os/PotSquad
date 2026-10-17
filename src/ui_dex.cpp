@@ -12,6 +12,21 @@ namespace {
 const int TOP = 16;
 int8_t s_card = -1;   // the entry whose card is up, or -1 for the index
 
+// The DEX draws either script: every card field has an EN and an RU form and
+// the screen picks by language through Theme::tr. Measure, wrap and print must
+// go through the RU face whenever the chosen string holds Cyrillic -- the GLCD
+// has no glyphs for it -- so these three route on Theme::isRu().
+static void put(TFT_eSPI& t, const char* s) {
+    if (Theme::isRu(s)) Theme::printRU(t, s); else t.print(s);
+}
+static int wid(TFT_eSPI& t, const char* s) {
+    return Theme::isRu(s) ? Theme::textWidthRU(t, s) : t.textWidth(s);
+}
+static uint8_t wrap(TFT_eSPI& t, const char* s, int maxW, char lines[][48], uint8_t maxLines) {
+    return Theme::isRu(s) ? Theme::wrapTextRU(t, s, maxW, lines, maxLines)
+                          : Theme::wrapText(t, s, maxW, lines, maxLines);
+}
+
 bool caught(const DetectionEngine& eng, DetectionType t) { return eng.lifetimeTypeCount(t) > 0; }
 
 // The tiles and the card's panels sit on the dimmed backdrop, so they get a
@@ -50,7 +65,8 @@ void drawIndex(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
 
     char head[32];
     const uint8_t got = uiDexCaught(eng);
-    snprintf(head, sizeof head, "%u OF %u CAUGHT", (unsigned)got, (unsigned)Dex::ENTRIES);
+    snprintf(head, sizeof head, Theme::tr("%u OF %u CAUGHT", "%u ИЗ %u ПОЙМАНО"),
+             (unsigned)got, (unsigned)Dex::ENTRIES);
     Theme::drawListHeading(t, head, got == Dex::ENTRIES ? Theme::AMBER : Theme::CYAN);
 
     Theme::bodyFontOn(t);
@@ -88,12 +104,12 @@ void drawIndex(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
                     t.drawFastHLine(x + 1, ly, cw - 2, panelFill());
         }
 
-        const char* name = have ? Dex::shortName(type) : "???";
+        const char* name = have ? Theme::tr(Dex::shortName(type), Dex::shortNameRU(type)) : "???";
         t.setTextColor(have ? Theme::WHITE : Theme::W95_SHADOW, panelFill());
-        int tw = t.textWidth(name);
+        int tw = wid(t, name);
         if (tw > cw - 4) tw = cw - 4;
         t.setCursor(x + (cw - tw) / 2, y + ch - t.fontHeight() - 2);
-        t.print(name);
+        put(t, name);
     }
     Theme::bodyFontOff(t);
 }
@@ -102,10 +118,10 @@ void drawIndex(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
 void drawRow(TFT_eSPI& t, int x, int y, int w, const char* k, const char* v, uint16_t kc, uint16_t vc) {
     t.setTextColor(kc, panelFill());
     t.setCursor(x, y);
-    t.print(k);
+    put(t, k);
     t.setTextColor(vc, panelFill());
-    t.setCursor(x + w - t.textWidth(v), y);
-    t.print(v);
+    t.setCursor(x + w - wid(t, v), y);
+    put(t, v);
 }
 
 // "SEP 03" or "--"; today reads as the time.
@@ -127,7 +143,8 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
     char st[4];
     starsText(Dex::rarity(type), st);
     snprintf(head, sizeof head, "%02u  %s  %s %s", (unsigned)(s_card + 1),
-             have ? Dex::shortName(type) : "?????", st, Dex::rarityName(Dex::rarity(type)));
+             have ? Theme::tr(Dex::shortName(type), Dex::shortNameRU(type)) : "?????",
+             st, Theme::tr(Dex::rarityName(Dex::rarity(type)), Dex::rarityNameRU(Dex::rarity(type))));
     Theme::drawListHeading(t, head, have ? col : Theme::W95_LIGHT);
 
     Theme::bodyFontOn(t);
@@ -151,19 +168,20 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
     Theme::drawTypeIcon(t, type, bx + boxW / 2, by + boxH / 2, s);
     if (!have) {
         for (int ly = by + 1; ly < by + boxH - 1; ly += 2) t.drawFastHLine(bx + 1, ly, boxW - 2, panelFill());
-        const char* nyc = "NOT CAUGHT";
+        const char* nyc = Theme::tr("NOT CAUGHT", "НЕ ПОЙМАН");
         t.setTextColor(Theme::VAPOR_PINK, panelFill());
-        t.setCursor(bx + (boxW - t.textWidth(nyc)) / 2, by + boxH / 2 - 4);
-        t.print(nyc);
+        t.setCursor(bx + (boxW - wid(t, nyc)) / 2, by + boxH / 2 - 4);
+        put(t, nyc);
     }
     t.setTextColor(Theme::W95_SHADOW, panelFill());
-    t.setCursor(bx + boxW - t.textWidth(Dex::kind(type)) - 2, by + boxH - t.fontHeight() - 1);
-    t.print(Dex::kind(type));
+    const char* kd = Theme::tr(Dex::kind(type), Dex::kindRU(type));
+    t.setCursor(bx + boxW - wid(t, kd) - 2, by + boxH - t.fontHeight() - 1);
+    put(t, kd);
     if (have && Dex::nemesis(eng) == type) {
         // The type he has caught most: his sworn enemy, stamped on the card.
         t.setTextColor(Theme::RED, panelFill());
         t.setCursor(bx + 3, by + boxH - t.fontHeight() - 1);
-        t.print("NEMESIS");
+        put(t, Theme::tr("NEMESIS", "НЕМЕЗИС"));
     }
 
     // The record, in a panel of its own under the icon; and the text column
@@ -174,15 +192,15 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
     const int rx = bx + 3, rw = boxW - 6;
     char v[16];
     snprintf(v, sizeof v, "%lu", (unsigned long)eng.lifetimeTypeCount(type));
-    drawRow(t, rx, ry, rw, "CAUGHT", have ? v : "0", col, text); ry += lh;
+    drawRow(t, rx, ry, rw, Theme::tr("CAUGHT", "ПОЙМАНО"), have ? v : "0", col, text); ry += lh;
     when(rec.firstEpoch, v, sizeof v);
-    if (!tiny) { drawRow(t, rx, ry, rw, "FIRST", have ? v : "--", col, text); ry += lh; }
+    if (!tiny) { drawRow(t, rx, ry, rw, Theme::tr("FIRST", "ПЕРВЫЙ"), have ? v : "--", col, text); ry += lh; }
     when(rec.lastEpoch, v, sizeof v);
-    drawRow(t, rx, ry, rw, "LAST", have ? v : "--", col, text); ry += lh;
+    drawRow(t, rx, ry, rw, Theme::tr("LAST", "ПОСЛЕДНИЙ"), have ? v : "--", col, text); ry += lh;
     if (rec.bestRssi > -128) snprintf(v, sizeof v, tiny ? "%d" : "%d dBm", (int)rec.bestRssi); else snprintf(v, sizeof v, "--");
-    drawRow(t, rx, ry, rw, "CLOSEST", have ? v : "--", col, text); ry += lh;
+    drawRow(t, rx, ry, rw, Theme::tr("CLOSEST", "БЛИЖАЙШИЙ"), have ? v : "--", col, text); ry += lh;
     snprintf(v, sizeof v, "%u", (unsigned)rec.night);
-    if (!tiny) { drawRow(t, rx, ry, rw, "AT NIGHT", have ? v : "--", col, text); ry += lh; }
+    if (!tiny) { drawRow(t, rx, ry, rw, Theme::tr("AT NIGHT", "НОЧЬЮ"), have ? v : "--", col, text); ry += lh; }
 
     // Right (or below): two panels. The lore (or, uncaught, its blanked
     // shape) in one sized to its lines; where it lives and what Potsy says
@@ -197,11 +215,11 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
     // First panel.
     int ty = py + 3;
     if (have) {
-        n = Theme::wrapText(t, Dex::lore(type), tw, lines, wide ? 8 : 4);
+        n = wrap(t, Theme::tr(Dex::lore(type), Dex::loreRU(type)), tw, lines, wide ? 8 : 4);
         if (tiny && n > (bottom - py - 6) / lh) n = (uint8_t)((bottom - py - 6) / lh);
         panel(t, px, py, pw, n * lh + 6, Theme::PURPLE);
         t.setTextColor(Theme::WHITE, panelFill());
-        for (uint8_t i = 0; i < n && ty + lh <= bottom; i++) { t.setCursor(tx, ty); t.print(lines[i]); ty += lh; }
+        for (uint8_t i = 0; i < n && ty + lh <= bottom; i++) { t.setCursor(tx, ty); put(t, lines[i]); ty += lh; }
     } else {
         // Blanked lore: the shape of a paragraph, none of the words.
         n = wide ? 4 : 2;
@@ -217,27 +235,28 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
     // what Potsy says, and the radio it uses as a tag in the corner.
     const int p2y = py + n * lh + 6 + 3;
     char hab[2][48], say[2][48];
-    const uint8_t nh = Theme::wrapText(t, have ? Dex::habitat(type) : Dex::hint(type), tw, hab, 2);
-    const uint8_t ns = Theme::wrapText(t, Dex::quip(type), tw, say, 2);
+    const uint8_t nh = wrap(t, have ? Theme::tr(Dex::habitat(type), Dex::habitatRU(type))
+                                    : Theme::tr(Dex::hint(type),    Dex::hintRU(type)), tw, hab, 2);
+    const uint8_t ns = wrap(t, Theme::tr(Dex::quip(type), Dex::quipRU(type)), tw, say, 2);
     int p2h = 3 + lh + nh * lh + 3 + lh + ns * lh + 3 + lh + 3;
     if (p2y + p2h > bottom) p2h = bottom - p2y;
     if (p2h >= 2 * lh + 6) {
         panel(t, px, p2y, pw, p2h, Theme::PURPLE);
         const int p2b = p2y + p2h;
         ty = p2y + 3;
-        t.setTextColor(Theme::CYAN, panelFill()); t.setCursor(tx, ty); t.print(have ? "HABITAT" : "HINT"); ty += lh;
+        t.setTextColor(Theme::CYAN, panelFill()); t.setCursor(tx, ty); put(t, Theme::tr(have ? "HABITAT" : "HINT", have ? "СРЕДА" : "ПОДСКАЗКА")); ty += lh;
         t.setTextColor(Theme::W95_LIGHT, panelFill());
-        for (uint8_t i = 0; i < nh && ty + lh <= p2b; i++) { t.setCursor(tx, ty); t.print(hab[i]); ty += lh; }
+        for (uint8_t i = 0; i < nh && ty + lh <= p2b; i++) { t.setCursor(tx, ty); put(t, hab[i]); ty += lh; }
         ty += 3;
         if (ty + 2 * lh <= p2b) {
-            t.setTextColor(Theme::CYAN, panelFill()); t.setCursor(tx, ty); t.print("POTSY SAYS"); ty += lh;
+            t.setTextColor(Theme::CYAN, panelFill()); t.setCursor(tx, ty); put(t, Theme::tr("POTSY SAYS", "ПОТСИ ГОВОРИТ")); ty += lh;
             t.setTextColor(Theme::AMBER, panelFill());
-            for (uint8_t i = 0; i < ns && ty + lh <= p2b; i++) { t.setCursor(tx, ty); t.print(say[i]); ty += lh; }
+            for (uint8_t i = 0; i < ns && ty + lh <= p2b; i++) { t.setCursor(tx, ty); put(t, say[i]); ty += lh; }
         }
         if (ty + lh <= p2b - 3) {
             t.setTextColor(col, panelFill());
             t.setCursor(tx, p2b - t.fontHeight() - 3);
-            t.print(Dex::radio(type));
+            put(t, Theme::tr(Dex::radio(type), Dex::radioRU(type)));
         }
     }
 
@@ -268,7 +287,7 @@ void uiDexTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool advan
     Theme::drawActiveBackground(t, now, 0, h, eng, advance);
     Theme::restorePalette(saved);
 
-    Theme::drawTitleBar(t, ">> POTSY-DEX <<");
+    Theme::drawTitleBar(t, Theme::tr(">> POTSY-DEX <<", ">> ПОТСИ-ДЕКС <<"));
     if (s_card < 0) {
         drawIndex(t, w, h, eng);
         Theme::drawPinnedBack(t, "[ BACK ]");
