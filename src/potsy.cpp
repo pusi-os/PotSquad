@@ -7516,7 +7516,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             const int ex = cx2 + sg * S(11);
             t.fillRoundRect(ex - ew / 2, hh + S(13) - eh / 2, ew, eh, S(1), furMain);
             t.fillRoundRect(ex - ew / 2 + 1, hh + S(13) - eh / 2 + 1, ew - 2, eh - 2, S(1),
-                            blend(furMain, SKIN_DARK, 22));
+                            blend(furMain, BLACK, 38));
         }
     }
 
@@ -7524,7 +7524,10 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     // outline, close to the face's own yellow and squarer to match the rest
     // of him. Not on SHAMBLER: nothing about him glows.
     if (outfitNow != OutfitId::SHAMBLER) {
-        const uint16_t cheek = blend(furMain, SKIN_DARK, 16);
+        // A deeper shade of the SAME yellow (down in value, not toward the
+        // orange-brown SKIN_DARK), so it reads as his own skin in shadow and
+        // never as an orange insert.
+        const uint16_t cheek = blend(furMain, BLACK, 24);
         const int cw = S(4), ch2 = S(4);
         t.fillRoundRect(cx2 - S(8) - cw / 2, hh + S(15), cw, ch2, S(1), cheek);
         t.fillRoundRect(cx2 + S(8) - cw / 2, hh + S(15), cw, ch2, S(1), cheek);
