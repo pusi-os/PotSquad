@@ -253,9 +253,18 @@ bool onManufacturerData(const uint8_t* d, size_t len, const uint8_t* mac, uint32
     // so a message can never reach the signature tables either.
     if (MeshMsg::isFrame(d + 2, len - 2)) {
         if (!Settings::messagesOn()) return false;
-        MeshTalk::onFrame(mac, d + 2, len - 2,
-                          memcmp(mac, s_nameMac, 6) == 0 ? s_name : "",
-                          phoneMacFor(mac));
+        // The name rides the presence advert, which usually arrives in an
+        // earlier callback than the frame, so s_name holds somebody else's
+        // by now. The roster remembers every member seen: a bubble drawn
+        // over a cameo always knows its sender, never "someone".
+        const char* nm = "";
+        if (memcmp(mac, s_nameMac, 6) == 0 && s_name[0]) nm = s_name;
+        else {
+            PusiMesh::Peer lk;
+            if (peerLook(mac, lk))
+                nm = (lk.custom && lk.name[0]) ? lk.name : Potsy::nicknameAt(lk.nick);
+        }
+        MeshTalk::onFrame(mac, d + 2, len - 2, nm, phoneMacFor(mac));
         return true;
     }
 
