@@ -95,12 +95,36 @@ struct Message {
     uint32_t ctr;           // the sender's counter, for the read receipt
 };
 const Message& inbox();
-// The last few messages, newest first -- the SQUAD screen's inbox. RAM only:
-// a reboot, or a wipe, and they are gone, as every message always has been.
-constexpr uint8_t INBOX_N = 8;
+// The last few messages, newest first -- the SQUAD screen's inbox and the
+// CHAT room. RAM only: a reboot, or a wipe, and they are gone, as every
+// message always has been. Sixteen is what the CHAT room scrolls through;
+// the SQUAD panel still shows the newest four.
+constexpr uint8_t INBOX_N = 16;
 uint8_t        inboxCount();
 const Message& inboxAt(uint8_t i);        // 0 is the newest
+// Drop the i-th newest from the inbox. The favourites are untouched: a
+// message kept there outlives its inbox entry (see keepAlive below).
+void           inboxRemove(uint8_t i);
 void           markRead();
+// The same, for one message rather than the newest: reading it from the CHAT
+// list marks that one, not whichever happened to arrive last. Sends ITS read
+// receipt, once.
+void           markReadAt(uint8_t i);
+
+// ---- the kept messages (CHAT's ИЗБРАННЫЕ) ---------------------------------
+// A message copied aside and held on its own, so removing it from the inbox
+// -- or letting sixteen newer ones push it off the ring -- does not lose it.
+// The CHAT room's ИЗБРАННЫЕ shows these and nothing else; a message is a
+// favourite or it is not, and toggling it is the whole interface. RAM only,
+// like the inbox, and wiped with the phrase.
+constexpr uint8_t FAV_N = 8;
+uint8_t        favCount();
+const Message& favAt(uint8_t i);          // 0 is the newest-toggled
+bool           isFavorite(const Message& m);
+// Add or remove, and answer whether it is kept now.
+bool           favToggle(const Message& m);
+// Drop the i-th kept message -- the ИЗБРАННЫЕ section's own DELETE.
+void           favRemove(uint8_t i);
 // A read receipt came back for the last message this board sent: who
 // opened it. Consumes.
 bool           takeRead(char* who, size_t cap);

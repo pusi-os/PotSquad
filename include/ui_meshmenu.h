@@ -26,7 +26,7 @@ class DetectionEngine;
 // this, so the two orders must never differ. TRANSPORT is the ninth row; the
 // two CONFIRM values are returned instead of a row while the switch-to-ESP-NOW
 // warning is up.
-enum class MeshMenuRow : uint8_t { DETECT, TRANSMIT, MESSAGES, HEADSUP, CROWD, SQUAD, PHRASE, NAME, TRANSPORT, BACK, NONE, CONFIRM_YES, CONFIRM_NO };
+enum class MeshMenuRow : uint8_t { DETECT, TRANSMIT, MESSAGES, HEADSUP, CROWD, SQUAD, PHRASE, NAME, TRANSPORT, CHAT, BACK, NONE, CONFIRM_YES, CONFIRM_NO };
 
 void uiMeshMenuInit(TFT_eSPI& t);
 

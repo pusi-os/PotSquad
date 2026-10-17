@@ -1576,6 +1576,15 @@ static float   s_msgGs = 1.0f;            // the visitor's scale this frame
 static bool    s_bubbleOn = false;        // the tap target, filled by the draw
 static int16_t s_bubX = 0, s_bubY = 0, s_bubW = 0, s_bubH = 0;
 
+// The visitor's arriving-message bubble (the red one over his head), and its
+// two quick-reaction buttons inside it. Filled by drawRedBubble while a
+// message is up; read by the hit tests in main.cpp so a tap on the bubble
+// sends a read receipt and a tap on a button sends like or dislike.
+static bool    s_rbOn = false;
+static int16_t s_rbX = 0, s_rbY = 0, s_rbW = 0, s_rbH = 0;
+static int16_t s_rbLikeX = 0, s_rbLikeY = 0, s_rbLikeW = 0, s_rbLikeH = 0;
+static int16_t s_rbNoX = 0, s_rbNoY = 0, s_rbNoW = 0, s_rbNoH = 0;
+
 static bool messageShowing(uint32_t now) {
     const MeshTalk::Message& m = MeshTalk::inbox();
     return MeshTalk::ready() && m.have && (uint32_t)(now - m.at) < MSG_SHOW_MS;
@@ -1589,7 +1598,12 @@ static bool tutorReply() {
 // Who, then what, over the speaker's head, with a tail aimed at him. The name
 // is always in it, so even when the sender is not the one standing there the
 // bubble cannot misattribute.
-static void drawRedBubble(TFT_eSPI& t, int cx, int headTop, const char* from, const char* line) {
+//
+// `reactions` adds a footer with the two quick answers -- like and dislike --
+// which is how a message is answered without opening the message screen. The
+// tutorial's pretend reply has none: it has no sender to answer.
+static void drawRedBubble(TFT_eSPI& t, int cx, int headTop, const char* from, const char* line,
+                          bool reactions) {
     t.setTextSize(1);
     t.setTextWrap(false);
     const int w = t.width();
@@ -1611,7 +1625,8 @@ static void drawRedBubble(TFT_eSPI& t, int cx, int headTop, const char* from, co
     if (t.textWidth(from) > bw) bw = t.textWidth(from);
     bw += 12;
     if (bw > w - 8) bw = w - 8;
-    const int bh = 14 + n * lineH + 3;
+    const int footH = reactions ? 16 : 0;
+    const int bh = 14 + n * lineH + 3 + footH;
     int bx = cx - bw / 2;
     if (bx < 4) bx = 4;
     if (bx + bw > w - 4) bx = w - 4 - bw;
@@ -1632,6 +1647,30 @@ static void drawRedBubble(TFT_eSPI& t, int cx, int headTop, const char* from, co
         t.print(rows[i]);
     }
     Theme::bubbleFontOff(t);
+
+    s_rbLikeW = s_rbLikeH = s_rbNoW = s_rbNoH = 0;
+    if (reactions) {
+        const int fy = by + 13 + n * lineH + 1;
+        const int fhalf = (bw - 18) / 2;
+        s_rbLikeX = (int16_t)(bx + 6);           s_rbLikeY = (int16_t)fy;
+        s_rbLikeW = (int16_t)fhalf;              s_rbLikeH = 14;
+        s_rbNoX   = (int16_t)(bx + 6 + fhalf + 6); s_rbNoY = (int16_t)fy;
+        s_rbNoW   = (int16_t)fhalf;              s_rbNoH = 14;
+        // Two small panels on the red: an up triangle for like, a down one
+        // for dislike -- the same shape as the thumb they stand for, and no
+        // glyph the bitmap fonts would have to carry.
+        for (int k = 0; k < 2; k++) {
+            const int x = k ? s_rbNoX : s_rbLikeX;
+            const int ww = k ? s_rbNoW : s_rbLikeW;
+            t.drawRoundRect(x, fy, ww, 14, 3, Theme::WHITE);
+            const int mx = x + ww / 2, my = fy + 7;
+            if (k == 0) t.fillTriangle(mx - 5, my + 3, mx + 5, my + 3, mx, my - 4, Theme::WHITE);
+            else        t.fillTriangle(mx - 5, my - 4, mx + 5, my - 4, mx, my + 3, Theme::WHITE);
+        }
+    }
+    s_rbOn = true;
+    s_rbX = (int16_t)bx; s_rbY = (int16_t)by;
+    s_rbW = (int16_t)bw; s_rbH = (int16_t)bh;
 }
 
 // The little bubble. Cyan dots when there is nothing new; the dots take turns
@@ -2443,6 +2482,7 @@ bool uiClearCrowdTap(int x, int y, uint32_t now) {
 
 static void drawMessageUi(TFT_eSPI& t, uint32_t now, int titleBottom, int potsyBottom) {
     s_bubbleOn = false;
+    s_rbOn = false;
     // The tutorial runs before anybody has a phrase, so it shows the bubble
     // regardless -- finding it is the thing it teaches.
     const bool tut = MeshTutor::active();
@@ -2455,8 +2495,8 @@ static void drawMessageUi(TFT_eSPI& t, uint32_t now, int titleBottom, int potsyB
                                   : titleBottom + (potsyBottom - titleBottom) / 3;
     const bool showing = tut ? tutorReply() : messageShowing(now);
     if (showing) {
-        if (tut) drawRedBubble(t, gx, head, MeshTutor::DEMO_NAME, MeshTutor::DEMO_REPLY);
-        else     drawRedBubble(t, gx, head, m.from, MeshTalk::lineText(m));
+        if (tut) drawRedBubble(t, gx, head, MeshTutor::DEMO_NAME, MeshTutor::DEMO_REPLY, false);
+        else     drawRedBubble(t, gx, head, m.from, MeshTalk::lineText(m), true);
     }
     // Only with somebody around -- or something unread from somebody who was.
     if (s_msgGuestOn || (m.unread && !tut)) {
@@ -2487,6 +2527,20 @@ static void drawMessageUi(TFT_eSPI& t, uint32_t now, int titleBottom, int potsyB
 bool uiClearBubbleHit(int x, int y) {
     return s_bubbleOn && !Settings::boringMode() &&
            x >= s_bubX && x < s_bubX + s_bubW && y >= s_bubY && y < s_bubY + s_bubH;
+}
+
+bool uiClearRedBubbleHit(int x, int y) {
+    return s_rbOn && !Settings::boringMode() &&
+           x >= s_rbX && x < s_rbX + s_rbW && y >= s_rbY && y < s_rbY + s_rbH;
+}
+
+int uiClearRedBubbleReact(int x, int y) {
+    if (!uiClearRedBubbleHit(x, y)) return 0;
+    if (s_rbLikeW && x >= s_rbLikeX && x < s_rbLikeX + s_rbLikeW &&
+                      y >= s_rbLikeY && y < s_rbLikeY + s_rbLikeH) return 1;   // like
+    if (s_rbNoW   && x >= s_rbNoX   && x < s_rbNoX + s_rbNoW &&
+                      y >= s_rbNoY   && y < s_rbNoY + s_rbNoH)   return 2;   // dislike
+    return 3;                                                               // the bubble: read
 }
 
 // Received emotes. See ui_clear.h: called from main.cpp's loop rather than
@@ -4062,7 +4116,7 @@ void uiClearTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
     // button fills its own box, so the labels stay on a dark ground.
     if (DrawBand::has(bar.y, bar.y + bar.h))
         Theme::drawButtonBar(t, ButtonId::NONE,
-                             scanMenu ? Theme::ButtonBarMode::SCAN_PICKER : Theme::ButtonBarMode::MAIN);
+                             scanMenu ? Theme::ButtonBarMode::SCAN_PICKER : Theme::ButtonBarMode::MAIN_CHAT);
 #if POTS_MESH
     // Last, so it sits over the counters and the buttons -- which it has
     // taken over for as long as it runs; main.cpp routes every tap to it.

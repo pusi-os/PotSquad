@@ -387,11 +387,20 @@ namespace Theme {
     // portrait). Button height is a fixed finger-sized touch target,
     // independent of screen size. Settings lives in the title bar (see
     // settingsButtonHit above), not this bar.
+    // MAIN slots: SCAN/LOG/DESK, plus CHAT on the main screen where four
+    // fit -- see buttonBarSlots(). Four at 236 px and wider; narrower panels
+    // (the 135 px Sticks) keep the three and reach the CHAT room from the
+    // PusiMesh menu instead, because four labelled buttons there would
+    // overlap.
     struct ButtonBarGeom {
         int y, h;
-        int x[3], w[3];
+        int x[4], w[4];
     };
-    ButtonBarGeom computeButtonBar(int screenW, int screenH);
+    // How many slots the main bar gets at this width: 4 where the four
+    // labels fit, 3 otherwise. Shared by the drawer and the hit test so the
+    // two can never disagree about which layout is on screen.
+    int buttonBarSlots(int screenW);
+    ButtonBarGeom computeButtonBar(int screenW, int screenH, int slots = 3);
 
     // MAIN is the normal [SCAN][LOG][DESK] bar. SCAN_PICKER relabels the
     // exact same three slots as [BLE][WIFI][BACK] -- CLEAR's SCAN
@@ -402,9 +411,12 @@ namespace Theme {
     // LOG is the log screen's own bar: [SCAN][LOG][CLR]. The main screen's
     // third slot is DESK, and clearing the log is only offered where the log
     // is actually on screen.
-    enum class ButtonBarMode { MAIN, SCAN_PICKER, LOG };
+    // MAIN_CHAT is MAIN with the CHAT slot added -- the main screen's own
+    // bar, drawn only where buttonBarSlots() says four fit. The other
+    // screens keep MAIN and never grow a CHAT button they do not handle.
+    enum class ButtonBarMode { MAIN, MAIN_CHAT, SCAN_PICKER, LOG };
     void drawButtonBar(TFT_eSPI& t, ButtonId highlighted, ButtonBarMode mode = ButtonBarMode::MAIN);
-    ButtonId hitTestButtonBar(int x, int y, int screenW, int screenH);
+    ButtonId hitTestButtonBar(int x, int y, int screenW, int screenH, int slots = 3);
 
     // 1-pixel horizontal scanline (used on the boot screen).
     void drawScanline(TFT_eSPI& t, int y, uint16_t color = VAPOR_PURPLE);

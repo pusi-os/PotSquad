@@ -919,16 +919,34 @@ int drawWin95Window(TFT_eSPI& t, int x, int y, int w, int h, const char* title) 
     return y + 3 + TB + 6;
 }
 
-ButtonBarGeom computeButtonBar(int screenW, int screenH) {
+int buttonBarSlots(int screenW) {
+    // Four slots need margin 4, gap 4, and the widest label -- "[ ПОИСК ]",
+    // nine glyphs at six pixels on the RU face -- to still fit its box:
+    // 4*54 + 2*4 + 3*4 = 236. Below that the bar keeps its three, which is
+    // why the CHAT room is also a row in the PusiMesh menu.
+    return screenW >= 236 ? 4 : 3;
+}
+
+ButtonBarGeom computeButtonBar(int screenW, int screenH, int slots) {
     ButtonBarGeom g;
     // Half of the original 40px (which was sized to comfortably clear
     // ~9mm finger-touch-target guidance) — explicitly requested smaller
     // to free up more room above for content. Still tappable, just a
     // tighter target than the original guidance-driven size.
     g.h = 20;
-    const int margin = 8, gap = 8;
     g.y = screenH - g.h - 6;
-    int bw = (screenW - 2 * margin - 2 * gap) / 3;
+    if (slots >= 4) {
+        // The tight margins the fourth slot needs; see buttonBarSlots().
+        const int margin = 4, gap = 4;
+        const int bw = (screenW - 2 * margin - 3 * gap) / 4;
+        for (int i = 0; i < 4; i++) {
+            g.w[i] = bw;
+            g.x[i] = margin + i * (bw + gap);
+        }
+        return g;
+    }
+    const int margin = 8, gap = 8;
+    const int bw = (screenW - 2 * margin - 2 * gap) / 3;
     g.w[0] = g.w[1] = g.w[2] = bw;
     g.x[0] = margin;
     g.x[1] = g.x[0] + bw + gap;
@@ -937,7 +955,8 @@ ButtonBarGeom computeButtonBar(int screenW, int screenH) {
 }
 
 void drawButtonBar(TFT_eSPI& t, ButtonId highlighted, ButtonBarMode mode) {
-    ButtonBarGeom g = computeButtonBar(t.width(), t.height());
+    const int slots = mode == ButtonBarMode::MAIN_CHAT ? buttonBarSlots(t.width()) : 3;
+    ButtonBarGeom g = computeButtonBar(t.width(), t.height(), slots);
     if (mode == ButtonBarMode::SCAN_PICKER) {
         drawButton(t, g.x[0], g.y, g.w[0], g.h, "[ BLE ]",  highlighted == ButtonId::SCAN);
         drawButton(t, g.x[1], g.y, g.w[1], g.h, "[ WIFI ]", highlighted == ButtonId::LOG);
@@ -948,14 +967,17 @@ void drawButtonBar(TFT_eSPI& t, ButtonId highlighted, ButtonBarMode mode) {
     drawButton(t, g.x[1], g.y, g.w[1], g.h, tr("[ LOG ]", "[ ЛОГ ]"),  highlighted == ButtonId::LOG);
     drawButton(t, g.x[2], g.y, g.w[2], g.h, mode == ButtonBarMode::LOG ? tr("[ CLR ]", "[ ОЧИСТКА ]") : tr("[ DESK ]", "[ ЧАСЫ ]"),
                highlighted == ButtonId::CLR);
+    if (mode == ButtonBarMode::MAIN_CHAT && slots == 4)
+        drawButton(t, g.x[3], g.y, g.w[3], g.h, tr("[ CHAT ]", "[ ЧАТ ]"), highlighted == ButtonId::CHAT);
 }
 
-ButtonId hitTestButtonBar(int x, int y, int screenW, int screenH) {
-    ButtonBarGeom g = computeButtonBar(screenW, screenH);
+ButtonId hitTestButtonBar(int x, int y, int screenW, int screenH, int slots) {
+    ButtonBarGeom g = computeButtonBar(screenW, screenH, slots);
     if (y < g.y || y > g.y + g.h) return ButtonId::NONE;
     if (x >= g.x[0] && x <= g.x[0] + g.w[0]) return ButtonId::SCAN;
     if (x >= g.x[1] && x <= g.x[1] + g.w[1]) return ButtonId::LOG;
     if (x >= g.x[2] && x <= g.x[2] + g.w[2]) return ButtonId::CLR;
+    if (slots >= 4 && x >= g.x[3] && x <= g.x[3] + g.w[3]) return ButtonId::CHAT;
     return ButtonId::NONE;
 }
 

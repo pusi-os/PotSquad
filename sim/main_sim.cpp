@@ -69,6 +69,7 @@
 #include "ui_nudge.h"
 #include "ui_squadupdate.h"
 #include "ui_squad.h"
+#include "ui_chat.h"
 #include "ui_invite.h"
 #include "ui_update.h"
 #include "ui_wifipass.h"
@@ -290,7 +291,7 @@ static void gpsFeed(uint32_t nowMs) {
 static void usage() {
     fprintf(stderr,
         "usage: potssim <screen> [out.png] [options]\n"
-        "  screens: clear log alert settings detfilter power diary hunt rawscan watchalert colorcheck boot phone meshmenu meshwarn bingo dex touchcal icons\n"
+        "  screens: clear log alert settings detfilter power diary hunt rawscan watchalert colorcheck boot phone meshmenu meshwarn bingo dex chat touchcal icons\n"
         "  dex               --pose N opens entry N\'s card (1-17); 0 is the index\n"
         "  touchcal          the touch calibration, played by a scripted finger:\n"
         "                    --frames skips that many 66 ms frames, --sequence films\n"
@@ -547,7 +548,9 @@ int main(int argc, char** argv) {
     // because the NVS shim may remember a previous run.
     MeshTalk::begin();
     {
-        const bool want = msgs || inboxLine >= 0 || !inboxText.empty();
+        // The CHAT room seeds its own messages, so it needs messages on and a
+        // phrase too, the same as --inbox does.
+        const bool want = msgs || inboxLine >= 0 || !inboxText.empty() || screen == "chat";
         if (Settings::messagesOn() != want) Settings::toggleMessages();
         if (want) MeshTalk::setPhrase("GIBSON MOTHMAN PHREAK NESSIE ZEROCOOL");
     }
@@ -768,6 +771,7 @@ int main(int argc, char** argv) {
         else if (screen == "outfit")   uiOutfitTick(frame, t, engine);
         else if (screen == "meshmenu") uiMeshMenuTick(frame, t, engine);
         else if (screen == "roster" || screen == "squad") uiSquadTick(frame, t, engine);
+        else if (screen == "chat")     uiChatTick(frame, t, engine);
         else if (screen == "meshwarn") uiMeshWarnTick(frame, t, engine);
         else if (screen == "phrase")   uiMeshPhraseTick(frame, t, engine);
         else if (screen == "compose")  uiMeshComposeTick(frame, t, engine);
@@ -1111,6 +1115,51 @@ int main(int argc, char** argv) {
             Mesh::onManufacturerData(ad, an + 2, SEEDS[0].mac, millis());
         }
         uiSquadInit(frame, screen == "roster");
+    }
+    else if (screen == "chat") {
+        uiChatInit(frame);
+        // A roomful of messages through the real receive path, aged into the
+        // past so the "how long ago" reads right. POTSSIM_CHATSEED=n picks how
+        // many; 0 leaves the room empty, for the empty-state shot.
+        const int seedN = getenv("POTSSIM_CHATSEED") ? atoi(getenv("POTSSIM_CHATSEED")) : 5;
+        if (seedN > 0) {
+            static const struct { uint8_t mac[6]; const char* name; const char* text; } MSGS[] = {
+                { { 0x24, 0x0A, 0xC4, 0x11, 0x00, 0x01 }, "BIGFOOT", "MEET AT THE OLD TOWER" },
+                { { 0x24, 0x0A, 0xC4, 0x12, 0x00, 0x02 }, "MOTHMAN", "SEEN ANYTHING ODD TONIGHT" },
+                { { 0x24, 0x0A, 0xC4, 0x13, 0x00, 0x03 }, "NESSIE",  "THE LAKE IS CALM TODAY" },
+                { { 0x24, 0x0A, 0xC4, 0x14, 0x00, 0x04 }, "YETI",    "COLD ONE OUT HERE" },
+                { { 0x24, 0x0A, 0xC4, 0x15, 0x00, 0x05 }, "WENDIGO", "KEEP YOUR LIGHTS ON" },
+                { { 0x24, 0x0A, 0xC4, 0x16, 0x00, 0x06 }, "PHREAK",  "TESTING THE CHANNEL" },
+            };
+            const int nmsg = (int)(sizeof MSGS / sizeof MSGS[0]);
+            uint32_t ctr = 200;
+            const uint32_t renderNow = SimClock::nowMs;
+            for (int k = 0; k < seedN && k < nmsg; k++) {
+                SimClock::nowMs = renderNow - (uint32_t)(nmsg - k) * 5u * 60000u;
+                const uint8_t* mac = MSGS[k].mac;
+                const uint8_t total = MeshMsg::textParts(MSGS[k].text);
+                for (uint8_t p = 0; p < total; p++) {
+                    uint8_t f[MeshMsg::TEXT_FRAME_LEN];
+                    const size_t n = MeshMsg::sealTextPart(MeshCrypto::impl(), mac, ctr + p,
+                                                           MSGS[k].text, p, total, f, sizeof f);
+                    MeshTalk::onFrame(mac, f, n, MSGS[k].name);
+                }
+                ctr += 4;
+                MeshTalk::tick(millis());
+            }
+            SimClock::nowMs = renderNow;
+            MeshTalk::tick(millis());
+        }
+        // POTSSIM_CHATFAV=k keeps the newest k; POTSSIM_CHATFAVMODE=1 opens on
+        // the kept list; POTSSIM_CHATSCROLL=n scrolls; CHATMENU/CHATFULL=row
+        // raise the actions or the full view, which are otherwise a hold deep.
+        if (const char* fv = getenv("POTSSIM_CHATFAV"))
+            for (int i = 0, n = atoi(fv); i < n && i < (int)MeshTalk::inboxCount(); i++)
+                MeshTalk::favToggle(MeshTalk::inboxAt((uint8_t)i));
+        if (getenv("POTSSIM_CHATFAVMODE")) uiChatShowFavs(true);
+        if (const char* sc = getenv("POTSSIM_CHATSCROLL")) uiChatScroll(atoi(sc));
+        if (const char* mr = getenv("POTSSIM_CHATMENU")) uiChatOpenMenu(atoi(mr));
+        if (const char* fr = getenv("POTSSIM_CHATFULL")) uiChatReadRow(atoi(fr));
     }
     else if (screen == "phrase")     {
         uiMeshPhraseInit(frame);

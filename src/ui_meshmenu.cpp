@@ -17,7 +17,10 @@ namespace {
 // Under the heading. Asked at draw time: the heading grows on the large
 // panels, and that is only known once setLarge() has run at boot.
 int topMargin() { return Theme::LIST_TOP + Theme::listHeadingH(); }
-const uint8_t ROW_N = 9;     // BACK is pinned to the bottom edge now, not a row
+// BACK is pinned to the bottom edge now, not a row. CHAT is the tenth: the
+// way into the message room on a panel too narrow for the main bar's fourth
+// slot (see Theme::buttonBarSlots), and a plain way in everywhere else.
+const uint8_t ROW_N = 10;
 
 // The switch-to-ESP-NOW warning. Drawn over the menu, so nothing the setting
 // does happens until YES; the hit test answers CONFIRM_* while it is up.
@@ -217,6 +220,19 @@ void uiMeshMenuTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     // that is the state worth noticing: detection is paused while it is.
     row(t, w, rowY(8), rowH, Theme::tr("TRANSPORT", "ТРАНСПОРТ"), Settings::meshRadioLabel(),
         Settings::meshRadio() == Settings::MeshRadio::ESPNOW ? Theme::VAPOR_BLUE : Theme::W95_SHADOW);
+    // Into the CHAT room. The count is how many have arrived; red when any
+    // of them is still unread, so the row is worth a look the same as the
+    // little bubble on the main screen.
+    {
+        char ct[16];
+        const uint8_t nmsg = MeshTalk::inboxCount();
+        bool unread = false;
+        for (uint8_t i = 0; i < nmsg; i++) if (MeshTalk::inboxAt(i).unread) { unread = true; break; }
+        if (nmsg) snprintf(ct, sizeof ct, "%u >", (unsigned)nmsg);
+        else      snprintf(ct, sizeof ct, "%s", Theme::tr("OPEN >", "ОТКРЫТЬ >"));
+        row(t, w, rowY(9), rowH, Theme::tr("CHAT", "ЧАТ"), ct,
+            nmsg ? (unread ? Theme::RED : Theme::GREEN) : Theme::W95_SHADOW);
+    }
 
     // One line saying what the two switches actually mean together, because
     // "DETECT off, TRANSMIT on" is not self-evidently "they can see you but

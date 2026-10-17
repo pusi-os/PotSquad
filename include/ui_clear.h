@@ -51,6 +51,13 @@ void uiClearSetGuest(const PusiMesh::Peer* p);
 // The little speech bubble beside a visitor, which opens the message screen.
 // Its rectangle is filled in by the draw; this reads it.
 bool uiClearBubbleHit(int x, int y);
+// The visitor's arriving-message bubble: the red one over his head, up while
+// a message is fresh. A tap on it sends the read receipt; the two quick
+// answers drawn inside it send like or dislike. uiClearRedBubbleReact answers
+// 1 like, 2 dislike, 3 the bubble itself, 0 a miss -- so the caller does not
+// have to repeat the geometry. Both read rectangles the draw filled in.
+bool uiClearRedBubbleHit(int x, int y);
+int  uiClearRedBubbleReact(int x, int y);
 // The "+N" squad badge beside a visitor, which opens the SQUAD screen.
 bool uiClearSquadHit(int x, int y);
 

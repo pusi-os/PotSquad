@@ -79,6 +79,7 @@ UI_SRCS  := $(SRC)/theme.cpp \
             $(SRC)/security.cpp \
             $(SRC)/ui_security.cpp \
             $(SRC)/ui_squad.cpp \
+            $(SRC)/ui_chat.cpp \
             $(SRC)/ui_meshphrase.cpp \
             $(SRC)/ui_meshcompose.cpp \
             $(SRC)/settings.cpp \

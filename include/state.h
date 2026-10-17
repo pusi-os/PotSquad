@@ -199,12 +199,17 @@ enum class AppState : uint8_t {
                             // row. See ui_bingo.h.
     DEX              = 37, // the POTSY-DEX, from Settings' row. See ui_dex.h.
     LORA_CHAT        = 38, // LORA CHATS, from WATCH SETTINGS (POTS_LORA builds). See ui_lorachat.h.
-    LORA_HOME        = 39  // LORA, the T-Deck's radio landing page. See ui_lorahome.h.
+    LORA_HOME        = 39, // LORA, the T-Deck's radio landing page. See ui_lorahome.h.
+    CHAT             = 40  // the PusiMesh CHAT room: every message that has
+                           // arrived, favourites that outlive them, and the
+                           // read/reply/reaction actions. See ui_chat.h.
 };
 
 enum class ButtonId : uint8_t {
     NONE  = 255,
     SCAN  = 0,
     LOG   = 1,
-    CLR   = 2
+    CLR   = 2,
+    CHAT  = 3   // the main screen's bar only: opens the CHAT room. See
+                // Theme::buttonBarSlots() for when the slot is drawn.
 };

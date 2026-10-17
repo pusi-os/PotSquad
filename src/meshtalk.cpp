@@ -56,6 +56,11 @@ bool     s_outEmote = false;   // what is on the air is an emote, not a message
 Message  s_inbox = {};
 Message  s_hist[INBOX_N];      // a ring, newest at s_histHead - 1
 uint8_t  s_histN = 0, s_histHead = 0;
+// The kept messages, newest-toggled first. A plain array, not a ring: eight
+// is a short enough handful to shift, and the CHAT room draws them in the
+// order they were kept.
+Message  s_fav[FAV_N];
+uint8_t  s_favN = 0;
 EmoteIn  s_emote = {};
 bool     s_emoteHave = false;
 NudgeIn   s_nudge = {};
@@ -700,6 +705,9 @@ void clearPhrase() {
     s_replay = MeshMsg::Replay();
     memset(s_phrase, 0, sizeof s_phrase);
     s_havePhrase = false;
+    // A new phrase is a new squad: what was kept under the old one goes too.
+    for (uint8_t i = 0; i < FAV_N; i++) s_fav[i] = Message{};
+    s_favN = 0;
     s_outN = 0;
     s_outGen++;                // the radio drops the scan response on its next tick
 }
@@ -1045,6 +1053,8 @@ void forget() {
     s_inbox      = Message{};
     for (uint8_t i = 0; i < INBOX_N; i++) s_hist[i] = Message{};
     s_histN = 0; s_histHead = 0;
+    for (uint8_t i = 0; i < FAV_N; i++) s_fav[i] = Message{};
+    s_favN = 0;
     s_emoteHave  = false;
     s_nudgeHave  = false;
     s_updatedHave = false;
@@ -1207,11 +1217,37 @@ void tick(uint32_t now) {
     }
 }
 
+// The ring slot for the i-th newest, mutable. `s_inbox` when out of range,
+// so a caller past the end edits the throwaway copy rather than memory.
+static Message* histAt(uint8_t i) {
+    if (i >= s_histN) return &s_inbox;
+    return &s_hist[(s_histHead + INBOX_N - 1 - i) % INBOX_N];
+}
+
 const Message& inbox() { return s_inbox; }
 uint8_t        inboxCount() { return s_histN; }
 const Message& inboxAt(uint8_t i) {
     if (i >= s_histN) return s_inbox;
     return s_hist[(s_histHead + INBOX_N - 1 - i) % INBOX_N];
+}
+void inboxRemove(uint8_t i) {
+    if (i >= s_histN) return;
+    // Rebuild the ring in order. Newest-first into a scratch, then written
+    // back oldest-first so the newest lands where the ring keeps it. Static,
+    // not on the stack: a Message is most of a hundred bytes.
+    static Message tmp[INBOX_N];
+    uint8_t n = 0;
+    for (uint8_t k = 0; k < s_histN; k++)
+        if (k != i) tmp[n++] = s_hist[(s_histHead + INBOX_N - 1 - k) % INBOX_N];
+    s_histN = 0; s_histHead = 0;
+    for (uint8_t k = n; k > 0; k--) {
+        s_hist[s_histHead] = tmp[k - 1];
+        s_histHead = (uint8_t)((s_histHead + 1) % INBOX_N);
+        s_histN++;
+    }
+    // The latest is the SQUAD panel's `inbox`: keep it pointing at whoever is
+    // newest now, or empty when that was the last one.
+    if (s_inbox.have) s_inbox = s_histN ? *histAt(0) : Message{};
 }
 void markRead() {
     // Opening a message is the moment to say so: once, on the next tick,
@@ -1219,6 +1255,45 @@ void markRead() {
     // sender seeing "sent" and never "read", which is the truth.
     if (s_inbox.have && s_inbox.unread) { s_readDue = true; s_readCtr = s_inbox.ctr; }
     s_inbox.unread = false;
+    if (s_histN) histAt(0)->unread = false;
+}
+void markReadAt(uint8_t i) {
+    if (i >= s_histN) { markRead(); return; }
+    Message* m = histAt(i);
+    if (m->unread) { s_readDue = true; s_readCtr = m->ctr; }
+    m->unread = false;
+    if (i == 0) s_inbox.unread = false;
+}
+
+// ---- the kept messages (see meshtalk.h) -----------------------------------
+static bool sameMessage(const Message& a, const Message& b) {
+    return memcmp(a.mac, b.mac, 6) == 0 && a.ctr == b.ctr;
+}
+uint8_t        favCount() { return s_favN; }
+const Message& favAt(uint8_t i) { return s_fav[i < s_favN ? i : 0]; }
+bool isFavorite(const Message& m) {
+    for (uint8_t i = 0; i < s_favN; i++) if (sameMessage(s_fav[i], m)) return true;
+    return false;
+}
+bool favToggle(const Message& m) {
+    for (uint8_t i = 0; i < s_favN; i++) {
+        if (!sameMessage(s_fav[i], m)) continue;
+        for (uint8_t k = i + 1; k < s_favN; k++) s_fav[k - 1] = s_fav[k];
+        s_favN--;
+        return false;
+    }
+    // Keep it: at the front, so favAt(0) is the newest-toggled. When full the
+    // oldest kept one falls off the back.
+    const uint8_t count = s_favN < FAV_N ? (uint8_t)(s_favN + 1) : FAV_N;
+    for (uint8_t k = count; k > 1; k--) s_fav[k - 1] = s_fav[k - 2];
+    s_fav[0] = m;
+    s_favN = count;
+    return true;
+}
+void favRemove(uint8_t i) {
+    if (i >= s_favN) return;
+    for (uint8_t k = i + 1; k < s_favN; k++) s_fav[k - 1] = s_fav[k];
+    s_favN--;
 }
 bool takeRead(char* who, size_t cap) {
     if (!s_readHave) return false;

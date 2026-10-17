@@ -340,6 +340,7 @@ static void drawCrashCard(TFT_eSPI& t) {
 #include "ui_meshcompose.h"
 #include "meshtutor.h"
 #include "ui_squad.h"
+#include "ui_chat.h"
 #include "ui_nudge.h"
 #include "ui_squadupdate.h"
 #include "ui_invite.h"
@@ -2636,6 +2637,12 @@ static void enterSquad(bool roster = false) {
     state = AppState::SQUAD;
     transitionStart = millis();
     uiSquadInit(*canvas, roster);
+}
+
+static void enterChat() {
+    state = AppState::CHAT;
+    transitionStart = millis();
+    uiChatInit(*canvas);
 }
 
 static void enterMeshWarn() {
@@ -6718,7 +6725,8 @@ void loop() {
     if (Theme::consumePetUnlock())      Potsy::unlockPet();
 
             bool boring = Settings::boringMode();
-            ButtonId barBtn = tp.valid ? Theme::hitTestButtonBar(tp.x, tp.y, tft.width(), tft.height()) : ButtonId::NONE;
+            ButtonId barBtn = tp.valid ? Theme::hitTestButtonBar(tp.x, tp.y, tft.width(), tft.height(),
+                                                                 Theme::buttonBarSlots(tft.width())) : ButtonId::NONE;
 
             // Left/right 10% slivers of the screen (excluding the button
             // bar row itself, so its own leftmost/rightmost buttons still
@@ -6846,6 +6854,19 @@ void loop() {
                 Potsy::onboardingTapAdvance(tp.x, tp.y)) {
                 lastTouch = now;
 #if POTS_MESH
+            } else if (touchJustDown && (now - lastTouch) > TOUCH_DEBOUNCE_MS &&
+                       uiClearRedBubbleHit(tp.x, tp.y)) {
+                // The arriving-message bubble over the visitor. Its two
+                // buttons answer with an emote -- like or dislike, no words --
+                // and a tap anywhere else on it is reading it, which is what
+                // sends the receipt. Ahead of the small message icon, which
+                // it sits over while a message is fresh.
+                lastTouch = now;
+                sqActive  = false;
+                const int r = uiClearRedBubbleReact(tp.x, tp.y);
+                if (r == 1)      MeshTalk::sendEmote((uint8_t)MeshMsg::Emote::HIGH_FIVE, 0, now);
+                else if (r == 2) MeshTalk::sendEmote((uint8_t)MeshMsg::Emote::GRR, 0, now);
+                else             MeshTalk::markRead();
             } else if (touchJustDown && (now - lastTouch) > TOUCH_DEBOUNCE_MS &&
                        uiClearBubbleHit(tp.x, tp.y)) {
                 // The message bubble. Ahead of the background and the edge
@@ -7004,6 +7025,9 @@ void loop() {
                     else if (barBtn == ButtonId::CLR)  { s_scanPickerOpen = false; }
                 } else if (barBtn == ButtonId::LOG)  { Potsy::trigger(Potsy::Event::LOG_OPENED); enterLog(); }
                 else if (barBtn == ButtonId::SCAN) { s_scanPickerOpen = true; }
+#if POTS_MESH
+                else if (barBtn == ButtonId::CHAT) { enterChat(); }
+#endif
                 else if (boring && tp.y >= 20 && !Settings::backgroundLocked()) {
                     // No Potsy to tap for this in boring mode — any tap
                     // on the main content area (below the title bar, not
@@ -8095,6 +8119,7 @@ void loop() {
                     case MeshMenuRow::SQUAD:    enterSquad(true);              break;
                     case MeshMenuRow::PHRASE:   enterMeshPhrase();             break;
                     case MeshMenuRow::NAME:     enterPhone();                  break;
+                    case MeshMenuRow::CHAT:     enterChat();                   break;
                     case MeshMenuRow::TRANSPORT:
                         // Switching TO ESP-NOW pauses detection, so it asks
                         // first; switching back to BLE gives the radio back and
@@ -8459,6 +8484,45 @@ void loop() {
                         break;
                     }
                     default: break;
+                }
+            }
+            break;
+        }
+        case AppState::CHAT: {
+            drawTwoBand([&](TFT_eSPI& t, bool advance) { uiChatTick(t, now, engine, advance); });
+            // The CHAT room's whole gesture: a press starts here, a drag
+            // scrolls, a short release reads the message under it, and a
+            // still press held past the threshold opens the actions.
+            static bool     chActive = false, chMoved = false, chHeld = false;
+            static int      chStartX = 0, chStartY = 0, chRow = -1, chLastY = 0;
+            static uint32_t chDownMs = 0;
+            constexpr uint32_t CHAT_HOLD_MS = 500;
+            if (touchJustDown) {
+                chActive = true; chMoved = false; chHeld = false;
+                chStartX = tp.x; chStartY = tp.y; chLastY = tp.y; chDownMs = now;
+                chRow = uiChatRowAt(tp.x, tp.y);
+            }
+            if (tp.valid && chActive) {
+                const int dy = tp.y - chLastY;
+                if (abs(dy) > 24 && !chHeld) { chMoved = true; uiChatScroll(dy > 0 ? -1 : 1); chLastY = tp.y; }
+                if (abs(tp.x - chStartX) + abs(tp.y - chStartY) > 14) chMoved = true;
+                if (!chMoved && !chHeld && chRow >= 0 && now - chDownMs >= CHAT_HOLD_MS) {
+                    chHeld = true;
+                    uiChatOpenMenu(chRow);
+                }
+            }
+            if (touchJustUp && chActive) {
+                chActive = false;
+                if (!chMoved && now - chDownMs <= TAP_MAX_MS) {
+                    lastTouch = now;
+                    switch (uiChatTouch(chStartX, chStartY, now)) {
+                        case ChatHit::CLOSE: enterClear(); break;
+                        case ChatHit::WRITE: enterMeshCompose(); break;
+                        case ChatHit::REPLY: enterMeshCompose(); break;
+                        case ChatHit::NONE:
+                            if (chRow >= 0) uiChatReadRow(chRow);
+                            break;
+                    }
                 }
             }
             break;
