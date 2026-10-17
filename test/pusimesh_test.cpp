@@ -343,5 +343,55 @@ int main() {
         ck("and reports no name", !p.custom && p.name[0] == 0);
     }
 
+    suite("A look extension round-trips");
+    {
+        Look l{};
+        l.shirt = 0; l.shorts = 7; l.shoes = 3; l.state = 12;
+        memset(buf, 0xAA, sizeof(buf));
+        size_t n = encodeLook(l, buf);
+        ck("it is LOOK_PAYLOAD bytes", n == LOOK_PAYLOAD);
+        ck("its magic is 'SQX1'", buf[0] == 'S' && buf[1] == 'Q' && buf[2] == 'X' && buf[3] == '1');
+
+        Look r{};
+        ck("it decodes", decodeLook(buf, n, r));
+        ck("shirt survives",   r.shirt  == 0);
+        ck("shorts survives",  r.shorts == 7);
+        ck("shoes survives",   r.shoes  == 3);
+        ck("state survives",   r.state  == 12);
+
+        // Extremes: all-white clothing and the top of the 5-bit state field.
+        l.shirt = 7; l.shorts = 7; l.shoes = 7; l.state = 31;
+        encodeLook(l, buf);
+        ck("the extremes decode", decodeLook(buf, LOOK_PAYLOAD, r));
+        ck("white on all three",  r.shirt == 7 && r.shorts == 7 && r.shoes == 7);
+        ck("state 31 survives",   r.state == 31);
+    }
+
+    suite("A look extension refuses what it must");
+    {
+        Look l{};
+        l.shirt = 1; l.shorts = 2; l.shoes = 3; l.state = 4;
+        uint8_t e[LOOK_PAYLOAD];
+        encodeLook(l, e);
+
+        // A presence payload must not be mistaken for a look extension, nor
+        // the other way round: the magics differ ('SQM1' against 'SQX1').
+        size_t pn = good(false);
+        Look r{};
+        ck("a presence payload is not a look", !decodeLook(buf, pn, r));
+
+        ck("a byte short is refused", !decodeLook(e, LOOK_PAYLOAD - 1, r));
+        ck("a byte long is refused",  !decodeLook(e, LOOK_PAYLOAD + 1, r));
+        ck("a null pointer is refused", !decodeLook(nullptr, LOOK_PAYLOAD, r));
+
+        uint8_t m[LOOK_PAYLOAD];
+        memcpy(m, e, LOOK_PAYLOAD); m[0] = 'X';
+        ck("a wrong magic is refused", !decodeLook(m, LOOK_PAYLOAD, r));
+
+        uint8_t v[LOOK_PAYLOAD];
+        memcpy(v, e, LOOK_PAYLOAD); v[4] = (uint8_t)(LOOK_VERSION + 1);
+        ck("a newer version is declined, not misread", !decodeLook(v, LOOK_PAYLOAD, r));
+    }
+
     return report();
 }

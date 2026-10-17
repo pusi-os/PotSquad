@@ -1090,6 +1090,19 @@ static void txFailure(uint8_t code, const char* stage) {
 // over twice.
 static uint8_t s_lastAdv[PusiMesh::LEN_MAX];
 static size_t  s_lastAdvLen = 0;
+static bool    s_lookOmittedLogged = false;
+
+// Our look extension: the colours of the base outfit, which the presence
+// payload has no room to carry. Read fresh each advert, like buildSelf(), so
+// a colour picked on the APPEARANCE page reaches the peer without a reboot.
+static size_t buildSelfLook(uint8_t* out) {
+    PusiMesh::Look l{};
+    l.shirt  = Potsy::shirtIndex();
+    l.shorts = Potsy::shortsIndex();
+    l.shoes  = Potsy::shoesIndex();
+    l.state  = Potsy::moodIndex();
+    return PusiMesh::encodeLook(l, out);
+}
 
 static void setAdvertising(bool on, uint32_t now) {
     NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
@@ -1144,6 +1157,25 @@ static void setAdvertising(bool on, uint32_t now) {
     if (!d.setManufacturerData(md)) {
         txFailure(2, "manufacturer-size");
         return;
+    }
+
+    // The clothes' colours ride a SECOND manufacturer-specific AD in the same
+    // advertisement, told apart by its own magic (pusimesh.h). Best-effort:
+    // a presence carrying a typed name is 24 bytes and leaves no room, and
+    // then the colours -- never the identity -- are what gives way. Because
+    // addData() failing here is a normal outcome, it is not a transmitter
+    // failure and must not count as one.
+    if (!out) {
+        uint8_t extAd[4 + PusiMesh::LOOK_PAYLOAD];
+        extAd[0] = (uint8_t)(PusiMesh::LOOK_PAYLOAD + 3);   // AD length: type + company + payload
+        extAd[1] = 0xFF;                                     // manufacturer-specific data
+        extAd[2] = (uint8_t)(PusiMesh::COMPANY_ID & 0xFF);
+        extAd[3] = (uint8_t)(PusiMesh::COMPANY_ID >> 8);
+        const size_t en = buildSelfLook(extAd + 4);
+        if (!d.addData(extAd, 4 + en) && !s_lookOmittedLogged) {
+            s_lookOmittedLogged = true;
+            Serial.println("[mesh-tx] look extension did not fit 31 bytes; colours omitted this look");
+        }
     }
     // If the library fails any stage, keep state uncommitted and retry.
     if (adv->isAdvertising() && !adv->stop()) {

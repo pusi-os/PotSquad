@@ -404,6 +404,12 @@ namespace Potsy {
     // (and our own Potsy goes back to his own rule).
     void setAuraPreview(int8_t on);
 
+    // ...and the base outfit's colours for the next body drawn: a visitor
+    // wears his own, the same set-it/draw/clear-it contract as the previews
+    // above. Each garment is independent, so a peer that sent no look
+    // extension keeps our colour for the ones it did not name. -1 clears.
+    void setClothPreview(int8_t shirt, int8_t shorts, int8_t shoes);
+
     // A name sticker on the next body drawn, centred on the torso, moving
     // with him. Set it, draw, clear it with nullptr -- the same contract as
     // the two previews above. Nobody but a cameo wears one; our own
@@ -606,6 +612,12 @@ namespace Potsy {
     uint8_t nicknameIndex();
     uint8_t outfitIndex();
     uint8_t shadesIndex();
+    // The base outfit's colour indices and his current mood, for the look
+    // extension (see pusimesh.h). Read fresh each advert.
+    uint8_t shirtIndex();
+    uint8_t shortsIndex();
+    uint8_t shoesIndex();
+    uint8_t moodIndex();
 
     const char* customName();
     void        setCustomName(const char* n);

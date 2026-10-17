@@ -71,6 +71,35 @@ void phoneMac(const uint8_t id[PHONE_ID_LEN], uint8_t out[6]) {
     memcpy(out + 2, id, PHONE_ID_LEN);
 }
 
+size_t encodeLook(const Look& l, uint8_t* out) {
+    memcpy(out, LOOK_MAGIC, sizeof(LOOK_MAGIC));
+    out[4] = LOOK_VERSION;
+    out[5] = (uint8_t)((l.shirt  & maskOf(3)) | ((l.shorts & maskOf(3)) << 3));
+    out[6] = (uint8_t)((l.shoes  & maskOf(3)) | ((l.state  & maskOf(5)) << 3));
+    return LOOK_PAYLOAD;
+}
+
+bool decodeLook(const uint8_t* in, size_t len, Look& out) {
+    if (!in) return false;
+    if (len != LOOK_PAYLOAD) return false;
+    if (memcmp(in, LOOK_MAGIC, sizeof(LOOK_MAGIC)) != 0) return false;
+    // A version this build does not read is declined outright rather than
+    // guessed at, the same rule as the presence payload: a newer extension
+    // simply contributes no colours here.
+    if (in[4] != LOOK_VERSION) return false;
+
+    Look l;
+    l.shirt  = (uint8_t)(in[5] & maskOf(3));
+    l.shorts = (uint8_t)((in[5] >> 3) & maskOf(3));
+    l.shoes  = (uint8_t)(in[6] & maskOf(3));
+    l.state  = (uint8_t)((in[6] >> 3) & maskOf(5));
+    if (l.shirt  >= LOOK_CLOTH_N) l.shirt  %= LOOK_CLOTH_N;
+    if (l.shorts >= LOOK_CLOTH_N) l.shorts %= LOOK_CLOTH_N;
+    if (l.shoes  >= LOOK_CLOTH_N) l.shoes  %= LOOK_CLOTH_N;
+    out = l;
+    return true;
+}
+
 bool decode(const uint8_t* in, size_t len, Peer& out) {
     if (!in) return false;
     // Length is checked before anything is read, so a short buffer can

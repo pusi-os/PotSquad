@@ -97,6 +97,26 @@ const char* peerName() {
 
 bool live(uint32_t now) { return frameN && (int32_t)(sendUntil - now) > 0; }
 
+// The look extension, for exercising the colours path in a render. Off unless
+// POTSSIM_PEERCLOTH="shirt,shorts,shoes" is set, so an ordinary run is
+// byte-for-byte what it was before this existed. State via POTSSIM_PEERSTATE.
+void emitLook(const uint8_t mac[6], uint32_t now) {
+    const char* env = getenv("POTSSIM_PEERCLOTH");
+    if (!env) return;
+    PusiMesh::Look lk{};
+    int s = 1, h = 0, f = 7;
+    sscanf(env, "%d,%d,%d", &s, &h, &f);
+    lk.shirt = (uint8_t)s; lk.shorts = (uint8_t)h; lk.shoes = (uint8_t)f;
+    if (const char* st = getenv("POTSSIM_PEERSTATE")) lk.state = (uint8_t)atoi(st);
+    uint8_t payload[PusiMesh::LOOK_PAYLOAD];
+    PusiMesh::encodeLook(lk, payload);
+    uint8_t ad[2 + PusiMesh::LOOK_PAYLOAD];
+    ad[0] = (uint8_t)(PusiMesh::COMPANY_ID & 0xFF);
+    ad[1] = (uint8_t)(PusiMesh::COMPANY_ID >> 8);
+    memcpy(ad + 2, payload, PusiMesh::LOOK_PAYLOAD);
+    Mesh::onManufacturerData(ad, 2 + PusiMesh::LOOK_PAYLOAD, mac, now);
+}
+
 // JSON string contents: the only two characters that could break it.
 void jsonCopy(char* out, size_t cap, const char* s) {
     size_t o = 0;
@@ -321,6 +341,9 @@ void tick(uint32_t now) {
                 Mesh::onManufacturerData(packet, frameLen[p] + 2, PEER_MAC, now);
             } else Mesh::onManufacturerData(buf, n + 2, PEER_MAC, now);
         } else Mesh::onManufacturerData(buf, n + 2, PEER_MAC, now);
+        // The colours follow the presence, as a second manufacturer AD, when
+        // a render asked for them.
+        emitLook(PEER_MAC, now);
         // The rest of the squad, after: on a board NimBLE hands an advert and
         // its scan response over in one callback, so nobody else's advert can
         // land between them and take the name the frame borrows.

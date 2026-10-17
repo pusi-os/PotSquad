@@ -517,6 +517,29 @@ int main(int argc, char** argv) {
         guest.phone = getenv("POTSSIM_PEERPHONE") != nullptr;
         snprintf(guest.name, sizeof(guest.name), "%s", peerName.c_str());
         uiClearSetGuest(&guest);
+        // POTSSIM_PEERCLOTH="shirt,shorts,shoes": his base-outfit colours,
+        // pushed through the REAL receive path -- a presence advert, then the
+        // look extension as a second manufacturer AD -- under a fixed address,
+        // so a render exercises the same merge a board does.
+        if (const char* cloth = getenv("POTSSIM_PEERCLOTH")) {
+            static const uint8_t pmac[6] = { 0x5A, 0x57, 0x00, 0x00, 0x00, 0x02 };
+            if (!Settings::meshDetect()) Settings::cycleMeshDetect();
+            uint8_t ad[PusiMesh::LEN_MAX + 2] = {
+                (uint8_t)(PusiMesh::COMPANY_ID & 0xFF), (uint8_t)(PusiMesh::COMPANY_ID >> 8) };
+            const size_t an = PusiMesh::encode(guest, ad + 2);
+            Mesh::onManufacturerData(ad, an + 2, pmac, millis());
+            int s = 1, h = 0, f = 7;
+            sscanf(cloth, "%d,%d,%d", &s, &h, &f);
+            PusiMesh::Look lk{};
+            lk.shirt = (uint8_t)s; lk.shorts = (uint8_t)h; lk.shoes = (uint8_t)f;
+            uint8_t lp[PusiMesh::LOOK_PAYLOAD];
+            PusiMesh::encodeLook(lk, lp);
+            uint8_t la[2 + PusiMesh::LOOK_PAYLOAD];
+            la[0] = (uint8_t)(PusiMesh::COMPANY_ID & 0xFF);
+            la[1] = (uint8_t)(PusiMesh::COMPANY_ID >> 8);
+            memcpy(la + 2, lp, PusiMesh::LOOK_PAYLOAD);
+            Mesh::onManufacturerData(la, 2 + PusiMesh::LOOK_PAYLOAD, pmac, millis());
+        }
     }
 
     // Messages go through the real runtime and the real receive path; only

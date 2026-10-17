@@ -1320,6 +1320,17 @@ static int8_t s_shadeOverride  = -1;
 // A visitor's aura: -1 is nobody's business (our own rule applies), 0 and 1
 // are what his advert said. See setAuraPreview().
 static int8_t s_auraOverride   = -1;
+// The base outfit's colours for the next body drawn: a visitor wears his own
+// (from his look extension), the host his settings. -1 leaves a garment at
+// its setting, so a peer that sent no extension simply keeps our colour for
+// it. See setClothPreview().
+static int8_t s_clothShirt  = -1;
+static int8_t s_clothShorts = -1;
+static int8_t s_clothShoes  = -1;
+// The colour of one garment, the caller's choice taken when there is one.
+static uint16_t clothOr(int8_t ov, uint16_t fallback) {
+    return ov >= 0 ? CLOTH_COLORS[ov % CLOTH_N] : fallback;
+}
 
 // Every read of the shade tint goes through this so an override cannot be
 // half-applied -- the lens and the frame are drawn in different places and
@@ -2658,6 +2669,12 @@ void setAuraPreview(int8_t on) {
     s_auraOverride = on;
 }
 
+void setClothPreview(int8_t shirt, int8_t shorts, int8_t shoes) {
+    s_clothShirt  = (shirt  >= 0 && shirt  < (int8_t)CLOTH_N) ? shirt  : -1;
+    s_clothShorts = (shorts >= 0 && shorts < (int8_t)CLOTH_N) ? shorts : -1;
+    s_clothShoes  = (shoes  >= 0 && shoes  < (int8_t)CLOTH_N) ? shoes  : -1;
+}
+
 static const char* s_nameTag = nullptr;
 void setNameTag(const char* name) {
     s_nameTag = (name && name[0]) ? name : nullptr;
@@ -3883,6 +3900,14 @@ uint8_t nicknameIndex() { ensurePrefsLoaded(); return s_nickIdx; }
 // What the squad sees: the stripes, while he serves.
 uint8_t outfitIndex()   { ensurePrefsLoaded(); return jailed() ? (uint8_t)OutfitId::STRIPES : s_outfitIdx; }
 uint8_t shadesIndex()   { ensurePrefsLoaded(); return s_shadeIdx; }
+// The base outfit's colour indices, for the look extension: what the other
+// board needs to draw his tee, shorts and sneakers in HIS colours.
+uint8_t shirtIndex()    { ensurePrefsLoaded(); return (uint8_t)(s_shirtIdx  % CLOTH_N); }
+uint8_t shortsIndex()   { ensurePrefsLoaded(); return (uint8_t)(s_shortsIdx % CLOTH_N); }
+uint8_t shoesIndex()    { ensurePrefsLoaded(); return (uint8_t)(s_shoeIdx   % CLOTH_N); }
+// His current mood, as the look extension's one state byte. Posers are only
+// ever shown by the OTHER board when it can act them out.
+uint8_t moodIndex()     { return (uint8_t)mood; }
 
 const char* customName() {
     ensurePrefsLoaded();
@@ -6918,9 +6943,9 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     // dresses or recolours the body keeps them off, so it never fights it.
     if (outfitWearsBaseClothes(outfitNow)) {
         const int th = torsoHalf();
-        const uint16_t teeC   = shirtColor();
+        const uint16_t teeC   = clothOr(s_clothShirt,  shirtColor());
         const uint16_t teeDk  = blend(teeC, BLACK, 90);
-        const uint16_t shrtC  = shortsColor();
+        const uint16_t shrtC  = clothOr(s_clothShorts, shortsColor());
         const uint16_t shrtDk = blend(shrtC, BLACK, 90);
         // Tee: shoulders to the waist, with a collar and a hem line.
         t.fillRoundRect(cx2 - S(th), hy + S(23), S(2 * th), S(12), S(3), teeC);
@@ -6933,7 +6958,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         // A centre seam, so the shorts read as two legs rather than a skirt.
         t.fillRect(cx2 - 1, hy + S(38), 2, S(9), shrtDk);
         // Sneakers over the feet, wherever the current pose put them.
-        const uint16_t shoeC  = shoesColor();
+        const uint16_t shoeC  = clothOr(s_clothShoes, shoesColor());
         const uint16_t shoeDk = blend(shoeC, BLACK, 70);
         for (int k = 0; k < 2; k++) {
             const int fx = k == 0 ? s_footLx : s_footRx;
@@ -7332,7 +7357,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     // chain, which has recorded both arms' endpoints by now, so a raised arm
     // takes its sleeve with it instead of leaving it hanging at the old spot.
     if (outfitWearsBaseClothes(outfitNow)) {
-        const uint16_t teeC  = shirtColor();
+        const uint16_t teeC  = clothOr(s_clothShirt, shirtColor());
         const uint16_t teeDk = blend(teeC, BLACK, 90);
         const int sw = S(9);
         for (int k = 0; k < 2; k++) {

@@ -121,6 +121,50 @@ struct Peer {
     uint8_t id[PHONE_ID_LEN];
 };
 
+// ---------------------------------------------------------------------
+// The look extension.
+//
+// The presence payload above carries the OUTFIT but not the base outfit's
+// COLOURS (a tee, shorts, sneakers -- see Potsy's APPEARANCE page), and it
+// cannot grow: an older receiver compares the exact length and would refuse
+// the whole advert over one extra byte. So the colours ride a SECOND
+// manufacturer-specific AD in the same advertisement. An older receiver's
+// decode() declines this payload by its magic and simply never sees the
+// colours, while still reading the presence advert beside it -- exactly the
+// "wrong hat beats refusing the peer" bargain the rest of this file makes.
+// Both structures carry company 0xFFFF; this one is told apart by MAGIC.
+//
+// Layout after the 2 company bytes:
+//   0..3  magic 'S','Q','X','1'
+//   4     extension version (=1)
+//   5     shirt(3) | shorts(3) << 3
+//   6     shoes(3) | state(5) << 3
+//
+// It is best-effort on the wire: 31 bytes hold an unnamed presence (12) plus
+// this (11) with room to spare, but a presence carrying a typed name (24)
+// leaves too little, and a sender then simply omits the colours rather than
+// the identity. See the plan doc.
+static const uint8_t LOOK_MAGIC[4] = { 0x53, 0x51, 0x58, 0x31 };  // 'S','Q','X','1'
+static const uint8_t LOOK_VERSION  = 1;
+static const size_t  LOOK_BODY     = 2;                     // packed colour/state bytes
+static const size_t  LOOK_PAYLOAD  = sizeof(LOOK_MAGIC) + 1 + LOOK_BODY;   // 7
+static const uint8_t LOOK_CLOTH_N  = 8;                     // CLOTH_COLORS entries
+
+struct Look {
+    uint8_t shirt;   // index into the shared CLOTH_COLORS palette, 0..7
+    uint8_t shorts;  // ...and the same for the other two garments
+    uint8_t shoes;
+    uint8_t state;   // the sender's mood (Potsy::Mood), 0..31; 0 is idle
+};
+
+// Writes LOOK_PAYLOAD bytes. `out` must have room for at least that many.
+size_t encodeLook(const Look& l, uint8_t* out);
+// Parses a look extension. False unless it is exactly well formed: the magic,
+// the version this build reads, and the exact length. Indices are clamped on
+// the way out, as above -- a colour this build lacks is a version skew, not
+// an attack.
+bool decodeLook(const uint8_t* in, size_t len, Look& out);
+
 // Builds the advertised payload. Returns the number of bytes written, which
 // is LEN_INDEXED or LEN_NAMED. `out` must have room for LEN_MAX.
 //

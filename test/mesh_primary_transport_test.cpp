@@ -8,6 +8,9 @@
 #include <cassert>
 #include <cstdio>
 
+// Theme::tr stub: EN in tests, the way the firmware reads with lang()==0.
+namespace Theme { const char* tr(const char* en, const char*) { return en; } }
+
 int main() {
     using namespace MeshPrimaryTransport;
     static_assert(FRAME_MS == MeshAirtime::FRAME_DWELL_MS, "slot/dwell match");

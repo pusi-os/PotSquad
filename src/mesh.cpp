@@ -57,6 +57,46 @@ static uint32_t s_squadSeen[SQUAD_N];
 static bool     s_squadLive[SQUAD_N];
 static PusiMesh::Peer s_squadPeer[SQUAD_N];   // what each one looks like
 
+// The look extension, keyed by the address it came from. The presence advert
+// gives us who somebody is; this gives us the colours of the clothes that a
+// presence payload has no room for (see pusimesh.h). Kept beside the squad
+// table because both answer "what a peer looks like", but separate because
+// the extension may be absent -- a named peer's advert is too big to carry
+// it -- and the identity must survive that.
+static const uint8_t  LOOK_N = 8;
+static uint8_t        s_lookMac[LOOK_N][6];
+static PusiMesh::Look s_lookVal[LOOK_N];
+static uint32_t       s_lookSeen[LOOK_N];
+static bool           s_lookLive[LOOK_N];
+
+static void noteLook(const uint8_t* mac, const PusiMesh::Look& l, uint32_t now) {
+    uint8_t slot = LOOK_N;
+    for (uint8_t i = 0; i < LOOK_N; i++)
+        if (s_lookLive[i] && memcmp(s_lookMac[i], mac, 6) == 0) { slot = i; break; }
+    if (slot == LOOK_N) {
+        slot = 0;
+        for (uint8_t i = 0; i < LOOK_N; i++) {
+            if (!s_lookLive[i]) { slot = i; break; }
+            if ((int32_t)(s_lookSeen[i] - s_lookSeen[slot]) < 0) slot = i;
+        }
+        memcpy(s_lookMac[slot], mac, 6);
+        s_lookLive[slot] = true;
+    }
+    s_lookVal[slot]  = l;
+    s_lookSeen[slot] = now;
+}
+
+bool lookFor(const uint8_t mac[6], PusiMesh::Look& out) {
+    const uint32_t now = millis();
+    for (uint8_t i = 0; i < LOOK_N; i++) {
+        if (!s_lookLive[i] || memcmp(s_lookMac[i], mac, 6) != 0) continue;
+        if ((int32_t)(now - s_lookSeen[i]) > (int32_t)PEER_STALE_MS) return false;
+        out = s_lookVal[i];
+        return true;
+    }
+    return false;
+}
+
 // The visitor somebody picked on the SQUAD screen, if any. RAM only.
 static uint8_t  s_preferMac[6] = { 0 };
 static bool     s_preferSet    = false;
@@ -191,10 +231,21 @@ bool onManufacturerData(const uint8_t* d, size_t len, const uint8_t* mac, uint32
     // Refused at the door when detection is off, so a peer cannot be latched
     // between the setting changing and the next tick.
     if (!Settings::meshDetect()) return false;
-    // Company ID first, little-endian, then the payload.
-    if (len < 2 + PusiMesh::LEN_INDEXED) return false;
+    // Company ID first, little-endian, then the payload. The look extension
+    // is shorter than any presence payload, so the length floor moves down
+    // past its size before anything is read.
+    if (len < 2) return false;
     const uint16_t cid = (uint16_t)(d[0] | ((uint16_t)d[1] << 8));
     if (cid != PusiMesh::COMPANY_ID) return false;
+
+    // Our look extension, if this is the second manufacturer AD rather than
+    // the presence one. Tried first because it is told apart by its own magic
+    // and is shorter than a presence payload could ever be.
+    {
+        PusiMesh::Look lk;
+        if (PusiMesh::decodeLook(d + 2, len - 2, lk)) { noteLook(mac, lk, now); return true; }
+    }
+    if (len < 2 + PusiMesh::LEN_INDEXED) return false;
 
     // A message frame rather than an advert. Queued raw for the loop task:
     // this runs in the BLE host task and the cipher lives on the loop, so no

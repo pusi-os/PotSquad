@@ -100,6 +100,10 @@ namespace Mesh {
     // What that board looked like the last time its advert was heard, in
     // range or not. False if it has never been heard this boot.
     bool                    peerLook(const uint8_t mac[6], PusiMesh::Peer& out);
+    // The colours of that board's base outfit, from its look extension, while
+    // its advert is still fresh. False when it sent none (a name fills the
+    // advert's 31 bytes, leaving no room) -- the caller then draws our own.
+    bool                    lookFor(const uint8_t mac[6], PusiMesh::Look& out);
     // Make this board the visitor. The one-visitor rule still holds; this only
     // says who wins it. The guest already here leaves on the next advert the
     // chosen one sends, and if the chosen one goes quiet, first-come applies.

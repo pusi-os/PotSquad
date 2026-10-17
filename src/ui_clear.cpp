@@ -2256,6 +2256,15 @@ void uiClearDrawCrowd(TFT_eSPI& t, uint32_t now, const Mesh::SquadMember* crowd,
         Potsy::setOutfitPreview((int8_t)p.outfit);
         Potsy::setShadesPreview((int8_t)p.shade);
         Potsy::setAuraPreview(p.aura ? 1 : 0);
+        // His base outfit's colours, when his look extension carried them
+        // (see pusimesh.h). A peer whose advert had no room -- a typed name
+        // fills it -- sends none, and he then wears ours, which is the same
+        // degradation the extension is designed for.
+        PusiMesh::Look lk;
+        if (Mesh::lookFor(crowd[i].mac, lk))
+            Potsy::setClothPreview((int8_t)lk.shirt, (int8_t)lk.shorts, (int8_t)lk.shoes);
+        else
+            Potsy::setClothPreview(-1, -1, -1);
         // His name, on a sticker on his chest, so it is his and moves with
         // him. Four or fewer and everybody wears one; past that only the
         // one who was tapped, for a few seconds.
@@ -2284,6 +2293,7 @@ void uiClearDrawCrowd(TFT_eSPI& t, uint32_t now, const Mesh::SquadMember* crowd,
         Potsy::setAuraPreview(-1);
         Potsy::setShadesPreview(-1);
         Potsy::setOutfitPreview(-1);
+        Potsy::setClothPreview(-1, -1, -1);
         if (s_crowdN < 8) {
             int half = (int)(30.0f * s);
             if (half < 14) half = 14;      // a fingertip, however small he is
@@ -3157,6 +3167,16 @@ static void drawVisit(TFT_eSPI& t, uint32_t now, const PusiMesh::Peer* guest,
     Potsy::setOutfitPreview((int8_t)guest->outfit);
     Potsy::setShadesPreview((int8_t)guest->shade);
     Potsy::setAuraPreview(guest->aura ? 1 : 0);
+    // And the colours of whatever base outfit he is wearing, when his look
+    // extension carried them -- the same condition and the same degradation
+    // as the crowd's drawOne: no extension, our colours stay.
+    {
+        PusiMesh::Look lk;
+        if (Mesh::lookFor(Mesh::peerMac(), lk))
+            Potsy::setClothPreview((int8_t)lk.shirt, (int8_t)lk.shorts, (int8_t)lk.shoes);
+        else
+            Potsy::setClothPreview(-1, -1, -1);
+    }
     // The scale tick() actually used, not SMALL_PCT again: tick
     // derives its scale from the height it was given, so the two
     // numbers are different units and passing 0.7 here drew a
@@ -3215,6 +3235,7 @@ static void drawVisit(TFT_eSPI& t, uint32_t now, const PusiMesh::Peer* guest,
     Potsy::setAuraPreview(-1);
     Potsy::setShadesPreview(-1);
     Potsy::setOutfitPreview(-1);
+    Potsy::setClothPreview(-1, -1, -1);
 
     // The slap. Where the two hands meet -- S(30) in from each of them
     // -- at the height the HIGHFIVE arm ends, for a flash either side
