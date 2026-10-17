@@ -407,7 +407,26 @@ static const char* const EMOTE_SNOW_CALL[]  = { "Think fast!", "Heads up!", "Inc
 static const char* const EMOTE_SNOW_BACK[]  = { "Oh, you're DONE.", "Payback!", "Take THAT!" };
 static const char* const EMOTE_BOO[]        = { "BOO!", "BOO!!", "RAAWR!" };
 static const char* const EMOTE_SCARED[]     = { "AAAH!", "Not funny!", "My FUR!" };
-#define EMOTE_PICK(a) (a[s_exchange % (sizeof(a) / sizeof(a[0]))])
+// The same lines in Russian, index for index. The set-piece calls are the one
+// chatter bank that lives in this file rather than with the rest of the
+// dialogue in potsy.cpp, so they carry their own twin here; EMOTE_PICK picks
+// the pair by Settings::lang().
+static const char* const EMOTE_WAVE_CALL_RU[]  = { "Хеййй!", "Йоу!", "Приветик!" };
+static const char* const EMOTE_WAVE_BACK_RU[]  = { "Хей-хей!", "Йоу-йоу!", "Привет-привет!" };
+static const char* const EMOTE_FIVE_CALL_RU[]  = { "Дай пять!", "Пять!", "Шлёп!" };
+static const char* const EMOTE_DANCE_CALL_RU[] = { "Танц-баттл. Сейчас.", "Смотри ЭТО.", "Побей-ка!" };
+static const char* const EMOTE_DANCE_BACK_RU[] = { "О, понеслась.", "Мой ход!", "Любитель." };
+static const char* const EMOTE_RPS_CALL_RU[]   = { "Камень, бумага...", "До одного!", "Готов? Раз!" };
+static const char* const EMOTE_SNOW_CALL_RU[]  = { "Лови!", "Берегись!", "Летит!" };
+static const char* const EMOTE_SNOW_BACK_RU[]  = { "Всё, ты попал.", "Ответка!", "Получай!" };
+static const char* const EMOTE_BOO_RU[]        = { "БУ!", "БУ!!", "РРААР!" };
+static const char* const EMOTE_SCARED_RU[]     = { "ААА!", "Не смешно!", "Мой МЕХ!" };
+// EN and RU arrays for one line, chosen by the language, indexed the same way
+// the old macro indexed a single array.
+static const char* emotePick(const char* const* en, const char* const* ru, size_t n) {
+    return (Settings::lang() == 1 ? ru : en)[s_exchange % n];
+}
+#define EMOTE_PICK(en, ru) emotePick(en, ru, sizeof(en) / sizeof(en[0]))
 
 // ---- the shared scare -----------------------------------------------------
 // The host reacts to a detection through his mood machine; the guest gets
@@ -511,7 +530,7 @@ static void pieceBegin(uint32_t now, Piece p, bool guestFirst) {
     switch (s_piece) {
         case Piece::DANCE:
             if (guestFirst) {
-                s_visitGuestLine = EMOTE_PICK(EMOTE_DANCE_CALL);
+                s_visitGuestLine = EMOTE_PICK(EMOTE_DANCE_CALL, EMOTE_DANCE_CALL_RU);
             } else {
                 Potsy::visitDanceCall(s_exchange);          // throws down...
                 Potsy::visitDance(now, DANCE_SEG_MS);       // ...and goes first
@@ -523,7 +542,7 @@ static void pieceBegin(uint32_t now, Piece p, bool guestFirst) {
             // are set by emoteStart() straight after.
             s_rpsHost  = (uint8_t)random(0, 3);
             s_rpsGuest = (uint8_t)random(0, 3);
-            if (guestFirst) s_visitGuestLine = EMOTE_PICK(EMOTE_RPS_CALL);
+            if (guestFirst) s_visitGuestLine = EMOTE_PICK(EMOTE_RPS_CALL, EMOTE_RPS_CALL_RU);
             else            Potsy::visitRpsCall(s_exchange);
             Potsy::visitPump(now, RPS_PUMP_MS);
             Serial.println("[visit] rock paper scissors");
@@ -532,7 +551,7 @@ static void pieceBegin(uint32_t now, Piece p, bool guestFirst) {
             s_snowDone = 0;
             s_puffAt   = 0;
             if (guestFirst) {
-                s_visitGuestLine = EMOTE_PICK(EMOTE_SNOW_CALL);
+                s_visitGuestLine = EMOTE_PICK(EMOTE_SNOW_CALL, EMOTE_SNOW_CALL_RU);
             } else {
                 Potsy::visitSnowCall(s_exchange);
                 Potsy::visitReach(now, SNOW_WIND_MS, Potsy::Reach::UP);   // winding up
@@ -540,20 +559,20 @@ static void pieceBegin(uint32_t now, Piece p, bool guestFirst) {
             Serial.println("[visit] snowball fight");
             break;
         case Piece::WAVE:
-            if (guestFirst) s_visitGuestLine = EMOTE_PICK(EMOTE_WAVE_CALL);
-            else            Potsy::visitSay(EMOTE_PICK(EMOTE_WAVE_CALL));
+            if (guestFirst) s_visitGuestLine = EMOTE_PICK(EMOTE_WAVE_CALL, EMOTE_WAVE_CALL_RU);
+            else            Potsy::visitSay(EMOTE_PICK(EMOTE_WAVE_CALL, EMOTE_WAVE_CALL_RU));
             Serial.println("[visit] wave");
             break;
         case Piece::FIVE:
-            if (guestFirst) s_visitGuestLine = EMOTE_PICK(EMOTE_FIVE_CALL);
-            else            Potsy::visitSay(EMOTE_PICK(EMOTE_FIVE_CALL));
+            if (guestFirst) s_visitGuestLine = EMOTE_PICK(EMOTE_FIVE_CALL, EMOTE_FIVE_CALL_RU);
+            else            Potsy::visitSay(EMOTE_PICK(EMOTE_FIVE_CALL, EMOTE_FIVE_CALL_RU));
             Serial.println("[visit] high five (emote)");
             break;
         case Piece::BOO:
             if (guestFirst) {
-                s_visitGuestLine = EMOTE_PICK(EMOTE_BOO);
+                s_visitGuestLine = EMOTE_PICK(EMOTE_BOO, EMOTE_BOO_RU);
             } else {
-                Potsy::visitSay(EMOTE_PICK(EMOTE_BOO));
+                Potsy::visitSay(EMOTE_PICK(EMOTE_BOO, EMOTE_BOO_RU));
                 Potsy::visitReach(now, BOO_JUMP_MS + 300, Potsy::Reach::UP);   // arms up
             }
             Serial.println("[visit] boo");
@@ -783,7 +802,7 @@ static void pieceTick(uint32_t now) {
             if (s_pieceGuestFirst) {
                 s_guestTurn      = false;
                 s_visitGuestLine = nullptr;
-                Potsy::visitSay(EMOTE_PICK(EMOTE_DANCE_BACK));
+                Potsy::visitSay(EMOTE_PICK(EMOTE_DANCE_BACK, EMOTE_DANCE_BACK_RU));
                 Potsy::visitDance(now, DANCE_SEG_MS);
             } else {
                 s_guestTurn      = true;
@@ -829,7 +848,7 @@ static void pieceTick(uint32_t now) {
                 if (s_pieceGuestFirst) {
                     s_guestTurn      = false;
                     s_visitGuestLine = nullptr;
-                    Potsy::visitSay(EMOTE_PICK(EMOTE_SNOW_BACK));
+                    Potsy::visitSay(EMOTE_PICK(EMOTE_SNOW_BACK, EMOTE_SNOW_BACK_RU));
                     Potsy::visitReach(now, SNOW_WIND_MS, Potsy::Reach::UP);
                 } else {
                     s_guestTurn      = true;
@@ -881,10 +900,10 @@ static void pieceTick(uint32_t now) {
             if (s_pieceGuestFirst) {
                 s_guestTurn      = false;
                 s_visitGuestLine = nullptr;
-                Potsy::visitSay(EMOTE_PICK(EMOTE_WAVE_BACK));
+                Potsy::visitSay(EMOTE_PICK(EMOTE_WAVE_BACK, EMOTE_WAVE_BACK_RU));
             } else {
                 s_guestTurn      = true;
-                s_visitGuestLine = EMOTE_PICK(EMOTE_WAVE_BACK);
+                s_visitGuestLine = EMOTE_PICK(EMOTE_WAVE_BACK, EMOTE_WAVE_BACK_RU);
             }
         } else if (step >= 2) {
             Potsy::visitLaugh(now);
@@ -917,12 +936,12 @@ static void pieceTick(uint32_t now) {
         s_pieceStep = step;
         if (step == 1) {                              // and the other one jumps out of his fur
             if (s_pieceGuestFirst) {
-                Potsy::visitSay(EMOTE_PICK(EMOTE_SCARED));
+                Potsy::visitSay(EMOTE_PICK(EMOTE_SCARED, EMOTE_SCARED_RU));
                 Potsy::visitReach(now, BOO_MS - BOO_JUMP_MS, Potsy::Reach::UP);   // hands up
             } else {
                 s_guestStartleUntil = now + 1100;
                 s_guestTurn         = true;
-                s_visitGuestLine    = EMOTE_PICK(EMOTE_SCARED);
+                s_visitGuestLine    = EMOTE_PICK(EMOTE_SCARED, EMOTE_SCARED_RU);
             }
         } else {
             Potsy::visitLaugh(now);

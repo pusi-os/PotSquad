@@ -126,20 +126,26 @@ Compixii и BroWatch (единый словарь терминов), не мен
 ## Пошаговый план имплементации (последовательно)
 
 1. [x] План дополнен (этот файл).
-2. [ ] PusiMesh: кодек расширения `encodeLook/decodeLook` (magic `SQX1`),
-      host-тест + негативные кейсы, вектор.
-3. [ ] RX: `mesh.cpp` — таблица `s_ext[]`, разбор второй AD, `lookFor()`.
-4. [ ] TX: `detection.cpp` — `buildSelfLook()` и `addData` второй AD
-      (best-effort, только для presence, не поверх кадра сообщения).
-5. [ ] Рендер: `potsy.cpp` `setClothPreview` + использование в базовой
-      одежде; `ui_clear.cpp` — применить цвета/состояние к гостю.
-6. [ ] POTSY-DEX RU: `dex.cpp` (контент RU + EN-фолбэк), `ui_dex.cpp`
-      (подписи + RU-рендер).
-7. [ ] Остальные экраны/болтовня RU (Ф10), сверка терминов с Compixii/
-      BroWatch.
-8. [ ] Сборка `cyd-ili9341`, host-тесты, симулятор-рендеры; итерации.
-9. [ ] Коммит, прошивка `cyd-ili9341` (`/dev/ttyUSB0`), проверка serial
-      (`self-test`, `SQWVER`), отчёт.
+2. [x] PusiMesh: кодек расширения `encodeLook/decodeLook` (magic `SQX1`),
+      host-тест + негативные кейсы (test/pusimesh_test.cpp). Коммит `7cbf4ab`.
+3. [x] RX: `mesh.cpp` — таблица `s_look[]`, разбор второй AD, `lookFor()`
+      (коммит `7cbf4ab`).
+4. [x] TX: `detection.cpp` — `buildSelfLook()` и `addData` второй AD
+      (best-effort, только для presence). Коммит `7cbf4ab`.
+5. [x] Рендер: `potsy.cpp` `setClothPreview` + использование в базовой
+      одежде и рукавах; `ui_clear.cpp` — drawVisit и drawOne. Проверено в
+      симуляторе (ext через реальный RX-путь, 1314 px). Коммит `7cbf4ab`.
+6. [x] POTSY-DEX RU: `dex.cpp` (контент RU + EN-таблицы рядом),
+      `ui_dex.cpp` (подписи + RU-рендер через put/wid/wrap). Коммит `3da32f3`.
+7. [~] Остальные экраны/болтовня RU (Ф10). Сделано: банки реплик
+      set-piece эмоций в `ui_clear.cpp` (EMOTE_*_RU). ОСТАЁТСЯ: `ui_security`
+      (+`security.cpp`), `ui_diagnostics`, `ui_sysprops`, `ui_wifipass`,
+      `ui_lorahome`, подписи счётчиков главного экрана и режима часов,
+      `regulars` (имена — намеренно EN). Сверить термины с Compixii/BroWatch.
+8. [x] Сборка `cyd-ili9341` SUCCESS, host-тесты 39 pass + те же 5 предсущих,
+      симулятор-рендеры (dex RU, ext-цвета). 
+9. [~] Коммиты `7cbf4ab`, `3da32f3` (+ этот). Прошивка и serial-проверка —
+      в конце сессии.
 
 ## Открытые вопросы/риски
 
