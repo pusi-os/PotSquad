@@ -221,9 +221,45 @@ Compixii и BroWatch (единый словарь терминов), не мен
 ## Ф14. CHAT — раздел входящих сообщений PusiMesh
 
 Требование (2026-10-17, добавлено по ходу). Всё уже работало в Compixii и
-BroWatch — переиспользовать их структуры, не плодить сущностей. Сначала
-ИССЛЕДОВАТЬ их код (codebase-memory MCP + `BroWatch/src`, `compixi`) и наши
-`meshtalk.*`, `meshmsg.*`, `ui_meshmenu.cpp`, `ui_squad.cpp`, `ui_clear.cpp`.
+BroWatch — переиспользовать их структуры, не плодить сущностей.
+
+ДОНОРЫ (исследовано через codebase-memory MCP + чтение):
+
+- `BroWatch/src/ui_chat.cpp` (221 стр.) + `include/ui_chat.h` — экран чата с
+  пузырями (bubble), скроллом (drag, липнет к низу), detail-view по тапу,
+  кнопкой REPLY, статусами доставки (PART/PARTIAL, ✓✓ DELIVERED, ✓ IN MESH,
+  ✗ FAILED, … SENDING) и read-receipt. Портировать и адаптировать.
+- `BroWatch/src/meshtalk.cpp` — `inbox()/inboxCount()/inboxAt()`; там
+  `Message` богаче (mine, delivery, partial, partMask/partTotal, transferId,
+  hops, retries, unread). У нас `include/meshtalk.h` `Message` проще
+  (have/unread/text/canned/body/from/mac/at/ctr), `INBOX_N=8`, RAM. Расширить
+  `Message`/inbox полями доставки и увеличить ring; избранное — отдельное
+  RAM-хранилище (переживает удаление из входящих).
+- `BroWatch/src/ui_meshcompose.cpp: uiMessageSendReaction()` (797) — отправка
+  реакции-эмоции (лайк/дизлайк). У нас уже есть `MeshMsg::Emote`,
+  `MeshTalk::sendEmote`, `takeEmote` — переиспользовать.
+- `BroWatch/src/ui_clear.cpp: drawMessageUi/drawMessageIcon` (2238/1725),
+  `messageShowing()` — бабл над камео с текстом и кнопками реакции.
+- Наши: `MeshTalk` (read receipt `takeRead`, inbox, emote), `meshmsg.h`
+  (`TEXT_MAX` — у нас 48, у BroWatch 200; «предпросмотр до 140» упирается в
+  48, пока `TEXT_MAX` не поднят — Ф7), `ui_squad.cpp` (уже рисует inbox),
+  `ui_meshcompose.cpp`/`ui_meshphrase.cpp` (шаблоны ответа),
+  `Theme::computeButtonBar` (добавить кнопку).
+
+Порядок порта (по одному проверяемому шагу):
+
+1. Данные: расширить `MeshTalk::Message` (доставка/уникальный id) и inbox;
+   добавить хранилище избранного (add/remove/has, переживает удаление из
+   входящих) + тест в `test/`.
+2. Кнопка `[ ЧАТ ]` в `Theme::computeButtonBar` + обработка в `main.cpp`
+   (влезание на 240x135, все ротации).
+3. Экран `ui_chat.*` (список + ЗАКРЫТЬ/ИЗБРАННЫЕ/НАПИСАТЬ; отправитель,
+   время, предпросмотр; скролл).
+4. Длинный тап → меню действий: Читать, Ответить, Удалить, Избранное
+   (иконка-сердце), Лайк/Дизлайк. Идентичный набор в разделе ИЗБРАННЫЕ.
+5. Бабл над камео отправителя при получении (текст + лайк/дизлайк), тап по
+   баблу/сообщению шлёт read receipt.
+6. Симулятор-рендеры (RU), тесты, сборка, прошивка.
 
 UI:
 
@@ -262,9 +298,21 @@ UI:
 
 ## Ф15. OTA — разобраться и включить локальное обновление
 
-Требование (2026-10-17). Функция в прошивке есть (`ota_core.*`,
-`ota_ble.*`, `ota_wifi.*`, `ui_sysprops.cpp`, `ui_update.*`) — изучить
-реальный флоу (BLE-OTA и WiFi-OTA), где берётся образ (`OtaCore::availableVersion()`),
-что нужно для обновления с локального HTTP-сервера (URL/раздача), и
-задокументировать/починить доступность рядов и триггеров. Выяснить, как
-собрать артефакт и отдать его локальным сервером, проверить на железе.
+Требование (2026-10-17). Функция в прошивке есть и уже почти готова к
+локальному серверу:
+
+- `include/ota_wifi.h`: база локального сервера задаётся на сборке —
+  `PLATFORMIO_BUILD_FLAGS='-DOTA_WIFI_BASE="http://192.168.4.42:8767/"'`;
+  plain http разрешён только для этой базы. Boot-check (`ota_wifi.h:103`)
+  заходит в сохранённую сеть, читает манифест сайта и сравнивает версию;
+  `OtaCore::availableVersion()` и `availableName()` — что нашлось;
+  `OtaCore::restartPending()` — образ установлен, нужен перезапуск.
+- `include/ota_ble.h` — второй путь (GATT-сервер, режим из меню).
+- UI: `ui_update.*` (кнопка WiFi/прогресс/перезапуск), `ui_sysprops.cpp`
+  (окно «есть новая версия», кнопка UPDATE NOW, `enterUpdate()`),
+  ряд в настройках/меню.
+- ЗАДАЧА: (а) выяснить и задокументировать точный формат манифеста и
+  раскладку файлов сервера; (б) собрать артефакт (`pio run -t upload`/bin),
+  отдать локальным http-сервером на нужной базе; (в) проверить на железе
+  boot-check + установку + `restartPending` + постинсталляционный ответ
+  UPDATED; (г) описать в `docs/` и проверить доступность триггеров UI.
