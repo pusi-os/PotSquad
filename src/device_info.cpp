@@ -172,6 +172,56 @@ const Device kDevices[] = {
     { DetectionType::META, "VUZIX", "Vuzix", nullptr,
       "Vuzix smart glasses, sold mostly to warehouses, hospitals and police. Many models have a camera.",
       "Умные очки Vuzix - в основном склады, больницы и полиция. Во многих есть камера." },
+
+    // ---- Added from BroWatch (2026-10-17): the RU/EU consumer
+    // cameras and the MESH nodes it names, so every signature
+    // row these tables can match still reaches its own page. ----
+    { DetectionType::CAMERA, "HANWHA", "Hanwha", nullptr,
+      "A Hanwha Vision camera, ex-Samsung Techwin: professional wired CCTV, common in offices and retail. No setup AP -- the registered hardware block is the signature.",
+      "Камера Hanwha Vision, бывшая Samsung Techwin: профи-провод для офисов и розницы. Точек не поднимает - примета только блок адресов." },
+    { DetectionType::CAMERA, "EZVIZ", "EZVIZ", nullptr,
+      "An EZVIZ home camera, Hikvision's consumer brand: C6N, C3W, H8c and the battery BC1/BC2. Pairs over its own EZVIZ_XXXXXX network, then joins home WiFi as a client.",
+      "Домашняя камера EZVIZ - народный бренд Hikvision: C6N, C3W, H8c, BC1/BC2. Вяжется через свою сеть EZVIZ_XXXXXX, потом тихо сидит на домашнем WiFi." },
+    { DetectionType::CAMERA, "DAHUA", "Dahua", nullptr,
+      "A Dahua camera: Imou Ranger and Bullet, DH-IPC pros, and much of ActiveCam's Russian lineup, which is Dahua inside. Pairs over a DAP- hotspot, then goes quiet on home WiFi.",
+      "Камера Dahua: Imou Ranger и Bullet, профи DH-IPC, немалая часть ActiveCam в России - внутри Dahua. Вяжется через точку DAP-, потом молчит на домашнем WiFi." },
+    { DetectionType::CAMERA, "IMOU", "Imou", nullptr,
+      "An Imou camera, Dahua's consumer brand: Ranger, Bullet, Cruiser and Cell Go. Same DAP- pairing hotspot as Dahua, same quiet client mode after.",
+      "Камера Imou - домашний бренд Dahua: Ranger, Bullet, Cruiser, Cell Go. Та же точка DAP-, тот же тихий клиентский режим после." },
+    { DetectionType::CAMERA, "TAPO CAM", "Tapo", nullptr,
+      "A TP-Link Tapo home camera: C100 through C500. Pairs over Tapo_Cam_XXXX, named for the last four of its MAC, then joins home WiFi. VIGI pros are wired and silent.",
+      "Домашняя камера TP-Link Tapo: от C100 до C500. Вяжется через Tapo_Cam_XXXX - последние четыре знака MAC. Профи VIGI проводные и молчат." },
+    { DetectionType::CAMERA, "IMILAB CAM", "Imilab", nullptr,
+      "A Xiaomi Mi Home camera, built by Imilab: 360, C200-C500, Outdoor. Pairs by scanning a QR code with its lens -- no setup network, so the hardware address is the whole tell.",
+      "Камера Xiaomi Mi Home, строит Imilab: 360, C200-C500, уличные. Вяжется QR-кодом перед объективом - своей сети нет, вся примета - адрес железа." },
+    { DetectionType::CAMERA, "D-LINK", "D-Link", nullptr,
+      "A D-Link DCS camera, set up by WPS button or the mydlink app -- it never opens a setup network of its own. Old but still on walls; silent once joined.",
+      "Камера D-Link DCS: вяжется кнопкой WPS или приложением mydlink, своей настроечной сети не открывает. Старая, но висит; примкнув - молчит." },
+
+    // ---- META ---------------------------------------------------------------
+    { DetectionType::DRONE, "REMOTE ID", "DroneID", nullptr,
+      "A drone's Remote ID broadcast: the wireless plate with serial, position and often the pilot's spot. DJI, Autel and homebuilts all speak it. Russia requires remote-ID gear on registered craft since 2024 (PP-1701).",
+      "Эфирный номер дрона: серийник, позиция, часто точка пилота. Говорят DJI, Autel, самоделки. Россия требует remote-ID на учетных бортах с 2024 (ПП-1701)." },
+    { DetectionType::DRONE, "DJI DRONE", "DJI|DJI-BW", nullptr,
+      "A radio on DJI's own block: a drone or its controller. DJI usually keeps the live link off Bluetooth, so a hit here is the aircraft itself, powered on and close.",
+      "Радио из блока DJI: дрон или пульт. Живой канал DJI обычно не по Bluetooth, так что совпадение - сам борт, включённый и рядом." },
+    { DetectionType::DRONE, "SKYDIO", "Skydio", nullptr,
+      "A Skydio drone's radio. Skydio builds autonomous US-made drones; a hit means one is powered on nearby, usually a survey or inspection flight.",
+      "Радио дрона Skydio. Skydio делает автономные дроны (США); совпадение - один включён рядом, обычно съёмка или осмотр." },
+    { DetectionType::DRONE, "PARROT", "Parrot", nullptr,
+      "A radio on Parrot's older blocks: their consumer drones and the car kits. Parrot mostly makes commercial drones now, but the old blocks still show up.",
+      "Радио из старых блоков Parrot: их дроны и авто-наборы. Сейчас Parrot больше про коммерческие дроны, но старые блоки ещё встречаются." },
+
+    // ---- MESH -----------------------------------------------------------------
+    { DetectionType::MESH, "MESHTASTIC", "Meshtastic", "Meshtastic_",
+      "A Meshtastic node: a small LoRa radio with Bluetooth for the phone app, chatting off-grid with no towers. Matched on its own Bluetooth service ID, exact. Renaming it hides the name, not the ID.",
+      "Узел Meshtastic: мелкая LoRa-рация с Bluetooth к телефону, болтает без вышек. Ловим по ее Bluetooth-ID - точное. Переименование прячет имя, не ID." },
+    { DetectionType::MESH, "MESHCORE", "MeshCore", "MeshCore-",
+      "A MeshCore companion radio: the Bluetooth side of an off-grid text network. Shares its radio ID with DIY projects, so the name is the verdict, not the ID. Repeaters stay silent -- only companions advertise.",
+      "Рация MeshCore: Bluetooth-бок off-grid текстовой сети. ID делит с самоделками - решает имя, не ID. Репитеры молчат, светятся только парные." },
+    { DetectionType::MESH, "RNODE", "RNode", "RNode ",
+      "An RNode running Reticulum: a DIY off-grid modem, announced as RNode XXXX over Bluetooth. Bluetooth is off unless its owner enables it, so silence proves nothing -- but this one spoke.",
+      "RNode на Reticulum: самодельный off-grid модем, зовется RNode XXXX по Bluetooth. Bluetooth выключен, пока хозяин не включит: молчание - не доказательство." },
 };
 const uint8_t kDeviceCount = sizeof(kDevices) / sizeof(kDevices[0]);
 

@@ -71,7 +71,7 @@ static const char* mwCatchLine(uint8_t type) {
         case DetectionType::AXON:        return mwLine(MWL_CATCH + 1);
         case DetectionType::META:        return mwLine(MWL_CATCH + 2);
         case DetectionType::SKIMMER:     return mwLine(MWL_CATCH + 3);
-        case DetectionType::RAVEN:       return mwLine(MWL_CATCH + 4);
+        case DetectionType::MESH:       return mwLine(MWL_CATCH + 4);
         case DetectionType::AIRTAG:
         case DetectionType::SAMSUNG_TAG:
         case DetectionType::GOOGLE_TAG:
@@ -91,7 +91,7 @@ static const char* mwCatchLine(uint8_t type) {
 static bool mwSerious(uint8_t type) {
     switch ((DetectionType)type) {
         case DetectionType::FLOCK: case DetectionType::AXON: case DetectionType::SKIMMER:
-        case DetectionType::RAVEN: case DetectionType::ALPR: case DetectionType::DEAUTH:
+        case DetectionType::MESH: case DetectionType::ALPR: case DetectionType::DEAUTH:
         case DetectionType::EVILTWIN: case DetectionType::HACKER:
             return true;
         default:

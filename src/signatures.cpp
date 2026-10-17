@@ -23,10 +23,10 @@ const OuiEntry kOuiTable[] = {
     {{0x00, 0x1D, 0x96}, "WatchGuard",   DetectionType::AXON,       Confidence::MED_CONF},
     {{0x00, 0x23, 0xBD}, "DigitalAlly",  DetectionType::AXON,       Confidence::MED_CONF},
 
-    // ---- ShotSpotter / SoundThinking gunshot sensors ----
-    // ShotSpotter, Inc.'s own block (IEEE MA-L). Filed with Raven, the other
-    // gunshot sensor, because that is what it is.
-    {{0xD4, 0x11, 0xD6}, "ShotSpotter",  DetectionType::RAVEN,      Confidence::HIGH_CONF},
+    // ShotSpotter was briefly filed here as RAVEN. RAVEN is gone (see
+    // state.h): a gunshot sensor that never verified its BLE IDs and has
+    // no RU presence gave its slot to MESH, and ShotSpotter's own block
+    // (0xD4:11:D6) went with it rather than be mislabelled.
 
     // ---- Flock Safety (ESP32 modules + LTE backhaul) ----
     // Source: colonelpanichacks/flock-you, @NitekryDPaul, DeFlockJoplin
@@ -230,6 +230,76 @@ const OuiEntry kOuiTable[] = {
     // higher.
     {{0x02,0xC0,0xCA}, "Hak5-LA",    DetectionType::HACKER, Confidence::LOW_CONF},
     {{0x02,0x13,0x37}, "Hak5-LA",    DetectionType::HACKER, Confidence::LOW_CONF},
+    {{0x98, 0xD3, 0x00}, "Skim-SPP",     DetectionType::SKIMMER,    Confidence::LOW_CONF},
+    {{0xAC, 0xCC, 0x8E}, "Axis",         DetectionType::CAMERA,     Confidence::HIGH_CONF},  // Axis Communications AB
+    {{0xE8, 0x27, 0x25}, "Axis",         DetectionType::CAMERA,     Confidence::HIGH_CONF},  // Axis Communications AB
+    {{0x00, 0x09, 0x18}, "Hanwha",       DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xE4, 0x30, 0x22}, "Hanwha",       DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x0C, 0xA6, 0x4C}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x20, 0xBB, 0xBC}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x34, 0xC6, 0xDD}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x38, 0xF2, 0x5D}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x54, 0xD6, 0x0D}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x58, 0x8F, 0xCF}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x64, 0x24, 0x4D}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x64, 0xF2, 0xFB}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x78, 0xA6, 0xA0}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x78, 0xC1, 0xAE}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x94, 0xEC, 0x13}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xAC, 0x1C, 0x26}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xEC, 0x97, 0xE0}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xF4, 0x70, 0x18}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xFC, 0x24, 0x22}, "EZVIZ",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x4C, 0xBD, 0x8F}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xC4, 0x2F, 0x90}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x54, 0xC4, 0x15}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x18, 0x68, 0xCB}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x64, 0xDB, 0x8B}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xBC, 0xAD, 0x28}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xD4, 0x88, 0x90}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x94, 0xE1, 0xAC}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xA4, 0x14, 0x37}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xB4, 0xA3, 0x82}, "Hikvision",    DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x08, 0xED, 0xED}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x14, 0xA7, 0x8B}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x24, 0x52, 0x6A}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x38, 0xAF, 0x29}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x3C, 0xE3, 0x6B}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x3C, 0xEF, 0x8C}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x4C, 0x11, 0xBF}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x5C, 0xF5, 0x1A}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x64, 0xFD, 0x29}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x6C, 0x1C, 0x71}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x74, 0xC9, 0x29}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x8C, 0xE9, 0xB4}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x90, 0x02, 0xA9}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x98, 0xF9, 0xCC}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x9C, 0x14, 0x63}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xA0, 0xBD, 0x1D}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xB4, 0x4C, 0x3B}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xBC, 0x32, 0x5F}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xC0, 0x39, 0x5A}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xC4, 0xAA, 0xC4}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xD4, 0x43, 0x0E}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xE0, 0x2E, 0xFE}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xE0, 0x50, 0x8B}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xE4, 0x24, 0x6C}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xF4, 0xB1, 0xC2}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xFC, 0x5F, 0x49}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xFC, 0xB6, 0x9D}, "Dahua",        DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x90, 0x6A, 0x94}, "Imou",         DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xA8, 0x31, 0x62}, "Imou",         DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x30, 0x24, 0x50}, "Imou",         DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x60, 0x7E, 0xA4}, "Imilab",       DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x78, 0xDF, 0x72}, "Imilab",       DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0x94, 0xF8, 0x27}, "Imilab",       DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xB8, 0x88, 0x80}, "Imilab",       DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xB4, 0x10, 0x1C}, "Imilab",       DetectionType::CAMERA,     Confidence::HIGH_CONF},
+    {{0xB0, 0xC5, 0x54}, "D-Link",       DetectionType::CAMERA,     Confidence::MED_CONF},
+    // BroWatch files Flipper Devices' own IEEE block (0C:FA:22) as HACKER.
+    // Left out here on purpose, exactly as the Pentest section above says:
+    // this table is only read for WiFi frames, a Flipper Zero has no WiFi,
+    // and the block actually caught the BUSY Bar, Flipper's desk sign.
 };
 const uint16_t kOuiCount = sizeof(kOuiTable) / sizeof(kOuiTable[0]);
 
@@ -261,11 +331,12 @@ const UuidEntry kUuidTable[] = {
     // Ray-Ban Meta, and the company-ID rows below say Meta too -- which is
     // any Meta radio, Quest headsets included. Two different pages.
     {0xFD5F, "RayBanMeta", DetectionType::META},      // Ray-Ban Meta glasses
-    {0x3100, "Raven",      DetectionType::RAVEN},     // Raven gunshot detector
-    {0x3200, "Raven",      DetectionType::RAVEN},
-    {0x3300, "Raven",      DetectionType::RAVEN},
-    {0x3400, "Raven",      DetectionType::RAVEN},
-    {0x3500, "Raven",      DetectionType::RAVEN},
+    // 0x3100-0x3500 used to be Raven, a US gunshot detector whose IDs
+    // were never verified on hardware and which has no RU presence.
+    // The block is now free: MESH matches on 128-bit service UUIDs
+    // (see DetectionEngine) and on advertised names in lookupBtName(),
+    // because no 16-bit SIG value identifies any of the three mesh
+    // networks.
     {0xFFFA, "DroneID",    DetectionType::DRONE},     // OpenDroneID
     {0xFD5A, "SmartTag",   DetectionType::SAMSUNG_TAG}, // Samsung's own SIG-assigned UUID for SmartTag discovery
     // Google's Find Hub network (FMDN). The UUID is Eddystone's too -- every
@@ -319,6 +390,13 @@ const SsidEntry kSsidPrefixes[] = {
     // suffix; MED at best, since somebody can also just name their home
     // network this as a joke.
     {"pwned",   "Deauther",     DetectionType::HACKER},
+    {"FLOCK-",  "Flock-Setup",  DetectionType::FLOCK},
+    {"EZVIZ_",  "EZVIZ",        DetectionType::CAMERA},  // EZVIZ_XXXXXX (+ezviz_xxxxxx), pw EZVIZ_<code>
+    {"HAP_",    "Hikvision",    DetectionType::CAMERA},  // Hikvision WiFi cams, pw = last 8 of serial
+    {"DAP-",    "Dahua",        DetectionType::CAMERA},  // DAP-XXXXXXXXX (Imou/Dahua/ActiveCam)
+    {"DAP_",    "Dahua",        DetectionType::CAMERA},  // same hotspot, underscore spelling
+    {"Tapo_Cam_", "Tapo",       DetectionType::CAMERA},  // Tapo_Cam_XXXX = last 4 of MAC
+    {"MeshCore-OTA", "MeshCore", DetectionType::MESH},
 };
 const uint16_t kSsidCount = sizeof(kSsidPrefixes) / sizeof(kSsidPrefixes[0]);
 
@@ -362,6 +440,8 @@ const MfgIdEntry kMfgIdTable[] = {
     // a name, and three Zeros on the bench agreed -- while the BUSY Bar, a
     // desk sign, puts it in every advert until it is paired (its firmware's
     // ble_advertise.c). So the only thing the row ever caught was the sign.
+    // BroWatch keeps 0x058E (Meta Quest) and 0x0E29 (Flipper) here; both
+    // stay out for the reasons above.
 };
 const uint16_t kMfgIdCount = sizeof(kMfgIdTable) / sizeof(kMfgIdTable[0]);
 
@@ -454,6 +534,28 @@ DetectionType lookupBtName(const char* name) {
     // because the default is what most of them are still called, and it
     // costs nothing next to three exact signatures that cannot be typed.
     if (strcasestr(name, "Flipper"))  return DetectionType::HACKER;
+    // ---- Mesh (MESH): advertised names ----------------------------------
+    // All three carry a per-node suffix, so these are substring/prefix
+    // rules, graded the type's base grade at the match site (a string
+    // anybody can set). The exact signature -- Meshtastic's own 128-bit
+    // service UUID -- grades HIGH in DetectionEngine.
+    //
+    // Meshtastic: "Meshtastic_ab13" by default (last 2 MAC bytes), or
+    // "<ShortName>_ab13" once the owner names it. A renamed node is
+    // still caught by the service UUID; this rule is the belt to those
+    // braces.
+    if (strcasestr(name, "Meshtastic"))  return DetectionType::MESH;
+    // MeshCore companion radio: "MeshCore-" + node hash. Whisper-,
+    // WisCore- and LowMesh_MC_ are third-party companion builds on the
+    // same protocol -- same bucket, the vendor label tells which.
+    if (strcasestr(name, "MeshCore-"))   return DetectionType::MESH;
+    if (strcasestr(name, "Whisper-"))    return DetectionType::MESH;
+    if (strcasestr(name, "WisCore-"))    return DetectionType::MESH;
+    if (strcasestr(name, "LowMesh_MC_")) return DetectionType::MESH;
+    // RNode (Reticulum): "RNode XXXX", space then 4 uppercase hex from
+    // the BT-MAC hash. Prefix-anchored: "rnode" inside another word is
+    // not a node. Classic-BT RNodes arrive here too.
+    if (strncasecmp(name, "RNode ", 6) == 0) return DetectionType::MESH;
     return DetectionType::UNKNOWN;
 }
 
@@ -598,7 +700,7 @@ Confidence confidenceFor(DetectionType t) {
     // High there for the signature path actually active in v1.0 (the
     // wildcard-probe and ESP32-generic-fallback ideas mentioned in that
     // doc as lower-confidence alternates aren't implemented — see the
-    // note at the top of kOuiTable). RAVEN/AIRTAG/DRONE/ALPR are graded
+    // note at the top of kOuiTable). MESH/AIRTAG/DRONE/ALPR are graded
     // Medium — unverified against real hardware, address rotation, or
     // thin OUI coverage, respectively. SAMSUNG_TAG is High: 0xFD5A is
     // Samsung's own dedicated SIG-assigned UUID, not shared with
@@ -634,7 +736,10 @@ Confidence confidenceFor(DetectionType t) {
         // precision: Meta puts the same IDs on Quest headsets. Medium is the
         // conservative grade the rule at the top of this function asks for.
         case DetectionType::META:
-        case DetectionType::RAVEN:
+        // A mesh name is a string anybody can set; the exact radio
+        // signature (Meshtastic's service UUID) grades HIGH at its own
+        // match site in DetectionEngine. Same split as HACKER's.
+        case DetectionType::MESH:
         case DetectionType::AIRTAG:
         case DetectionType::DRONE:
         case DetectionType::ALPR:

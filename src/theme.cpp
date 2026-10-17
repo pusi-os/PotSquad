@@ -120,7 +120,11 @@ uint16_t colorFor(DetectionType t) {
             return PINK;
         case DetectionType::SKIMMER:
             return VAPOR_YELLOW;
-        case DetectionType::RAVEN:
+        case DetectionType::MESH:
+            // Its own blue: an off-grid mesh node is neither police kit
+            // (pink) nor an attack (red) nor a tracker (purple) -- it is a
+            // radio talking to a network, so it reads as network blue.
+            return VAPOR_BLUE;
         case DetectionType::ALPR:
             return AMBER;
         case DetectionType::AIRTAG:
@@ -1068,25 +1072,19 @@ void drawTypeIcon(TFT_eSPI& t, DetectionType type, int cx, int cy, int s) {
         housing(t, cx-s, cy-s/2, s*2, s);
         t.fillRect(cx-s+4, cy-s/4, s*2-8, s/4, ICO_INK);                  // the slot
         break;
-    case DetectionType::RAVEN: {
-        // Heavier head, shorter bill, hunched. The wading bird pass 6 drew
-        // came from a long neck and a small head -- a raven is mostly head
-        // and shoulders with the bill buried in the profile, not held out.
-        t.fillTriangle(cx+s/2, cy+s/4, cx+s*7/5, cy+s, cx+s/3, cy+s*4/5, SHELL_LO);
-        t.fillEllipse(cx+s/6, cy+s/4, s*7/10, s*3/5, SHELL);          // body
-        t.fillEllipse(cx+s/6, cy+s/8, s*7/10, s*2/5, SHELL_HI);       // lit back
-        t.fillEllipse(cx+s/4, cy+s/3, s*2/5, s*2/5, SHELL_LO);        // wing
-        t.fillCircle(cx-s/2, cy-s/3, s/2, SHELL);                     // big head
-        t.fillCircle(cx-s/2, cy-s/2, s/3, SHELL_HI);                  // lit crown
-        t.fillTriangle(cx-s*9/10, cy-s*2/5, cx-s*8/5, cy-s/5,
-                       cx-s*9/10, cy,       SHELL_LO);                // short bill
-        t.fillTriangle(cx-s*9/10, cy-s*2/5, cx-s*8/5, cy-s/5,
-                       cx-s*9/10, cy-s/5,   SHELL);                   // lit edge
-        t.fillTriangle(cx-s/2, cy, cx+s/8, cy+s/3, cx-s*3/5, cy+s/3, SHELL_LO); // hackle
-        t.fillCircle(cx-s*3/5, cy-s*2/5, s/8, ICO_SHEEN);
-        t.fillCircle(cx-s*3/5, cy-s*2/5, s/16, ICO_INK);
-        t.fillRect(cx,      cy+s*3/4, 3, s/3, SHELL_LO);
-        t.fillRect(cx+s/3,  cy+s*3/4, 3, s/3, SHELL_LO);
+    case DetectionType::MESH: {
+        // A mesh: three nodes wired together -- the network, not a product.
+        const int r = s / 4;
+        const int ax = cx, ay = cy - s/2, bx = cx - s/2, by = cy + s/2, dx2 = cx + s/2, dy2 = cy + s/2;
+        t.drawLine(ax, ay, bx, by, SHELL_LO);
+        t.drawLine(ax, ay, dx2, dy2, SHELL_LO);
+        t.drawLine(bx, by, dx2, dy2, SHELL_LO);
+        t.fillCircle(ax, ay, r, SHELL);
+        t.fillCircle(bx, by, r, SHELL);
+        t.fillCircle(dx2, dy2, r, SHELL);
+        t.fillCircle(ax, ay, r/2, SHELL_HI);
+        t.fillCircle(bx, by, r/2, SHELL_HI);
+        t.fillCircle(dx2, dy2, r/2, SHELL_HI);
         break;
     }
     case DetectionType::AIRTAG:

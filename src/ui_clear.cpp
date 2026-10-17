@@ -2893,7 +2893,7 @@ static const char* counterLabel(DetectionType t) {
         // folds into CAM the same way.
         case DetectionType::AIRTAG:      return "TRACKER";
         case DetectionType::DRONE:       return "DRONE";
-        case DetectionType::RAVEN:       return "RAV";
+        case DetectionType::MESH:        return "MESH";
         case DetectionType::ALPR:        return "ALPR";
         case DetectionType::CAMERA:      return "CAM";
         case DetectionType::SAMSUNG_TAG: return "STAG";
@@ -3083,7 +3083,7 @@ bool uiClearColumnHolds(DetectionType column, DetectionType d) {
 // twelve.
 static const DetectionType FIXED_COUNTER_TYPES[] = {
     DetectionType::FLOCK,   DetectionType::AXON,     DetectionType::META,   DetectionType::SKIMMER,
-    DetectionType::RAVEN,   DetectionType::AIRTAG,   DetectionType::DRONE,  DetectionType::ALPR,
+    DetectionType::MESH,   DetectionType::AIRTAG,   DetectionType::DRONE,  DetectionType::ALPR,
     DetectionType::CAMERA,  DetectionType::HACKER,   DetectionType::DEAUTH,
 };
 static const uint8_t FIXED_COUNTER_TYPES_N =
@@ -3726,7 +3726,7 @@ void uiClearTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
                 if ((uint8_t)d->type < 32) s_litMask |= 1u << (uint8_t)d->type;
                 switch (d->type) {
                     case DetectionType::FLOCK:  case DetectionType::AXON:   case DetectionType::SKIMMER:
-                    case DetectionType::RAVEN:  case DetectionType::ALPR:   case DetectionType::AIRTAG:
+                    case DetectionType::MESH:  case DetectionType::ALPR:   case DetectionType::AIRTAG:
                     case DetectionType::SAMSUNG_TAG: case DetectionType::GOOGLE_TAG: case DetectionType::TILE:
                     case DetectionType::EVILTWIN:    case DetectionType::HACKER:
                         s_serious = true; break;

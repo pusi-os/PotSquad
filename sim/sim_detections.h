@@ -76,10 +76,16 @@ inline const SimDetectionProfile kSimProfiles[] = {
     { DetectionType::SKIMMER,     {0x02, 0xB7, 0x04}, "BLE",         "BT04-A",         -55, false, "BT04-A module" },
     { DetectionType::SKIMMER,     {0x20, 0x13, 0x00}, "Skim-Linvor", "linvor",         -51, false, "Linvor HC-06" },
     { DetectionType::SKIMMER,     {0x02, 0x11, 0x01}, "Skim-SPP",    "",               -53, false, "Bluetooth serial port" },
-    // RAVEN, AIRTAG, DRONE
-    { DetectionType::RAVEN,       {0x02, 0x31, 0x00}, "Raven",       "Gunshot Sensor", -79, false, "Raven gunshot sensor" },
+    // MESH, AIRTAG, DRONE
+    { DetectionType::MESH,        {0x02, 0x6B, 0xA1}, "Meshtastic",  "Meshtastic_a1b2", -79, false, "Meshtastic node" },
+    { DetectionType::MESH,        {0x02, 0x4D, 0x43}, "MeshCore",    "MeshCore-ab12",  -80, false, "MeshCore companion" },
+    { DetectionType::MESH,        {0x02, 0x52, 0x4E}, "RNode",       "RNode 1A2B",     -82, false, "RNode (Reticulum)" },
     { DetectionType::AIRTAG,      {0x02, 0x00, 0x4C}, "Apple",       "AirTag",         -42, false, "Apple AirTag" },
     { DetectionType::DRONE,       {0x02, 0xFF, 0xFA}, "DroneID",     "OpenDroneID",    -71, false, "Drone Remote ID" },
+    { DetectionType::DRONE,       {0x60, 0x60, 0x1F}, "DJI",         "",               -70, true,  "DJI drone" },
+    { DetectionType::DRONE,       {0x9C, 0x5A, 0x8A}, "DJI-BW",      "",               -72, true,  "DJI Baiwang radio" },
+    { DetectionType::DRONE,       {0x38, 0x1D, 0x14}, "Skydio",      "",               -68, true,  "Skydio drone" },
+    { DetectionType::DRONE,       {0x90, 0x03, 0xB7}, "Parrot",      "",               -71, true,  "Parrot drone" },
     // ALPR -- Motorola Solutions, which absorbed Vigilant, and Genetec AutoVu
     { DetectionType::ALPR,        {0x00, 0x04, 0x7D}, "ALPR-Mtrla",  "",               -76, true,  "Motorola plate reader" },
     { DetectionType::ALPR,        {0x00, 0xBF, 0x15}, "ALPR-Gentec", "",               -75, true,  "Genetec AutoVu" },
@@ -96,6 +102,13 @@ inline const SimDetectionProfile kSimProfiles[] = {
     { DetectionType::CAMERA,      {0x70, 0x1A, 0xD5}, "Avigilon",    "",               -71, true,  "Avigilon camera" },
     { DetectionType::CAMERA,      {0x00, 0x40, 0x8C}, "Axis",        "",               -69, true,  "Axis camera" },
     { DetectionType::CAMERA,      {0xD4, 0x2D, 0xC5}, "i-PRO",       "",               -70, true,  "i-PRO camera" },
+    { DetectionType::CAMERA,      {0xE4, 0x30, 0x22}, "Hanwha",      "",               -69, true,  "Hanwha camera" },
+    { DetectionType::CAMERA,      {0x0C, 0xA6, 0x4C}, "EZVIZ",       "",               -63, true,  "EZVIZ camera" },
+    { DetectionType::CAMERA,      {0x08, 0xED, 0xED}, "Dahua",       "",               -64, true,  "Dahua camera" },
+    { DetectionType::CAMERA,      {0x90, 0x6A, 0x94}, "Imou",        "",               -65, true,  "Imou camera" },
+    { DetectionType::CAMERA,      {0x02, 0x7A, 0x50}, "Tapo",        "",               -66, true,  "Tapo camera" },
+    { DetectionType::CAMERA,      {0x60, 0x7E, 0xA4}, "Imilab",      "",               -64, true,  "Imilab (Mi Home) camera" },
+    { DetectionType::CAMERA,      {0xB0, 0xC5, 0x54}, "D-Link",      "",               -67, true,  "D-Link DCS camera" },
     // The tag networks, Ring, and the rogue-radio behaviours
     { DetectionType::SAMSUNG_TAG, {0x02, 0xFD, 0x5A}, "Samsung",     "Galaxy SmartTag",-58, false, "Samsung SmartTag" },
     { DetectionType::GOOGLE_TAG,  {0x02, 0xFE, 0xAA}, "Google",      "Find My Device", -61, false, "Google Find My tracker" },

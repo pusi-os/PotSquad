@@ -21,8 +21,8 @@ static const char* const EXPLAIN_TEXT[] = {
     "Camera glasses -- Ray-Ban Meta, Snap Spectacles and the like. They record video and photos, and the little LED that's supposed to warn you is easy to miss and easier to cover. Careful with this one: Meta puts the same Bluetooth ID on Quest headsets, so it can also just be a VR headset in a bag.",
     // SKIMMER
     "A Bluetooth card skimmer, usually wired into an ATM or gas pump reader. It quietly exfiltrates stolen card data over BLE instead of needing physical pickup.",
-    // RAVEN
-    "A Raven gunshot-detection sensor, usually mounted on a streetlight or rooftop. It listens constantly, not just after something happens. Matched on Raven's own Bluetooth service IDs, which have not been checked against real hardware -- hence the middling confidence. NOT ShotSpotter: those hold no registered hardware ID at all and backhaul over cellular rather than broadcasting, so nothing here can see one.",
+    // MESH
+    "A mesh radio node -- Meshtastic, MeshCore or RNode -- found on the air, not on any phone network. Meshtastic's own app carries the packet over a cable; this is the node's Bluetooth radio talking on its own. Off-grid by design: it reaches the next node, not a tower. Not police kit and not a tracker; it is the same kind of radio this board uses.",
     // AIRTAG
     "An Apple AirTag, riding Apple's Find My network. Legitimate for keys and luggage -- also a known method for tracking a person or vehicle without consent.",
     // DRONE
@@ -60,7 +60,7 @@ static_assert(EXPLAIN_TEXT_N == (uint8_t)DetectionType::COUNT,
 // PotSquad RU: the same paragraphs, adapted -- not transliterated. Russian
 // needs fewer words for the same panel: seven lines of ~23 glyphs, under
 // 320 bytes (wrapTextRU's buffer), ASCII + Cyrillic only (no «»/--,
-// the RU face has neither). Titles stay Latin product names. RAVEN entry
+// the RU face has neither). Titles stay Latin product names. MESH entry
 // replaces BroWatch MESH: PotSquad enum index 5 is the gunshot detector.
 static const char* const EXPLAIN_TEXT_RU[] = {
     // UNKNOWN
@@ -73,8 +73,8 @@ static const char* const EXPLAIN_TEXT_RU[] = {
     "Очки с камерой: Ray-Ban Meta, Snap Spectacles и подобные. Пишут видео и фото; светодиод легко не заметить или заклеить. Тот же Bluetooth-ID стоит на шлемах Quest - может, это VR в рюкзаке.",
     // SKIMMER
     "Bluetooth-скиммер: обычно впаян в банкомат или колонку АЗС. Тихо сливает краденые данные карт по BLE - забирать там нечего, подходить не надо.",
-    // RAVEN
-    "Датчик выстрелов Raven: обычно на столбе или крыше. Слушает всегда, а не после события. Совпадение по Bluetooth-ID, живьем не проверено - уверенность средняя.",
+    // MESH
+    "Меш-радиоузел -- Meshtastic, MeshCore или RNode -- найден в эфире, а не в сотовой сети. Это Bluetooth-радио самого узла. По замыслу автономно: достаёт до следующего узла, а не до вышки. Не полицейское снаряжение и не трекер; такое же радио, как у этой платы.",
     // AIRTAG
     "Apple AirTag в сети Локатора. Нормально для ключей и багажа - и известный способ следить за человеком или машиной без спроса.",
     // DRONE

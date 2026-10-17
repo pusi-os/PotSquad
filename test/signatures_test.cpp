@@ -80,9 +80,11 @@ int main() {
     ck("...nor is the one this board's own C3/S3 chips use",
        lookup(0x3C, 0x71, 0xBF, &conf) != DetectionType::FLOCK);
 
-    // The new tables, spot-checked (2026-10-14).
-    ck("ShotSpotter's own block is a gunshot sensor",
-       lookup(0xD4, 0x11, 0xD6, &conf) == DetectionType::RAVEN);
+    // The new tables, spot-checked (2026-10-14). ShotSpotter's block went
+    // with RAVEN when that gave its slot to MESH -- it has no type now, and
+    // is deliberately not mislabelled as a mesh node.
+    ck("the gunshot sensors' block has no type any more",
+       lookup(0xD4, 0x11, 0xD6, &conf) == DetectionType::UNKNOWN);
     ck("WatchGuard VIDEO is a body cam", lookup(0x00, 0x1D, 0x96, &conf) == DetectionType::AXON);
     ck("...and WatchGuard Technologies, the firewall maker, is not",
        lookup(0x00, 0x01, 0x21, &conf) == DetectionType::UNKNOWN);

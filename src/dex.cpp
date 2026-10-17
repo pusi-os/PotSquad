@@ -23,8 +23,8 @@ struct Entry {
 };
 
 // In type order, so indexOf() is arithmetic. Rarity is a judgement about
-// the world, not a count: a Tile is on every third keyring, a Raven is bolted
-// to a pole in a city that paid for it.
+// the world, not a count: a Tile is on every third keyring, a mesh node is
+// one hiker's radio.
 const Entry ENTRY[ENTRIES] = {
     { DetectionType::FLOCK, Rarity::UNCOMMON, "FLOCK", "POLICE KIT", "WIFI",
       "A plate-reading camera on a pole, sold to towns by the subscription. Photographs every car that passes, keeps the plate, and shares the list with anyone else who pays.",
@@ -46,11 +46,11 @@ const Entry ENTRY[ENTRIES] = {
       "Fuel pumps. The cash machine nobody else uses.",
       "Card skimmer! Do not swipe there. Do not swipe anywhere. Barter.",
       "Lives inside a card slot. Named like a hobby kit." },
-    { DetectionType::RAVEN, Rarity::RARE, "RAVEN", "SENSOR", "WIFI",
-      "A gunshot detector. Microphones on a pole listen for bangs and tell a control room where they came from. It is also listening the rest of the time.",
-      "Street lights in the parts of town that got picked.",
-      "Never seen one. Never heard one. That is kind of its whole deal.",
-      "Listens for loud bangs. On poles in cities that can afford it." },
+    { DetectionType::MESH, Rarity::UNCOMMON, "MESH", "RADIO", "BLUETOOTH",
+      "An off-grid mesh radio: a Meshtastic, MeshCore or RNode node. Caught by Meshtastic's Bluetooth UUID, or by the name the others answer to. It talks to the next node, no tower.",
+      "Hikers' packs. Off-grid cabins. Anywhere a phone has no bars.",
+      "Talking to nobody, on a network nobody runs. Respectable.",
+      "A little radio on a mesh. Matches on its Bluetooth or its name." },
     { DetectionType::AIRTAG, Rarity::COMMON, "TAG", "TRACKER", "BLUETOOTH",
       "Apple's little white puck. Chirps every two seconds to every iPhone in earshot, so Apple can tell its owner where it went. Changes its address every fifteen minutes to keep strangers guessing.",
       "Keychains. Luggage. The bottom of your car, if you are unlucky.",
@@ -140,11 +140,11 @@ const Entry ENTRY_RU[ENTRIES] = {
       "Топливные колонки. Банкомат, которым больше никто не пользуется.",
       "Скиммер! Не проводи там карту. Нигде не проводи. Меняй.",
       "Живёт внутри щели для карты. Назван как набор для хобби." },
-    { DetectionType::RAVEN, Rarity::RARE, "ВОРОН", "ДАТЧИК", "WIFI",
-      "Детектор выстрелов. Микрофоны на столбе слушают хлопки и говорят диспетчерской, откуда они. Всё остальное время он тоже слушает.",
-      "Фонари на улицах тех районов, где пригодилось.",
-      "Ни разу не видел. Ни разу не слышал. В этом весь он.",
-      "Слушает громкие хлопки. На столбах в городах, что могут это позволить." },
+    { DetectionType::MESH, Rarity::UNCOMMON, "МЕШ", "РАДИО", "BLUETOOTH",
+      "Автономная меш-радиостанция: узел Meshtastic, MeshCore или RNode. Ловится по Bluetooth-UUID, что рекламирует прошивка Meshtastic (а MeshCore и RNode - по имени, на которое отзываются). Он не в сотовой сети; говорит напрямую со следующим узлом, в стороне от сетей по замыслу.",
+      "Рюкзаки походников. Оффгрид-домики. Там, где у телефона нет палок.",
+      "Говорит в пустоту, по сети, которой никто не рулит. По-честному уважаю.",
+      "Мелкое радио на меше. Ловится по Bluetooth или имени." },
     { DetectionType::AIRTAG, Rarity::COMMON, "МЕТКА", "ТРЕКЕР", "BLUETOOTH",
       "Маленькая белая шайба Apple. Чирикает каждые две секунды всем iPhone в слышимости, чтобы Apple сказала владельцу, куда он делся. Меняет адрес каждые пятнадцать минут, чтобы чужие гадали.",
       "Брелоки. Багаж. Дно твоей машины, если не повезло.",

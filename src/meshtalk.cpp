@@ -1009,7 +1009,7 @@ bool sendingMessage(uint32_t now) { return sending(now) && !s_outEmote; }
 bool headsUpType(uint8_t type) {
     switch ((DetectionType)type) {
         case DetectionType::FLOCK:  case DetectionType::AXON:     case DetectionType::SKIMMER:
-        case DetectionType::RAVEN:  case DetectionType::ALPR:     case DetectionType::DEAUTH:
+        case DetectionType::MESH:  case DetectionType::ALPR:     case DetectionType::DEAUTH:
         case DetectionType::EVILTWIN: case DetectionType::HACKER:
             return true;
         default: return false;

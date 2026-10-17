@@ -470,8 +470,8 @@ static const char* clipCatchLine(uint8_t type) {
                                                     : "Camera glasses nearby. Would you like to make a face?";
         case DetectionType::SKIMMER:     return ru ? "Это скиммер. Не думал платить наличными?"
                                                     : "That's a card skimmer. Have you considered paying in cash?";
-        case DetectionType::RAVEN:       return ru ? "Рядом датчик выстрелов. Совет: не проверяй."
-                                                    : "Gunshot sensor nearby. Tip: please do not test it.";
+        case DetectionType::MESH:       return ru ? "Рядом меш-радио. Тоже сам по себе."
+                                                    : "A mesh node nearby. Off the grid too.";
         case DetectionType::AIRTAG:
         case DetectionType::SAMSUNG_TAG:
         case DetectionType::GOOGLE_TAG:

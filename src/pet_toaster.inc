@@ -102,7 +102,7 @@ static const char* toastCatchLine(uint8_t type) {
         case DetectionType::AXON:        return "A body camera. I'm not blinking first.";
         case DetectionType::META:        return "Camera glasses. I'm shiny. They can look at me.";
         case DetectionType::SKIMMER:     return "A card skimmer. Nobody touch anything.";
-        case DetectionType::RAVEN:       return "A gunshot sensor. I'm quiet. I'm so quiet.";
+        case DetectionType::MESH:       return "A mesh node. Off the grid. Like me.";
         case DetectionType::AIRTAG:
         case DetectionType::SAMSUNG_TAG:
         case DetectionType::GOOGLE_TAG:
@@ -122,7 +122,7 @@ static const char* toastCatchLine(uint8_t type) {
 static bool toastSerious(uint8_t type) {
     switch ((DetectionType)type) {
         case DetectionType::FLOCK: case DetectionType::AXON: case DetectionType::SKIMMER:
-        case DetectionType::RAVEN: case DetectionType::ALPR: case DetectionType::DEAUTH:
+        case DetectionType::MESH: case DetectionType::ALPR: case DetectionType::DEAUTH:
         case DetectionType::EVILTWIN: case DetectionType::HACKER:
             return true;
         default:
@@ -136,7 +136,7 @@ static uint8_t toastBrowning(uint8_t type) {
         case DetectionType::AIRTAG: case DetectionType::SAMSUNG_TAG:
         case DetectionType::GOOGLE_TAG: case DetectionType::TILE: case DetectionType::DRONE: return 1;
         case DetectionType::CAMERA: case DetectionType::RING: case DetectionType::META:    return 2;
-        case DetectionType::SKIMMER: case DetectionType::ALPR: case DetectionType::RAVEN:  return 3;
+        case DetectionType::SKIMMER: case DetectionType::ALPR: case DetectionType::MESH:  return 3;
         default:                         return 4;
     }
 }

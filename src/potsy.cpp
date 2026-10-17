@@ -171,7 +171,7 @@ static ReactPose reactPoseFor(DetectionType t) {
         case DetectionType::SAMSUNG_TAG:
         case DetectionType::GOOGLE_TAG:
         case DetectionType::TILE:    return ReactPose::LOOK_AROUND; // something's tracking him
-        default:                     return ReactPose::STARTLED;   // UNKNOWN, RAVEN
+        default:                     return ReactPose::STARTLED;   // UNKNOWN, MESH
     }
 }
 static ReactPose curReactPose();       // below, once s_reactType is declared
@@ -502,7 +502,7 @@ static const DetLines DET_LINES[] = {
     { "Axon gear nearby. Mind your manners.","Body cam up. Smile back." },         // AXON
     { "Ray-Bans that snitch. Wild times.",   "Someone's glasses are recording." }, // META
     { "Card skimmer! Don't swipe there.",    "Rude little Bluetooth device." },    // SKIMMER
-    { "Gunshot sensor pinged. Stay sharp.",  "Raven detected. Eyes open." },       // RAVEN
+    { "Mesh node on the air. Off the grid, like us.", "A mesh radio out there. Comrade." }, // MESH
     { "AirTag nearby. Hope it's yours.",     "Something's tracking something." },  // AIRTAG
     { "Eyes in the sky. Literally.",         "Drone up. Wave if ready." },         // DRONE
     { "Plate reader spotted. Classic.",      "ALPR sees you. Smile." },            // ALPR
