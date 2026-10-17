@@ -7443,8 +7443,12 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     // cream muzzle sits low, around the mouth only. Every outfit's headgear
     // keeps its absolute anchors.
     t.fillRoundRect(cx2 - S(12), hh, S(24), S(24), S(4), furMain);
+    // No lighter muzzle: the whole face is the base yellow, same as the head
+    // and the hair, so there is no hard colour seam across it. The face is
+    // defined only by its features and the darker accent spots (cheeks, ear
+    // inner). SHAMBLER keeps its own skin.
     t.fillRoundRect(cx2 - S(7),  hh + S(13), S(14), S(10), S(3),
-                     outfitNow == OutfitId::SHAMBLER ? SH_SKIN : SKIN_TAN);
+                     outfitNow == OutfitId::SHAMBLER ? SH_SKIN : furMain);
 
     // A cowlick, plus a couple of smaller shaggy fringe tufts either side.
     //
@@ -7481,7 +7485,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     if (currentOutfit() != OutfitId::BLUEBLUR) {
         // The short one, upright.
         keyT(cx2 - S(7), hh + S(2), cx2 - S(4), hh - S(5), cx2 - S(1), hh + S(2));
-        t.fillTriangle(cx2 - S(7), hh + S(2), cx2 - S(4), hh - S(5), cx2 - S(1), hh + S(2), furLight);
+        t.fillTriangle(cx2 - S(7), hh + S(2), cx2 - S(4), hh - S(5), cx2 - S(1), hh + S(2), furMain);
         // The tall one, apex pushed out over its own right base corner so
         // the whole tuft leans instead of standing to attention.
         //
@@ -7493,16 +7497,16 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         // where it goes back to reading as hair.
         const int tallApex = hh - (S(9) * 80) / 100;
         keyT(cx2 - S(2), hh + S(2), cx2 + S(6), tallApex, cx2 + S(6), hh + S(2));
-        t.fillTriangle(cx2 - S(2), hh + S(2), cx2 + S(6), tallApex, cx2 + S(6), hh + S(2), furLight);
+        t.fillTriangle(cx2 - S(2), hh + S(2), cx2 + S(6), tallApex, cx2 + S(6), hh + S(2), furMain);
     }
         // Side fringe tufts, tucked INSIDE the head edge: their bases used to
         // sit at S(13), which stuck out past the narrowed skull's S(12) and
         // read as hair growing sideways off the head. Pulled in with it, so
         // the whole crown fits the silhouette.
         keyT(cx2 - S(10), hh + S(3), cx2 - S(7), hh - S(4), cx2 - S(4), hh + S(3));
-        t.fillTriangle(cx2 - S(10), hh + S(3), cx2 - S(7), hh - S(4), cx2 - S(4), hh + S(3), furLight);
+        t.fillTriangle(cx2 - S(10), hh + S(3), cx2 - S(7), hh - S(4), cx2 - S(4), hh + S(3), furMain);
         keyT(cx2 + S(4),  hh + S(3), cx2 + S(7), hh - S(4), cx2 + S(10), hh + S(3));
-        t.fillTriangle(cx2 + S(4),  hh + S(3), cx2 + S(7), hh - S(4), cx2 + S(10), hh + S(3), furLight);
+        t.fillTriangle(cx2 + S(4),  hh + S(3), cx2 + S(7), hh - S(4), cx2 + S(10), hh + S(3), furMain);
     }
 
     // Ears — small rounded SQUARES hugging the narrow face, to sit with the
@@ -7537,7 +7541,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     // against the muzzle instead of melting into it. Hidden behind the
     // shades while they are on, like the rest of the muzzle.
     t.fillRoundRect(cx2 - S(2) - 1, hh + S(13), S(4) + 2, S(3) + 2, S(1), BLACK);
-    t.fillRoundRect(cx2 - S(2), hh + S(14), S(4), S(3), S(1), furLight);
+    t.fillRoundRect(cx2 - S(2), hh + S(14), S(4), S(3), S(1), furMain);
 
     // Where the shades are, for the scouter's tap. Our own Potsy only.
     if (s_outfitOverride < 0) {
