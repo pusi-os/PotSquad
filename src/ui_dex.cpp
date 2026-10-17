@@ -104,7 +104,10 @@ void drawIndex(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
                     t.drawFastHLine(x + 1, ly, cw - 2, panelFill());
         }
 
-        const char* name = have ? Theme::tr(Dex::shortName(type), Dex::shortNameRU(type)) : "???";
+        // The name is always shown: an uncaught tile wears it dimmed behind
+        // the veil. "???" told the collector nothing about which square to
+        // tap; the silhouette and the blanked lore keep the mystery instead.
+        const char* name = Theme::tr(Dex::shortName(type), Dex::shortNameRU(type));
         t.setTextColor(have ? Theme::WHITE : Theme::W95_SHADOW, panelFill());
         int tw = wid(t, name);
         if (tw > cw - 4) tw = cw - 4;
@@ -138,12 +141,13 @@ void drawCard(TFT_eSPI& t, int w, int h, const DetectionEngine& eng) {
     const Theme::ButtonBarGeom bar = Theme::computeButtonBar(w, h);
     const Dex::Record& rec = Dex::record(type);
 
-    // Heading: number, name (or ?????), rarity.
+    // Heading: number, name, rarity. The name shows even uncaught, dimmed
+    // like the tile: the heading is how a collector reads which card this is.
     char head[40];
     char st[4];
     starsText(Dex::rarity(type), st);
     snprintf(head, sizeof head, "%02u  %s  %s %s", (unsigned)(s_card + 1),
-             have ? Theme::tr(Dex::shortName(type), Dex::shortNameRU(type)) : "?????",
+             Theme::tr(Dex::shortName(type), Dex::shortNameRU(type)),
              st, Theme::tr(Dex::rarityName(Dex::rarity(type)), Dex::rarityNameRU(Dex::rarity(type))));
     Theme::drawListHeading(t, head, have ? col : Theme::W95_LIGHT);
 

@@ -1109,19 +1109,21 @@ void drawTypeIcon(TFT_eSPI& t, DetectionType type, int cx, int cy, int s) {
         t.fillCircle(dx2, dy2, r/2, SHELL_HI);
         break;
     }
-    case DetectionType::AIRTAG:
-        t.fillCircle(cx-s/3, cy+s/6, s, ICO_APPLE);
-        t.fillCircle(cx+s/3, cy+s/6, s, ICO_APPLE);
-        t.fillRect(cx-s/3, cy-s*2/3, s*2/3, s, ICO_APPLE);
-        t.fillCircle(cx+s/2, cy+s/2, s/2, ICO_APPLE_LO);
-        t.fillCircle(cx-s/2, cy-s/6, s/3, ICO_APPLE_HI);
-        t.fillCircle(cx-s*7/12, cy-s/4, s/8, ICO_SHEEN);
-        t.fillCircle(cx+s*11/12, cy-s/3, s/2, BG);             // bite
-        t.fillCircle(cx+s/2,  cy-s*5/6, s/6, BG);
-        t.fillCircle(cx+s*7/6, cy+s/12, s/6, BG);
-        t.fillRect(cx-2, cy-s-s/3, 4, s/2, ICO_STEM);
-        t.fillTriangle(cx+2, cy-s-s/6, cx+s, cy-s-s/2, cx+s/2, cy-s+2, ICO_LEAF);
+    case DetectionType::AIRTAG: {
+        // A bitten apple. Budgeted to the ±s box the tiles allow: the old
+        // one ran almost two s tall and ate the name under the square.
+        const int r = s * 2 / 3;
+        t.fillCircle(cx - r / 2, cy + r / 4, r, ICO_APPLE);
+        t.fillCircle(cx + r / 2, cy + r / 4, r, ICO_APPLE);
+        t.fillRect(cx - r / 2, cy - r * 3 / 4, r, r, ICO_APPLE);
+        t.fillCircle(cx + r / 2, cy + r / 2, r / 2, ICO_APPLE_LO);
+        t.fillCircle(cx - r / 2, cy, r / 3, ICO_APPLE_HI);
+        t.fillCircle(cx - r / 2, cy - r / 4, r / 8, ICO_SHEEN);
+        t.fillCircle(cx + r, cy, r * 2 / 5, BG);               // bite
+        t.fillRect(cx - 2, cy - s + 1, 4, s / 2, ICO_STEM);
+        t.fillTriangle(cx + 2, cy - s + 4, cx + s / 2, cy - s + 1, cx + s / 4, cy - s + 6, ICO_LEAF);
         break;
+    }
     case DetectionType::DRONE:
         for(int k=0;k<4;k++){
             const int dx=(k&1)?s:-s, dy=(k&2)?s:-s;
