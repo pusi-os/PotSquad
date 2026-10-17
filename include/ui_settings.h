@@ -38,6 +38,7 @@ enum class SettingsRow : uint8_t {
     SHORTS_COLOR,    // base outfit: its shorts colour
     SHOES_COLOR,     // base outfit: its sneaker colour
     GLASSES,         // Simpson restyle: removable shades layer, ON/OFF (default ON)
+    LASHES,          // eyelashes on the bare eyes, ON/OFF (default ON)
     GODS_MODE,       // one-way unlock: every outfit/pet/shade/stage open
     POTSY_SIZE,
     OUTFIT,

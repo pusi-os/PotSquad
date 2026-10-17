@@ -139,7 +139,7 @@ static const SettingsRow APPEARANCE_ROWS[] = {
     // The bare look's clothes. Three rows, one palette; they only show on
     // the NONE outfit, since every costume dresses him its own way.
     SettingsRow::SHIRT_COLOR, SettingsRow::SHORTS_COLOR, SettingsRow::SHOES_COLOR,
-    SettingsRow::GLASSES, SettingsRow::BANTER, SettingsRow::AURA,
+    SettingsRow::GLASSES, SettingsRow::LASHES, SettingsRow::BANTER, SettingsRow::AURA,
     // Then how the SCREEN looks.
     SettingsRow::THEME, SettingsRow::BACKGROUND, SettingsRow::BACKGROUND_LOCK, SettingsRow::DET_STYLE,
     SettingsRow::BRIGHTNESS,
@@ -258,6 +258,7 @@ static bool isPotsyOnlyRow(SettingsRow r) {
            r == SettingsRow::SHADES_COLOR || r == SettingsRow::POTSY_SIZE ||
            r == SettingsRow::SHIRT_COLOR || r == SettingsRow::SHORTS_COLOR ||
            r == SettingsRow::SHOES_COLOR ||
+           r == SettingsRow::GLASSES || r == SettingsRow::LASHES ||
            r == SettingsRow::OUTFIT ||
            r == SettingsRow::PET || r == SettingsRow::AURA;
 }
@@ -317,6 +318,7 @@ static RowGroupId groupFor(SettingsRow r) {
         case SettingsRow::SHORTS_COLOR:
         case SettingsRow::SHOES_COLOR:
         case SettingsRow::GLASSES:
+        case SettingsRow::LASHES:
         case SettingsRow::AURA:
         // SIZE, OUTFIT and PET moved onto the APPEARANCE page with the rest of
         // how he looks. They answer APPEARANCE rather than POTSY so the page
@@ -1463,6 +1465,12 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             // switch says so rather than pretending to move them.
             label = Theme::tr("GLASSES", "ОЧКИ");
             value = Potsy::th3Wearing() ? "TH3 0N3" : Theme::onOff(Potsy::glassesOn());
+            break;
+        case SettingsRow::LASHES:
+            // Only ever visible with the shades off; the value still says the
+            // state, so it cannot disagree with what the eyes would show.
+            label = Theme::tr("LASHES", "РЕСНИЦЫ");
+            value = Theme::onOff(Potsy::lashesOn());
             break;
         case SettingsRow::GODS_MODE:
             // One way: a relock could not tell granted unlocks from

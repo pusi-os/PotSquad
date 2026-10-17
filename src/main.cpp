@@ -7968,6 +7968,7 @@ void loop() {
                         case SettingsRow::SHORTS_COLOR: Potsy::cycleShortsColor(); break;
                         case SettingsRow::SHOES_COLOR:  Potsy::cycleShoesColor();  break;
                         case SettingsRow::GLASSES: Potsy::toggleGlasses(); break;
+                        case SettingsRow::LASHES:  Potsy::toggleLashes();  break;
                         case SettingsRow::GODS_MODE: Potsy::enableGodsMode(); break;
                         case SettingsRow::POTSY_SIZE: Settings::cyclePotsySize(); break;
                         case SettingsRow::OUTFIT:

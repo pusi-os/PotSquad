@@ -192,6 +192,11 @@ namespace Potsy {
     bool        glassesOn();
     void        toggleGlasses();
     void        setGlasses(bool on);
+    // Eyelashes on the bare eyes: their own switch, same pattern as GLASSES.
+    // Only ever visible with the shades off; default ON.
+    bool        lashesOn();
+    void        toggleLashes();
+    void        setLashes(bool on);
     // Gods Mode: the one-way unlock. Every outfit and pet (unlockAllOutfits
     // below), all four shade tints, the Legend stage and its aura. Nothing
     // here re-locks: a relock could not tell granted unlocks from earned

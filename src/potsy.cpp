@@ -638,6 +638,7 @@ static uint8_t  s_shirtIdx         = 1;
 static uint8_t  s_shortsIdx        = 0;
 static uint8_t  s_shoeIdx          = 7;
 static bool     s_glassesOn        = true;   // removable shades layer; Simpson eyes show when off
+static bool     s_lashesOn         = true;   // lashes on the bare eyes; its own toggle, like GLASSES
 static bool     s_godsMode         = false;  // one-way: everything unlocked, see enableGodsMode()
 #if POTS_MESH
 // Declared here with the other persisted prefs rather than beside its
@@ -1555,6 +1556,7 @@ static void ensurePrefsLoaded() {
     s_shortsIdx       = s_petPrefs.getUChar("shortsIdx", 0);
     s_shoeIdx         = s_petPrefs.getUChar("shoeIdx", 7);
     s_glassesOn       = s_petPrefs.getBool("glasses", true);
+    s_lashesOn        = s_petPrefs.getBool("lashes", true);
     s_godsMode        = s_petPrefs.getBool("gods", false);
 #if POTS_MESH
     s_petPrefs.getString("cname", s_customName, sizeof(s_customName));
@@ -2559,6 +2561,12 @@ void cycleShoesColor()  { ensurePrefsLoaded(); s_shoeIdx   = (uint8_t)((s_shoeId
 bool glassesOn() { ensurePrefsLoaded(); return s_glassesOn; }
 void toggleGlasses() { ensurePrefsLoaded(); s_glassesOn = !s_glassesOn; s_petPrefs.putBool("glasses", s_glassesOn); }
 void setGlasses(bool on) { ensurePrefsLoaded(); s_glassesOn = on; s_petPrefs.putBool("glasses", s_glassesOn); }
+
+// Lashes: a cosmetic on the bare Simpson eyes, with its own switch (they are
+// only ever visible with the shades off). Default ON, like the shades.
+bool lashesOn() { ensurePrefsLoaded(); return s_lashesOn; }
+void toggleLashes() { ensurePrefsLoaded(); s_lashesOn = !s_lashesOn; s_petPrefs.putBool("lashes", s_lashesOn); }
+void setLashes(bool on) { ensurePrefsLoaded(); s_lashesOn = on; s_petPrefs.putBool("lashes", s_lashesOn); }
 
 bool godsMode() { ensurePrefsLoaded(); return s_godsMode; }
 void unlockAllOutfits();   // defined with the outfit unlocks below
@@ -7508,7 +7516,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             const int ex = cx2 + sg * S(11);
             t.fillRoundRect(ex - ew / 2, hh + S(13) - eh / 2, ew, eh, S(1), furMain);
             t.fillRoundRect(ex - ew / 2 + 1, hh + S(13) - eh / 2 + 1, ew - 2, eh - 2, S(1),
-                            blend(furMain, SKIN_DARK, 40));
+                            blend(furMain, SKIN_DARK, 22));
         }
     }
 
@@ -7682,14 +7690,24 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             } else {
                 for (int8_t sg = -1; sg <= 1; sg += 2) {
                     const int ex = cx2 + sg * eex;
+                    // Just a hair rounded at the corners -- the same radius
+                    // the eye always had, not a circle.
                     t.fillRoundRect(ex - erx - 1, hh + S(10) - ery - 1,
                                     2 * erx + 2, 2 * ery + 2, S(1) + 1, BLACK);
                     t.fillRoundRect(ex - erx, hh + S(10) - ery,
                                     2 * erx, 2 * ery, S(1), WHITE);
-                    // One tiny lash off the outer top corner only, so it reads
-                    // as a lash rather than a brow.
-                    const int lx = ex + sg * erx, ly = hh + S(10) - ery;
-                    t.drawLine(lx, ly, lx + sg, ly - S(1) - 1, BLACK);
+                    // A few lashes off the outer top corner, each a touch
+                    // shorter than the last, angled outward. Toppled off for
+                    // anyone who prefers the plain Simpson eye (see LASES).
+                    if (lashesOn()) {
+                        // Two short lashes off the outer top corner, angled
+                        // outward -- a hint, not a comb. The plain Simpson eye
+                        // is a switch away (APPEARANCE > LASHES).
+                        const int ly = hh + S(10) - ery;
+                        const int lx = ex + sg * erx;
+                        t.drawLine(lx, ly, lx + sg, ly - S(1) - 1, BLACK);
+                        t.drawLine(lx - sg, ly, lx, ly - S(1) - 1, BLACK);
+                    }
                 }
                 // Pupils ride just below centre, so a smaller eye does not
                 // read as looking down.
