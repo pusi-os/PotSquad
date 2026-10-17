@@ -18,6 +18,7 @@
 #include "meshtalk.h"
 #include "meshmsg.h"
 #include "detection.h"
+#include "ui_clear.h"   // uiClearEmote: the local half of a reaction
 #include <Arduino.h>
 #include <stdio.h>
 #include <string.h>
@@ -88,6 +89,22 @@ void drawHeart(TFT_eSPI& t, int cx, int cy, uint16_t col, bool filled) {
 uint8_t wrapLine(TFT_eSPI& t, const char* text, int maxW, char lines[][48], uint8_t max) {
     if (Theme::isRu(text)) return Theme::wrapTextRU(t, text, maxW, lines, max);
     return Theme::wrapText(t, text, maxW, lines, max);
+}
+
+// A quick answer to the message the actions are open on: seal the emote, and
+// only if it went out does our own Potsy perform it too -- the same two steps
+// the compose screen takes. A board that cannot send (TRANSMIT off, no phrase,
+// no key) says so rather than the button looking dead.
+void react(uint8_t e) {
+    if (MeshTalk::sendEmote(e, 0, millis()) == MeshTalk::Send::OK) {
+        uiClearEmote(e, 0, false);
+        Theme::showToast(Theme::tr("REACTION SENT", "РЕАКЦИЯ ОТПРАВЛЕНА"),
+                         Theme::tr("The squad will see it", "Сквад увидит"), Theme::VAPOR_PINK);
+    } else {
+        Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"),
+                         Theme::tr("Turn TRANSMIT on in PusiMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"),
+                         Theme::AMBER);
+    }
 }
 
 void drawRow(TFT_eSPI& t, int w, int y, const MeshTalk::Message& m, uint32_t now) {
@@ -325,10 +342,8 @@ ChatHit uiChatTouch(int x, int y, uint32_t now) {
                     s_menuRow = -1;
                     break;
                 case ACT_HEART:  MeshTalk::favToggle(rowMsg((uint8_t)s_menuRow)); break;
-                case ACT_LIKE:   MeshTalk::sendEmote((uint8_t)MeshMsg::Emote::HIGH_FIVE, 0, millis());
-                                 s_menuRow = -1; break;
-                case ACT_DISLIKE: MeshTalk::sendEmote((uint8_t)MeshMsg::Emote::GRR, 0, millis());
-                                 s_menuRow = -1; break;
+                case ACT_LIKE:    react((uint8_t)MeshMsg::Emote::HIGH_FIVE); s_menuRow = -1; break;
+                case ACT_DISLIKE: react((uint8_t)MeshMsg::Emote::GRR);       s_menuRow = -1; break;
                 default: break;
             }
             return ChatHit::NONE;

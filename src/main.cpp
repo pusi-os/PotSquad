@@ -6864,9 +6864,23 @@ void loop() {
                 lastTouch = now;
                 sqActive  = false;
                 const int r = uiClearRedBubbleReact(tp.x, tp.y);
-                if (r == 1)      MeshTalk::sendEmote((uint8_t)MeshMsg::Emote::HIGH_FIVE, 0, now);
-                else if (r == 2) MeshTalk::sendEmote((uint8_t)MeshMsg::Emote::GRR, 0, now);
-                else             MeshTalk::markRead();
+                if (r == 1 || r == 2) {
+                    // The same shape the compose screen uses: seal the emote,
+                    // and only if it actually goes out does our own Potsy act
+                    // it -- otherwise the button looked dead on a board with
+                    // TRANSMIT off or no phrase.
+                    const uint8_t e = r == 1 ? (uint8_t)MeshMsg::Emote::HIGH_FIVE
+                                             : (uint8_t)MeshMsg::Emote::GRR;
+                    if (MeshTalk::sendEmote(e, 0, now) == MeshTalk::Send::OK) {
+                        uiClearEmote(e, 0, false);
+                    } else {
+                        Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"),
+                                         Theme::tr("Turn TRANSMIT on in PusiMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"),
+                                         Theme::AMBER);
+                    }
+                } else {
+                    MeshTalk::markRead();
+                }
             } else if (touchJustDown && (now - lastTouch) > TOUCH_DEBOUNCE_MS &&
                        uiClearBubbleHit(tp.x, tp.y)) {
                 // The message bubble. Ahead of the background and the edge
