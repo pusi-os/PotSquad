@@ -137,15 +137,27 @@ Compixii и BroWatch (единый словарь терминов), не мен
       симуляторе (ext через реальный RX-путь, 1314 px). Коммит `7cbf4ab`.
 6. [x] POTSY-DEX RU: `dex.cpp` (контент RU + EN-таблицы рядом),
       `ui_dex.cpp` (подписи + RU-рендер через put/wid/wrap). Коммит `3da32f3`.
-7. [~] Остальные экраны/болтовня RU (Ф10). Сделано: банки реплик
-      set-piece эмоций в `ui_clear.cpp` (EMOTE_*_RU). ОСТАЁТСЯ: `ui_security`
-      (+`security.cpp`), `ui_diagnostics`, `ui_sysprops`, `ui_wifipass`,
-      `ui_lorahome`, подписи счётчиков главного экрана и режима часов,
-      `regulars` (имена — намеренно EN). Сверить термины с Compixii/BroWatch.
+7. [x] Остальные экраны/болтовня RU (Ф10). Сверено с кодом и сим-рендерами
+       (2026-10-18): `ui_security` (+`security.cpp` autoLock/lockAlerts),
+       `ui_diagnostics`, `ui_sysprops`, `ui_wifipass` — все подписи через
+       `tr()`/RU-ветки; сим-рендеры sysprops/diagnostics/wifipass/log/chat —
+       кириллица без пропусков глифов; счётчики (ФЛОК/ДРОН) и часы RU.
+       `ui_lorahome`: BOTH/MESHCORE/MESHTASTIC/LIVE — имена протоколов,
+       оставлены EN сознательно. `regulars` — имена намеренно EN.
+       Дочищены остатки ребрендинга: CANNED "Squatch out."→"Potsy out." /
+       "Сквач на связи."→"Потси на связи.", emote "Squatch call!"→"Potsy
+       call!" / "Клич сквача!"→"Клич потси!", LOG_CLEAR "по-сквачьи"→
+       "по-криптидски" (зеркало EN "cryptid style").
 8. [x] Сборка `cyd-ili9341` SUCCESS, host-тесты 39 pass + те же 5 предсущих,
       симулятор-рендеры (dex RU, ext-цвета). 
-9. [~] Коммиты `7cbf4ab`, `3da32f3` (+ этот). Прошивка и serial-проверка —
-      в конце сессии.
+9. [~] Коммиты, прошивка и serial-проверка. Статус 2026-10-18: host-тесты
+       1654 проверки / 0 падений (починены 5 падений-артефактов ребрендинга:
+       порядок POTSY в WORDS, длины PotsNet в wigle/wardrive-тестах, пакет
+       long_name "Potsy" в lora_meshtastic, assert serial[0]=='P' в
+       remote_id); сим-рендеры clear+RU-бабл/chat/sysprops/diagnostics/
+       wifipass/log — RU корректно; сборка `cyd-ili9341` SUCCESS
+       (Flash 96.0% — впритык, следить). НЕ СДЕЛАНО: прошивка платы и
+       serial-проверка — нужно железо.
 
 ## Открытые вопросы/риски
 

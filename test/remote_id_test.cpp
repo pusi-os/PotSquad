@@ -41,7 +41,7 @@ int main() {
     memset(m, 0, sizeof(m));
     m[0] = (uint8_t)(0x0 << 4) | 0x2;     // type 0, protocol 2
     m[1] = (uint8_t)(0x1 << 4) | 0x2;     // IDType 1 high, UAType 2 low
-    memcpy(m + 2, "POTS1234567890ABCD", 20);
+    memcpy(m + 2, "POTS1234567890ABCD", 18);  // 18 chars; rest stays NUL from memset
     frame(m);
     ck("decoded", RemoteId::merge(adv, advLen, info, 1000));
     ck("haveBasic set", info.haveBasic);
@@ -74,7 +74,7 @@ int main() {
     ckf("operator longitude", info.opLon, -73.9855f, 0.00002f);
 
     suite("Accumulation across adverts");
-    ck("basic survived two later merges", info.haveBasic && info.serial[0] == 'S');
+    ck("basic survived two later merges", info.haveBasic && info.serial[0] == 'P');
     ck("location survived", info.haveLoc);
     ck("all three parts held at once",
        info.haveBasic && info.haveLoc && info.haveOperator);

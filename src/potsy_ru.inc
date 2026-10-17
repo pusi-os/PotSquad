@@ -145,7 +145,7 @@ static const char* const LATE_LINES_RU[] = {
 };
 
 static const char* LOG_CLEAR_LINES_RU[] = {
-    "Журнал чист. Начнём по-сквачьи.",
+    "Журнал чист. Начнём по-криптидски.",
 };
 
 static const char* LOG_OPEN_LINES_RU[] = {

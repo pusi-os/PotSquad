@@ -46,7 +46,7 @@ int main() {
     std::vector<Wardrive::Record> v = all();
     ck("one row", v.size() == 1 && Wardrive::count() == 1);
     ck("its network", v.size() == 1 && v[0].kind == Wardrive::KIND_WIFI && !memcmp(v[0].mac, m, 6) &&
-                      v[0].nameLen == 9 && !memcmp(v[0].name, "PotsNet", 9) && v[0].auth == 0x0495 && v[0].channel == 6);
+                      v[0].nameLen == 7 && !memcmp(v[0].name, "PotsNet", 7) && v[0].auth == 0x0495 && v[0].channel == 6);
     ck("where and when", v.size() == 1 && v[0].lat7 == 407128000 && v[0].lon7 == -740060000 && v[0].epoch == T0);
     ck("marked as a bench row", v.size() == 1 && (v[0].flags & Wardrive::F_FAKE));
 

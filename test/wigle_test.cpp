@@ -97,7 +97,7 @@ int main() {
     r.auth = WifiAuth::RSN | WifiAuth::PSK | WifiAuth::CCMP | WifiAuth::ESS | WifiAuth::PRIV;
     r.lat7 = 377657802; r.lon7 = -1234591943; r.altM = 67; r.accM = 3;
     r.epoch = 1790557324u;
-    memcpy(r.name, "PotsNet", 9); r.nameLen = 9;
+    memcpy(r.name, "PotsNet", 8); r.nameLen = 8;  // 7 chars + NUL; NUL is skipped by field()
     char row[256];
     Wardrive::csvRow(r, row, sizeof row);
     ck("whole line", !strcmp(row, "1a:9f:ee:5c:71:c6,PotsNet,[WPA2-PSK-CCMP][ESS],2026-09-28 01:02:04,6,2437,-43,37.7657802,-123.4591943,67,3,,,WIFI\n"));

@@ -110,7 +110,7 @@ int main() {
     {
         // User{id="!3b1c9a2e", long_name="Potsy", short_name="SQCH", hw_model=43, role=2}
         const uint8_t user[] = { 0x0A, 9, '!', '3','b','1','c','9','a','2','e',
-                                 0x12, 7, 'S','q','u','a','c','h','y',
+                                 0x12, 5, 'P','o','t','s','y',
                                  0x1A, 4, 'S','Q','C','H',
                                  0x28, 43, 0x38, 2 };
         uint8_t data[64] = { 0x08, 0x04, 0x12, (uint8_t)sizeof user };
