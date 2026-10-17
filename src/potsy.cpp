@@ -7318,14 +7318,14 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         }
     }
 
-    // Head — broader jaw than before, brow ridge over the eyes. The face
-    // patch runs cheek to cheek: Springfield cheeks are wide, and the
-    // patch ending at the eyes' outer corners left the grin floating on
-    // plain fur either side of it.
-    t.fillRoundRect(cx2 - S(15), hh, S(30), S(24), S(7), furLight);
-    t.fillRoundRect(cx2 - S(12), hh + S(2), S(24), S(19), S(5), furMain);
-    t.fillRoundRect(cx2 - S(10),  hh + S(7), S(20), S(11), S(4),
-                    outfitNow == OutfitId::SHAMBLER ? SH_SKIN : SKIN_TAN);
+    // Head — a touch narrower than before (half-width 14, was 15), same
+    // original corner radii so the crown and the cheeks stay smooth. Ears,
+    // cheeks and mouth below moved in with the edge; eyes, nose, shades
+    // and every outfit's headgear keep their absolute anchors.
+    t.fillRoundRect(cx2 - S(14), hh, S(28), S(24), S(7), furLight);
+    t.fillRoundRect(cx2 - S(11), hh + S(2), S(22), S(19), S(5), furMain);
+    t.fillRoundRect(cx2 - S(9),  hh + S(7), S(18), S(11), S(4),
+                     outfitNow == OutfitId::SHAMBLER ? SH_SKIN : SKIN_TAN);
 
     // A cowlick, plus a couple of smaller shaggy fringe tufts either side.
     //
@@ -7382,24 +7382,32 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         t.fillTriangle(cx2 + S(5),  hh + S(3), cx2 + S(9), hh - S(4), cx2 + S(13),hh + S(3), furLight);
     }
 
-    // Ears — rounder and a touch bigger than the tucked nubs he had:
-    // Springfield ears are simple C-curves standing off the head, and
-    // the headset cups are sized to sit on them either way.
-    t.fillCircle(cx2 - S(15), hh + S(13), S(4), furMain);
-    t.fillCircle(cx2 + S(15), hh + S(13), S(4), furMain);
-    t.fillCircle(cx2 - S(15), hh + S(13), S(2), SKIN_DARK);
-    t.fillCircle(cx2 + S(15), hh + S(13), S(2), SKIN_DARK);
-
-    // Blush. Not on SHAMBLER: nothing about him is rosy.
-    if (outfitNow != OutfitId::SHAMBLER) {
-        t.fillCircle(cx2 - S(8), hh + S(15), S(2), VAPOR_PINK);
-        t.fillCircle(cx2 + S(8), hh + S(15), S(2), VAPOR_PINK);
+    // Ears — upright ellipses hugging the narrower face, with a dark ring
+    // and a yellow centre instead of a solid dark dot. Same centres as
+    // before, so the headset cups still sit on them either way.
+    {
+        const int erx = (S(4) * 9) / 10, ery = (S(4) * 14) / 10;
+        for (int8_t sg = -1; sg <= 1; sg += 2) {
+            const int ex = cx2 + sg * S(14);
+            t.fillEllipse(ex, hh + S(13), erx, ery, furMain);
+            t.fillEllipse(ex, hh + S(13), (erx * 8) / 10, (ery * 8) / 10, SKIN_DARK);
+            t.fillEllipse(ex, hh + S(13), (erx * 6) / 10, (ery * 6) / 10, furMain);
+        }
     }
 
-    // Nose — one small bump between the eyes and the grin, the way the
-    // reference draws it: a darker-yellow knob, not a black dot. Hidden
-    // behind the shades while they are on, like the rest of the muzzle.
-    t.fillCircle(cx2, hh + S(12), S(1) + 1, furMain);
+    // Cheeks — warm Simpson shading, not blush: furMain walked a touch
+    // toward the ear's dark tone. Not on SHAMBLER: nothing about him glows.
+    if (outfitNow != OutfitId::SHAMBLER) {
+        const uint16_t cheek = blend(furMain, SKIN_DARK, 72);
+        t.fillCircle(cx2 - S(8), hh + S(15), S(2) + 1, cheek);
+        t.fillCircle(cx2 + S(8), hh + S(15), S(2) + 1, cheek);
+    }
+
+    // Nose — a light knob with its own keyline, so it reads against the
+    // muzzle instead of melting into it. Hidden behind the shades while
+    // they are on, like the rest of the muzzle.
+    t.fillEllipse(cx2, hh + S(12), S(2) + 1, S(1) + 2, BLACK);
+    t.fillEllipse(cx2, hh + S(12), S(2), S(1) + 1, furLight);
 
     // Where the shades are, for the scouter's tap. Our own Potsy only.
     if (s_outfitOverride < 0) {
@@ -7543,16 +7551,21 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
                 t.drawLine(cx2 - S(9), hh + S(9), cx2 - S(1), hh + S(9), BLACK);
                 t.drawLine(cx2 + S(1), hh + S(9), cx2 + S(9), hh + S(9), BLACK);
             } else {
-                t.fillEllipse(cx2 - S(5), hh + S(9), S(4), S(5), WHITE);
-                t.fillEllipse(cx2 + S(5), hh + S(9), S(4), S(5), WHITE);
+                // Bare eyes a touch smaller and closer together than they
+                // were, with the pupils riding along.
+                const int eex = S(5) - 1, eerx = (S(4) * 9) / 10, eery = (S(5) * 9) / 10;
+                t.fillEllipse(cx2 - eex, hh + S(9), eerx + 1, eery + 1, BLACK);
+                t.fillEllipse(cx2 + eex, hh + S(9), eerx + 1, eery + 1, BLACK);
+                t.fillEllipse(cx2 - eex, hh + S(9), eerx, eery, WHITE);
+                t.fillEllipse(cx2 + eex, hh + S(9), eerx, eery, WHITE);
                 if (winking) {
                     t.drawLine(cx2 - S(9), hh + S(9), cx2 - S(1), hh + S(9), BLACK);
-                    t.fillCircle(cx2 + S(5), hh + S(10), S(1) + 1, BLACK);
+                    t.fillCircle(cx2 + eex, hh + S(10), S(1) + 1, BLACK);
                 } else {
-                    t.fillCircle(cx2 - S(5), hh + S(10), S(1) + 1, BLACK);
-                    t.fillCircle(cx2 + S(5), hh + S(10), S(1) + 1, BLACK);
-                    t.fillCircle(cx2 - S(5) + 1, hh + S(9), 1, WHITE);
-                    t.fillCircle(cx2 + S(5) + 1, hh + S(9), 1, WHITE);
+                    t.fillCircle(cx2 - eex, hh + S(10), S(1) + 1, BLACK);
+                    t.fillCircle(cx2 + eex, hh + S(10), S(1) + 1, BLACK);
+                    t.fillCircle(cx2 - eex + 1, hh + S(9), 1, WHITE);
+                    t.fillCircle(cx2 + eex + 1, hh + S(9), 1, WHITE);
                 }
             }
         } else {
@@ -7636,9 +7649,13 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             t.fillRect(cx2 - S(6), hh + S(16), S(12), S(2), WHITE);
             t.fillEllipse(cx2, hh + S(21), S(5), S(3), PINK);
         } else {
-            t.fillRoundRect(cx2 - S(8), hh + S(16), S(16), S(7), S(3), BLACK);
+            // Resting grin with a thinner black frame — one unit of
+            // keyline on every side — and a lip line between the teeth
+            // and the lower lip.
+            t.fillRoundRect(cx2 - S(7), hh + S(16), S(14), S(7), S(3), BLACK);
             t.fillRect(cx2 - S(6), hh + S(17), S(12), S(2), WHITE);
-            t.fillRect(cx2 - S(6), hh + S(19), S(12), S(3), PINK);
+            t.fillRect(cx2 - S(6), hh + S(19), S(12), 1, BLACK);
+            t.fillRect(cx2 - S(6), hh + S(20), S(12), S(2), PINK);
         }
     }
     }   // end if (!hideFace)
