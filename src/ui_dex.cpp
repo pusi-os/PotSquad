@@ -290,7 +290,7 @@ void uiDexTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool advan
     Theme::drawTitleBar(t, Theme::tr(">> POTSY-DEX <<", ">> ПОТСИ-ДЕКС <<"));
     if (s_card < 0) {
         drawIndex(t, w, h, eng);
-        Theme::drawPinnedBack(t, "[ BACK ]");
+        Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
     } else {
         drawCard(t, w, h, eng);
     }

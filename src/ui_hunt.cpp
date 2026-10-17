@@ -119,7 +119,7 @@ static void drawGauge(TFT_eSPI& t, int cx, int cy, int r, float frac, uint16_t n
 void uiHuntTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool advance) {
     int w = t.width(), h = t.height();
 
-    Theme::drawTitleBar(t, ">> HUNT MODE <<");
+    Theme::drawTitleBar(t, Theme::tr(">> HUNT MODE <<", ">> ОХОТА <<"));
 
     Theme::ButtonBarGeom bar = Theme::computeButtonBar(w, h);
     int bodyTop = 16, bodyBottom = bar.y - 4;

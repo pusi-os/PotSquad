@@ -124,9 +124,10 @@ void uiSquadUpdateTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     char buf[48];
 
     if (!s_sent) {
-        line(t, y, Theme::WHITE, "Tells every PotsSquad in range with");
+        line(t, y, Theme::WHITE, Theme::tr("Tells every PotsSquad in range with",
+                                           "Всем PotsSquad рядом с"));
         y += Theme::bodyY(12);
-        snprintf(buf, sizeof buf, "your phrase to update to %s,", OtaCore::runningVersion());
+        snprintf(buf, sizeof buf, Theme::tr("your phrase to update to %s,", "твоей фразой: обнови до %s,"), OtaCore::runningVersion());
         line(t, y, Theme::WHITE, buf);
         y += Theme::bodyY(12);
         line(t, y, Theme::WHITE, Theme::tr("the version this one runs.", "версия, что крутится тут."));
@@ -164,7 +165,7 @@ void uiSquadUpdateTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
             snprintf(buf, sizeof buf, "%s", Theme::tr("None of your networks are in range.", "Твоих сетей рядом нет."));
         line(t, y, Theme::W95_LIGHT, buf);
         y += Theme::bodyY(12);
-        line(t, y, Theme::W95_LIGHT, Theme::tr("Boards with their own WiFi use that.", "У кого свой WiFi — пользуются своим."));
+        line(t, y, Theme::W95_LIGHT, Theme::tr("Boards with their own WiFi use that.", "У кого свой WiFi - пользуются своим."));
 
         Theme::drawWin95Button(t, g.sendX, g.sendY, g.sendW, btnH(), Theme::tr("SEND", "СЛАТЬ"), false);
     } else {
@@ -173,12 +174,14 @@ void uiSquadUpdateTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
         else      snprintf(buf, sizeof buf, "%s", Theme::tr("Sent. Boards report back here.", "Ушло. Платы отзовутся сюда."));
         line(t, y, Theme::WHITE, buf);
         y += Theme::bodyY(12);
-        line(t, y, Theme::W95_LIGHT, "Each one joins WiFi, installs, restarts,");
+        line(t, y, Theme::W95_LIGHT, Theme::tr("Each one joins WiFi, installs, restarts,",
+                                               "Каждая входит в WiFi, ставит, стартует,"));
         y += Theme::bodyY(12);
-        line(t, y, Theme::W95_LIGHT, "and says so. A minute or two each.");
+        line(t, y, Theme::W95_LIGHT, Theme::tr("and says so. A minute or two each.",
+                                               "и отзовётся. Минута-две на каждую."));
         y += Theme::bodyY(18);
         if (s_tallyN == 0) {
-            line(t, y, Theme::CYAN, "Nobody yet.");
+            line(t, y, Theme::CYAN, Theme::tr("Nobody yet.", "Пока никого."));
         } else {
             t.setTextFont(1); t.setTextSize(Theme::upSize(2));
             const int colW = w / 2;
@@ -193,7 +196,7 @@ void uiSquadUpdateTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
         }
     }
     Theme::bodyFontOff(t);
-    Theme::drawPinnedBack(t, "[ BACK ]");
+    Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
 }
 
 SquadUpdateHit uiSquadUpdateHit(TFT_eSPI& t, int x, int y) {

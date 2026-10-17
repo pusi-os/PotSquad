@@ -7,6 +7,7 @@
 #include "settings.h"
 #include "blackbox.h"
 #include "detection.h"
+#include "type_names.h"
 #include "log_index.h"
 #include "regulars.h"
 #include "ignore_list.h"
@@ -223,7 +224,8 @@ void uiLogSetConfirmWhere(bool has, int32_t lat7, int32_t lon7) {
 // claim.
 static void whereText(char* out, size_t n) {
     const long la = (long)s_whereLat, lo = (long)s_whereLon;
-    snprintf(out, n, "SEEN AT %s%ld.%05ld,%s%ld.%05ld",
+    snprintf(out, n, Theme::tr("SEEN AT %s%ld.%05ld,%s%ld.%05ld",
+                               "МЕСТО: %s%ld.%05ld,%s%ld.%05ld"),
              la < 0 ? "-" : "", labs(la) / 10000000L, (labs(la) % 10000000L) / 100L,
              lo < 0 ? "-" : "", labs(lo) / 10000000L, (labs(lo) % 10000000L) / 100L);
 }
@@ -258,10 +260,13 @@ static void drawConfirmPanel(TFT_eSPI& t, int w, int h, const char* label, bool 
     t.setTextColor(Theme::CYAN, Theme::BG);
     char where[40];
     if (s_whereHas) whereText(where, sizeof where);
-    const char* q = s_whereHas ? where : "TRACK THIS TARGET?";
-    int qw = t.textWidth(q);
+    const char* q = s_whereHas ? where : Theme::tr("TRACK THIS TARGET?", "СЛЕДИТЬ ЗА ЦЕЛЬЮ?");
+    const bool qru = Theme::isRu(q);
+    if (qru) { t.setTextFont(1); t.setTextSize(1); }
+    int qw = qru ? Theme::textWidthRU(t, q) : t.textWidth(q);
     t.setCursor(px + (pw - qw) / 2, py + 8);
-    t.print(q);
+    if (qru) Theme::printRU(t, q); else t.print(q);
+    t.setTextSize(1);
 
     // The Bangers glyph table is uppercase-only (it was built for
     // hardcoded shout-caps strings like "RING"/"FLOCK") -- lowercase
@@ -458,8 +463,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
             t.setTextSize(1);
             const int ty = y + detailY;
             t.setTextColor(kept ? dim : Theme::colorFor(d->type), Theme::BG);
-            t.setCursor(6, ty);
-            t.print(detectionTypeName(d->type));
+            Theme::rowPrint(t, TypeNames::display(d->type), 6, ty);
             char ts[12];
             if (d->restored) Clock::formatEpochStamp(d->firstSeen, ts, sizeof(ts));
             else             Clock::formatStamp(d->firstSeen, ts, sizeof(ts));
@@ -480,12 +484,12 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
             else if (d->name[0]) snprintf(nm, sizeof nm, "%s", Privacy::name(d->name, pv, sizeof pv));
             else { char mac[24]; Privacy::mac(mac, sizeof mac, d->mac); const size_t ml = strlen(mac);
                    snprintf(nm, sizeof nm, "%s", ml > 8 ? mac + ml - 8 : mac); }
-            if (IgnoreList::contains(d->mac)) { char tmp[40]; snprintf(tmp, sizeof tmp, "(IGN) %s", nm); snprintf(nm, sizeof nm, "%s", tmp); }
+            if (IgnoreList::contains(d->mac)) { char tmp[40]; snprintf(tmp, sizeof tmp, Theme::tr("(IGN) %s", "(ИГН) %s"), nm); snprintf(nm, sizeof nm, "%s", tmp); }
             const int nx = 6 + t.textWidth("EVIL TWIN") + 6, nmax = rsX - 6 - nx;
-            while (nm[0] && t.textWidth(nm) > nmax) nm[strlen(nm) - 1] = '\0';
+            while (nm[0] && Theme::rowWidth(t, nm) > nmax) nm[strlen(nm) - 1] = '\0';
             t.setTextColor(kept ? dim : (reg ? Theme::VAPOR_PINK : Theme::WHITE), Theme::BG);
             t.setCursor(nx, ty);
-            t.print(nm);
+            if (Theme::isRu(nm)) Theme::printRU(t, nm); else t.print(nm);
             y += rowH;
             continue;
         }
@@ -500,9 +504,8 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
         Theme::bodyFontOff(t);
         t.setTextSize(2);
         t.setTextColor(kept ? dim : Theme::colorFor(d->type), Theme::BG);
-        t.setCursor(8, y + topPad);
-        t.print(detectionTypeName(d->type));
-        const int labelEnd = 8 + t.textWidth(detectionTypeName(d->type));
+        Theme::rowPrint(t, TypeNames::display(d->type), 8, y + topPad);
+        const int labelEnd = 8 + Theme::rowWidth(t, TypeNames::display(d->type));
 
         // MAC + RSSI line, in the body font (the system font at size 1
         // everywhere but the large panels).
@@ -547,15 +550,14 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
         // screen is narrow. Grey, because an ignored device is one that has
         // been told to be quiet.
         if (IgnoreList::contains(d->mac)) {
-            const char* tag = "IGNORED";
-            if (w - 14 - t.textWidth(tag) - 4 < hitsEnd + 6) tag = "IGN";
-            const int tw2 = t.textWidth(tag) + 4;
+            const char* tag = Theme::tr("IGNORED", "ИГНОР");
+            if (w - 14 - Theme::rowWidth(t, tag) - 4 < hitsEnd + 6) tag = Theme::tr("IGN", "ИГН");
+            const int tw2 = Theme::rowWidth(t, tag) + 4;
             const int tx  = w - 14 - tw2;
             if (tx >= hitsEnd + 6) {
                 t.fillRoundRect(tx, y + detailY - 1, tw2, detailH + 1, 2, Theme::W95_SHADOW);
                 t.setTextColor(Theme::WHITE, Theme::W95_SHADOW);
-                t.setCursor(tx + 2, y + detailY);
-                t.print(tag);
+                Theme::rowPrint(t, tag, tx + 2, y + detailY);
             }
         }
 

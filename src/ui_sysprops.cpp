@@ -31,7 +31,13 @@ const int LINE    = 17;       // one font-2 line and a pixel of air
 const int SLOP    = 5;        // a fingertip is wider than a tab
 
 enum Tab : uint8_t { TAB_UPDATE = 0, TAB_NOTES = 1, TAB_BOARD = 2, TAB_N = 3 };
-const char* const TAB_NAME[TAB_N] = { "Update", "Notes", "Board" };
+const char* tabName(uint8_t i) {
+    switch (i) {
+        case TAB_UPDATE: return Theme::tr("Update", "Обновление");
+        case TAB_NOTES:  return Theme::tr("Notes", "Заметки");
+        default:         return Theme::tr("Board", "Плата");
+    }
+}
 
 uint8_t s_tab = TAB_UPDATE;
 
@@ -74,9 +80,9 @@ Buttons buttons(TFT_eSPI& t, const Geom& g) {
     t.setTextSize(1);
     Buttons b;
     const int right = g.x + g.w - 6;
-    b.laterW = boldWidth(t, "Later") + 24;      if (b.laterW < 64) b.laterW = 64;
-    b.updW   = boldWidth(t, "Update now") + 24;
-    b.closeW = boldWidth(t, "Close") + 24;      if (b.closeW < 64) b.closeW = 64;
+    b.laterW = boldWidth(t, Theme::tr("Later", "Позже")) + 24;      if (b.laterW < 64) b.laterW = 64;
+    b.updW   = boldWidth(t, Theme::tr("Update now", "Обновить")) + 24;
+    b.closeW = boldWidth(t, Theme::tr("Close", "Закрыть")) + 24;      if (b.closeW < 64) b.closeW = 64;
     b.laterX = right - b.laterW;
     b.updX   = b.laterX - 6 - b.updW;
     b.closeX = right - b.closeW;
@@ -108,10 +114,22 @@ void sunken(TFT_eSPI& t, int x, int y, int w, int h) {
     t.drawFastVLine(x + w - 1, y, h, Theme::W95_HILITE);
 }
 
+// Mixed-script output for the window's font-2 face: an ASCII string keeps the
+// built-in 16-row face it always had, one with Cyrillic goes through the 16px
+// RU face (ASCII inside it is bumped to GLCD size 2, so both scripts stand the
+// same 16 rows tall). Measure and draw both route here so they cannot disagree.
+static void put(TFT_eSPI& t, const char* s) {
+    if (Theme::isRu(s)) { Theme::printRU16(t, s); }
+    else                { t.print(s); }
+}
+static int wid(TFT_eSPI& t, const char* s) {
+    return Theme::isRu(s) ? Theme::textWidthRU16(t, s) : t.textWidth(s);
+}
+
 void text(TFT_eSPI& t, int x, int y, const char* s, uint16_t c = Theme::W95_DKSHADOW) {
     t.setTextColor(c, Theme::W95_FACE);
     t.setCursor(x, y);
-    t.print(s);
+    put(t, s);
 }
 
 // Font 2 has no bold cut, so bold is the word drawn twice a pixel apart.
@@ -124,12 +142,12 @@ void text(TFT_eSPI& t, int x, int y, const char* s, uint16_t c = Theme::W95_DKSH
 // one did not fit in portrait at all, and this one fits both rotations.
 void bold(TFT_eSPI& t, int x, int y, const char* s, uint16_t c = Theme::W95_DKSHADOW) {
     t.setTextColor(c);
-    t.setCursor(x, y);     t.print(s);
-    t.setCursor(x + 1, y); t.print(s);
+    t.setCursor(x, y);     put(t, s);
+    t.setCursor(x + 1, y); put(t, s);
 }
 
 // How wide `s` is when drawn by bold(): the doubling adds a pixel.
-int boldWidth(TFT_eSPI& t, const char* s) { return t.textWidth(s) + 1; }
+int boldWidth(TFT_eSPI& t, const char* s) { return wid(t, s) + 1; }
 
 // The row labels on the UPDATE tab. A darker red than the palette's: bright
 // red on this silver reads worse than the black it replaced, and a system
@@ -149,12 +167,24 @@ void boldButton(TFT_eSPI& t, int x, int y, int w, int h, const char* label) {
 void fit(TFT_eSPI& t, const char* src, int maxW, char* out, size_t cap) {
     snprintf(out, cap, "%s", src ? src : "");
     size_t n = strlen(out);
-    while (n > 0 && t.textWidth(out) > maxW) out[--n] = '\0';
+    while (n > 0 && wid(t, out) > maxW) { do { out[--n] = '\0'; } while (n > 0 && (out[n] & 0xC0) == 0x80); }
 }
 
-// A label and its value, in two columns. The label column is as wide as its
-// longest label, measured, so it holds in either rotation.
-int labelCol(TFT_eSPI& t) { return boldWidth(t, "Heard from") + 10; }
+// A label and its value, in two columns. The label column is as wide as the
+// widest label actually drawn -- measured, in the current language -- so it
+// holds in either rotation and neither script lets a value run into its label.
+int labelCol(TFT_eSPI& t) {
+    static const char* const EN[] = { "Heard from", "This slot", "Other slot",
+                                      "Running", "Available", "Memory", "Build", "Up" };
+    static const char* const RU[] = { "Источник", "Этот слот", "Другой слот",
+                                      "Текущая", "Доступна", "Память", "Сборка", "Аптайм" };
+    int wMax = 0;
+    for (size_t i = 0; i < sizeof(EN) / sizeof(EN[0]); i++) {
+        const int w = boldWidth(t, Theme::tr(EN[i], RU[i]));
+        if (w > wMax) wMax = w;
+    }
+    return wMax + 10;
+}
 
 void row(TFT_eSPI& t, const Geom& g, int y, const char* name, const char* value,
          uint16_t valueCol = Theme::W95_DKSHADOW, bool redLabel = false) {
@@ -171,7 +201,8 @@ void row(TFT_eSPI& t, const Geom& g, int y, const char* name, const char* value,
 int para(TFT_eSPI& t, int x, int y, int maxW, int limit, const char* s,
          uint16_t c = Theme::W95_DKSHADOW) {
     char lines[6][48];
-    const uint8_t n = Theme::wrapText(t, s, maxW, lines, 6);
+    const uint8_t n = Theme::isRu(s) ? Theme::wrapTextRU(t, s, maxW, lines, 6)
+                                     : Theme::wrapText(t, s, maxW, lines, 6);
     for (uint8_t i = 0; i < n && y + 16 <= limit; i++, y += LINE) text(t, x, y, lines[i], c);
     return y;
 }
@@ -195,6 +226,11 @@ void checkbox(TFT_eSPI& t, int x, int y, bool on, const char* label) {
 
 void uptimeText(char* out, size_t n, uint32_t now) {
     const uint32_t s = now / 1000;
+    if (Settings::lang() == 1) {
+        if (s < 3600) snprintf(out, n, "%luм %02luс", (unsigned long)(s / 60), (unsigned long)(s % 60));
+        else          snprintf(out, n, "%luч %02luм", (unsigned long)(s / 3600), (unsigned long)((s / 60) % 60));
+        return;
+    }
     if (s < 3600) snprintf(out, n, "%lum %02lus", (unsigned long)(s / 60), (unsigned long)(s % 60));
     else          snprintf(out, n, "%luh %02lum", (unsigned long)(s / 3600), (unsigned long)((s / 60) % 60));
 }
@@ -208,28 +244,30 @@ void drawUpdateTab(TFT_eSPI& t, const Geom& g) {
     // As the build stamped it: a release is "v1.10.1", a bench build carries
     // the commit and "-dirty" after it, and both are the truth about what is
     // running. Cut to what the panel holds rather than dressed up.
-    row(t, g, y, "Running", OtaCore::runningVersion(), Theme::W95_DKSHADOW, true);
+    row(t, g, y, Theme::tr("Running", "Текущая"), OtaCore::runningVersion(), Theme::W95_DKSHADOW, true);
     y += LINE;
 
     const char* name = OtaCore::releaseName();
     if (name[0]) snprintf(buf, sizeof buf, "v%s  %s", OtaCore::availableVersion(), name);
     else         snprintf(buf, sizeof buf, "v%s", OtaCore::availableVersion());
-    row(t, g, y, "Available", buf, NAVY, true);
+    row(t, g, y, Theme::tr("Available", "Доступна"), buf, NAVY, true);
     y += LINE;
 
     const char* from = OtaCore::availableFrom();
-    if (from[0]) snprintf(buf, sizeof buf, "%s's board", from);
+    if (from[0]) snprintf(buf, sizeof buf, Theme::tr("%s's board", "плата %s"), from);
     else         snprintf(buf, sizeof buf, "potsquad.com");
-    row(t, g, y, "Heard from", buf, Theme::W95_DKSHADOW, true);
+    row(t, g, y, Theme::tr("Heard from", "Источник"), buf, Theme::W95_DKSHADOW, true);
     y += LINE + 5;
 
     if (Theme::compact()) return;     // no room: the switch is on the SYSTEM page too
     const int cb = checkboxY(g);
     para(t, g.px + 8, y, g.pw - 16, cb - 3,
-         "It downloads over WiFi and restarts into it. What you have now "
-         "is kept.");
+         Theme::tr("It downloads over WiFi and restarts into it. What you have now "
+                   "is kept.",
+                   "Скачает по WiFi и перезапустится в неё. То, что есть сейчас, "
+                   "сохранится."));
 
-    checkbox(t, g.px + 8, cb, Settings::updateCheck(), "Look for updates every boot");
+    checkbox(t, g.px + 8, cb, Settings::updateCheck(), Theme::tr("Look for updates every boot", "Искать обновления при каждом старте"));
 }
 
 void drawNotesTab(TFT_eSPI& t, const Geom& g) {
@@ -251,8 +289,10 @@ void drawNotesTab(TFT_eSPI& t, const Geom& g) {
         // release made before the site started sending its lines has none.
         para(t, g.px + 8, y, g.pw - 16, limit,
              OtaCore::availableFrom()[0]
-                 ? "A squad member had this one, and a hello carries no notes. What changed is on the site."
-                 : "The site sent no notes with this one. What changed is on the site.");
+                 ? Theme::tr("A squad member had this one, and a hello carries no notes. What changed is on the site.",
+                             "Эту версию прислал участник сквада, а приветствие не несёт заметок. Что изменилось — на сайте.")
+                 : Theme::tr("The site sent no notes with this one. What changed is on the site.",
+                             "Сайт не прислал заметок к этой версии. Что изменилось — на сайте."));
         return;
     }
     // One bullet a line, each wrapped under its own dash.
@@ -268,30 +308,30 @@ void drawBoardTab(TFT_eSPI& t, const Geom& g) {
     int y = g.py + 6;
     char buf[48];
 
-    row(t, g, y, "Build", OtaCore::buildName());
+    row(t, g, y, Theme::tr("Build", "Сборка"), OtaCore::buildName());
     y += LINE;
     const int limit = g.py + g.ph - 3;
 
     snprintf(buf, sizeof buf, "%s  %s", OtaCore::runningSlot(), OtaCore::runningVersion());
-    row(t, g, y, "This slot", buf);
+    row(t, g, y, Theme::tr("This slot", "Этот слот"), buf);
     y += LINE;
 
     const char* other = OtaCore::otherVersion();
-    row(t, g, y, "Other slot", other && other[0] ? other : "nothing to go back to");
+    row(t, g, y, Theme::tr("Other slot", "Другой слот"), other && other[0] ? other : Theme::tr("nothing to go back to", "возвращаться некуда"));
     y += LINE;
     if (y + 16 > limit) return;
 
     uptimeText(buf, sizeof buf, millis());
-    row(t, g, y, "Up", buf);
+    row(t, g, y, Theme::tr("Up", "Аптайм"), buf);
     y += LINE;
     if (y + 16 > limit) return;
 
-    snprintf(buf, sizeof buf, "%lu KB free", (unsigned long)(ESP.getFreeHeap() / 1024));
-    row(t, g, y, "Memory", buf);
+    snprintf(buf, sizeof buf, Theme::tr("%lu KB free", "%lu КБ своб"), (unsigned long)(ESP.getFreeHeap() / 1024));
+    row(t, g, y, Theme::tr("Memory", "Память"), buf);
     y += LINE;
     if (y + 16 > limit) return;
 
-    snprintf(buf, sizeof buf, "%lu KB in one piece",
+    snprintf(buf, sizeof buf, Theme::tr("%lu KB in one piece", "%lu КБ куском"),
              (unsigned long)(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) / 1024));
     row(t, g, y, "", buf);
 }
@@ -324,7 +364,7 @@ void uiSysPropsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     t.fillRect(g.x + 3, g.y + 3, g.w - 6, TITLE_H, NAVY);
     t.setTextColor(Theme::WHITE, NAVY);
     t.setCursor(g.x + 8, g.y + 3 + (TITLE_H - 16) / 2);
-    t.print("System Properties");
+    put(t, Theme::tr("System Properties", "Свойства системы"));
     const int cx = g.x + g.w - 6 - 16;
     Theme::bubbleFontOff(t);                        // the box holds no word
     Theme::drawWin95Button(t, cx, g.y + 5, 16, TITLE_H - 4, "", false);
@@ -340,8 +380,8 @@ void uiSysPropsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
         const int tx = g.x + 4 + i * g.tabW;
         const bool on = (i == s_tab);
         raised(t, tx, on ? g.tabY - 2 : g.tabY, g.tabW, on ? TAB_H + 4 : TAB_H);
-        bold(t, tx + (g.tabW - boldWidth(t, TAB_NAME[i])) / 2, g.tabY + (on ? 1 : 3),
-             TAB_NAME[i], on ? NAVY : Theme::W95_DKSHADOW);
+        bold(t, tx + (g.tabW - boldWidth(t, tabName(i))) / 2, g.tabY + (on ? 1 : 3),
+             tabName(i), on ? NAVY : Theme::W95_DKSHADOW);
     }
 
     sunken(t, g.px, g.py, g.pw, g.ph);
@@ -357,12 +397,12 @@ void uiSysPropsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     // the other tabs' content would be a button that means different things
     // in different places.
     if (s_tab == TAB_UPDATE) {
-        boldButton(t, b.laterX, g.btnY, b.laterW, BTN_H, "Later");
-        boldButton(t, b.updX, g.btnY, b.updW, BTN_H, "Update now");
+        boldButton(t, b.laterX, g.btnY, b.laterW, BTN_H, Theme::tr("Later", "Позже"));
+        boldButton(t, b.updX, g.btnY, b.updW, BTN_H, Theme::tr("Update now", "Обновить"));
         // The default button, the one a keyboard would have focused.
         t.drawRect(b.updX - 2, g.btnY - 2, b.updW + 4, BTN_H + 4, Theme::W95_DKSHADOW);
     } else {
-        boldButton(t, b.closeX, g.btnY, b.closeW, BTN_H, "Close");
+        boldButton(t, b.closeX, g.btnY, b.closeW, BTN_H, Theme::tr("Close", "Закрыть"));
     }
     // Every other screen assumes the small face.
     Theme::bubbleFontOff(t);

@@ -90,7 +90,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     }
     Theme::restorePalette(saved);
 
-    Theme::drawTitleBar(t, ">> DETECTION FILTER <<");
+    Theme::drawTitleBar(t, Theme::tr(">> DETECTION FILTER <<", ">> ФИЛЬТР ТИПОВ <<"));
     Theme::drawListHeading(t, Theme::tr("TYPE FILTER", "ФИЛЬТР ТИПОВ"), Theme::AMBER);
 
     uint8_t n = rowCount();
@@ -107,7 +107,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     }
 
     Theme::drawScrollbar(t, w - 4, top, bodyBottom - top, n, visibleCount, g_scroll);
-    Theme::drawPinnedBack(t, "[ BACK ]");
+    Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
 }
 
 DetectionType uiDetFilterHitTest(TFT_eSPI& t, int x, int y, int screenW, int screenH) {

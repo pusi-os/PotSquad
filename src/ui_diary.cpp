@@ -23,10 +23,10 @@ static void formatDuration(uint32_t ms, char* buf, size_t n) {
     uint32_t days = sec / 86400; sec %= 86400;
     uint32_t hrs  = sec / 3600;  sec %= 3600;
     uint32_t mins = sec / 60;
-    if (days > 0)      snprintf(buf, n, "%lud %luh", (unsigned long)days, (unsigned long)hrs);
-    else if (hrs > 0)  snprintf(buf, n, "%luh %lum", (unsigned long)hrs, (unsigned long)mins);
-    else if (mins > 0) snprintf(buf, n, "%lum", (unsigned long)mins);
-    else               snprintf(buf, n, "<1m");
+    if (days > 0)      snprintf(buf, n, Theme::tr("%lud %luh", "%luд %luч"), (unsigned long)days, (unsigned long)hrs);
+    else if (hrs > 0)  snprintf(buf, n, Theme::tr("%luh %lum", "%luч %luм"), (unsigned long)hrs, (unsigned long)mins);
+    else if (mins > 0) snprintf(buf, n, Theme::tr("%lum", "%luм"), (unsigned long)mins);
+    else               snprintf(buf, n, "%s", Theme::tr("<1m", "<1м"));
 }
 
 static void drawStat(TFT_eSPI& t, int w, int y, int h, const char* label, const char* value) {
@@ -114,9 +114,11 @@ void uiDiaryTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     uint16_t col = Theme::blend(Theme::BG, Theme::CYAN, (uint16_t)(pulse * 255.0f));
     Theme::bodyFontOn(t);
     t.setTextColor(col, Theme::BG);
-    const char* hint = "tap anywhere to go back";
-    int hw = t.textWidth(hint);
+    const char* hint = Theme::tr("tap anywhere to go back", "нажми в любом месте");
+    const bool hru = Theme::isRu(hint);
+    if (hru) { t.setTextFont(1); t.setTextSize(1); }
+    int hw = hru ? Theme::textWidthRU(t, hint) : t.textWidth(hint);
     t.setCursor((w - hw) / 2, top + 9 * rowH + (Theme::large() ? 4 : 8));
-    t.print(hint);
+    if (hru) Theme::printRU(t, hint); else t.print(hint);
     Theme::bodyFontOff(t);
 }

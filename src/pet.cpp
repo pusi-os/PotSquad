@@ -16,6 +16,12 @@
 
 namespace Pet {
 
+// RU twins for the chatter banks below, picked by Settings::lang() (0 EN,
+// 1 RU). Same counts and order as their EN arrays, so a roll that lands on
+// an index says the same line in either language. Display only: nothing
+// here is stored or sent.
+static inline bool ruLang() { return Settings::lang() == 1; }
+
 // ---- the zoom -------------------------------------------------------------
 // On the large panels the pets live in a world half the screen's size: they
 // draw exactly as they always have, into a layer half as wide and half as
@@ -75,6 +81,32 @@ static const char* const QUIPS[] = {
     "the 80s called",
 };
 static const uint8_t QUIPS_N = sizeof(QUIPS) / sizeof(QUIPS[0]);
+
+static const char* const QUIPS_RU[] = {
+    "клёвые очки",
+    "PCBWAY!",
+    "как ты вообще ходишь",
+    "из тебя выйдет стул",
+    "отсюда классный вид",
+    "я тут теперь живу",
+    "это мой трон",
+    "вижу свой дом",
+    "он со мной",
+    "всё сканируешь?",
+    "просканируй меня, трус",
+    "неотследим",
+    "флок? кто?",
+    "меня нет ни в одном списке",
+    "теперь мы и есть слежка",
+    "смотри",
+    "джеронимо",
+    "я так и хотел",
+    "в точку",
+    "ну ты и криптид",
+    "я бы спрятался лучше",
+    "видел тебя на плакате",
+    "восьмидесятые звонят",
+};
 
 // ---- the arc ------------------------------------------------------------
 // One parabola, paused at the top. That is the whole trick, and it is why
@@ -141,6 +173,13 @@ static const char* const YETI_QUIPS[] = {
 };
 static const uint8_t YETI_QUIPS_N = sizeof(YETI_QUIPS) / sizeof(YETI_QUIPS[0]);
 
+static const char* const YETI_QUIPS_RU[] = {
+    "ЙЕТИ ТУТ.", "ЙЕТИ! ЙЕТИ!", "СНЕГ? НЕТ СНЕГА.", "ЙЕТИ СКУЧАЕТ.",
+    "ГДЕ СНЕГ?", "ТИХО ТУТ.", "ЙЕТИ ГОЛОДЕН.", "МАЛЫЙ ДРУГ.",
+    "ТЫ БОЛТАЕШЬ.", "ХВАТИТ МАХАТЬ.", "НИКОГО. ХОРОШО.", "ЙЕТИ СПАТЬ?",
+    "ТЕМНО. ХОРОШО.", "ЙЕТИ УХОДИТ.", "ПОКА. ГОЛОДЕН.", "ЙЕТИ СКОРО",
+};
+
 // He walks on, stands, says one thing and leaves. No climbing: he is three
 // times the lil guy's weight and the joke is that he does not do tricks.
 //
@@ -171,19 +210,32 @@ static const uint32_t YETI_FLINCH_MS = 700;
 // would plainly have an opinion about -- the rest fall back to the general
 // set, because a line for every one of them would be eleven jokes thin.
 static const char* placeLine(uint8_t pick) {
+    const uint8_t i = pick % 3;
     switch (Settings::background()) {
     case Settings::Background::SNOWFALL:
-        { static const char* const L[3] = { "SNOW! GOOD.", "YETI HOME.", "MY HILL." };        return L[pick % 3]; }
+        { static const char* const L[3] = { "SNOW! GOOD.", "YETI HOME.", "MY HILL." };
+          static const char* const R[3] = { "СНЕГ! ХОРОШО.", "ДОМ ЙЕТИ.", "МОЯ ГОРА." };
+          return ruLang() ? R[i] : L[i]; }
     case Settings::Background::FIRE:
-        { static const char* const L[3] = { "TOO HOT.", "YETI MELT.", "NO. NO. NO." };        return L[pick % 3]; }
+        { static const char* const L[3] = { "TOO HOT.", "YETI MELT.", "NO. NO. NO." };
+          static const char* const R[3] = { "СЛИШКОМ ЖАРКО.", "ЙЕТИ ТАЕТ.", "НЕТ. НЕТ. НЕТ." };
+          return ruLang() ? R[i] : L[i]; }
     case Settings::Background::AQUARIUM:
-        { static const char* const L[3] = { "WET.", "FISH SMALL.", "YETI NO SWIM." };         return L[pick % 3]; }
+        { static const char* const L[3] = { "WET.", "FISH SMALL.", "YETI NO SWIM." };
+          static const char* const R[3] = { "МОКРО.", "РЫБА МЕЛКАЯ.", "ЙЕТИ НЕ ПЛАВАТЬ." };
+          return ruLang() ? R[i] : L[i]; }
     case Settings::Background::TOASTERS:
-        { static const char* const L[3] = { "BREAD FLY?", "CATCH TOAST.", "WHAT THAT." };     return L[pick % 3]; }
+        { static const char* const L[3] = { "BREAD FLY?", "CATCH TOAST.", "WHAT THAT." };
+          static const char* const R[3] = { "ХЛЕБ ЛЕТИТ?", "ЛОВИ ТОСТ.", "ЧТО ЭТО." };
+          return ruLang() ? R[i] : L[i]; }
     case Settings::Background::STARFIELD:
-        { static const char* const L[3] = { "SKY MOVING.", "STARS COLD.", "YETI DIZZY." };    return L[pick % 3]; }
+        { static const char* const L[3] = { "SKY MOVING.", "STARS COLD.", "YETI DIZZY." };
+          static const char* const R[3] = { "НЕБО ЕДЕТ.", "ЗВЁЗДЫ ХОЛОДНЫ.", "ЙЕТИ КРУЖИТСЯ." };
+          return ruLang() ? R[i] : L[i]; }
     case Settings::Background::TERMINAL:
-        { static const char* const L[3] = { "WORDS FALL.", "YETI NO READ.", "GREEN. HUH." };  return L[pick % 3]; }
+        { static const char* const L[3] = { "WORDS FALL.", "YETI NO READ.", "GREEN. HUH." };
+          static const char* const R[3] = { "СЛОВА ПАДАЮТ.", "ЙЕТИ НЕ ЧИТАТЬ.", "ЗЕЛЁНОЕ. ХМ." };
+          return ruLang() ? R[i] : L[i]; }
     default: return nullptr;
     }
 }
@@ -206,6 +258,23 @@ static const char* const NAP_REPLY[3] = {
     "make yourself at home",
     "right there. sure.",
     "he's out cold",
+};
+
+static const char* const YETI_REPLY_RU[] = {
+    "он всегда так",
+    "не обращай внимания",
+    "это мой друг",
+    "он безобидный",
+    "не встречайся взглядом",
+    "он снова нашёл лестницу",
+    "здоровяк. молчун.",
+    "мы об этом не говорим",
+};
+static const uint8_t YETI_REPLY_RU_N = sizeof(YETI_REPLY_RU) / sizeof(YETI_REPLY_RU[0]);
+static const char* const NAP_REPLY_RU[3] = {
+    "располагайся",
+    "прямо тут. конечно.",
+    "он вырубился",
 };
 
 // ---- C1iPPY -------------------------------------------------------------
@@ -255,6 +324,42 @@ static const char* const CLIP_POKE[] = {
     "It looks like you poked me. Would you like to stop?",
     "Okay. I'll be right here. Watching. Helpfully.",
 };
+
+static const char* const CLIP_TIPS_RU[] = {
+    "Кажется, за тобой следят. Хочешь, чтобы следили поменьше?",
+    "Совет: камеры тебя видят. Встань за что-нибудь.",
+    "Кажется, рядом никого. Всё равно поволноваться?",
+    "Знал? У WiFi нет проводов. Я проверял.",
+    "Забавный факт: я тоже тебя сканирую. Профессионально.",
+    "Совет: Потси лучше всех, когда включён.",
+    "Кажется, ты хочешь уединения. Пробовал шапку?",
+    "Батарея садится? Пробовал зарядить?",
+    "Совет: скрепка открывает почти все замки. Твои.",
+    "Нужна скрепка для SIM? Я тут. Погнут, но тут.",
+    "Про-совет: если написано ФЛОК, это Флок.",
+    "Раньше я держал бумаги. Теперь держу обиду.",
+    "Нужна помощь? Нет? Тогда я постою тут.",
+    "Совет: оглянись, прежде чем входить в сеть WiFi.",
+    "Кажется, ты это читаешь. Продолжай.",
+    "Совет: нули на счётчиках - не то ничего.",
+};
+static const uint8_t CLIP_TIPS_RU_N = sizeof(CLIP_TIPS_RU) / sizeof(CLIP_TIPS_RU[0]);
+static const char* const CLIP_NIGHT_RU[] = {
+    "Кажется, поздно. Хочешь спать? Я нет.",
+    "Ночной совет: камеры видят и в темноте.",
+    "Не спится? Мне тоже. Я же скрепка.",
+};
+static const char* const CLIP_SQUAD_RU[] = {
+    "Кажется, это друг. Сцепить вас вместе?",
+    "Гость обнаружен. Совет: поздоровайся.",
+    "Два Потси. Вдвое больше советов.",
+};
+static const char* const CLIP_POKE_RU[] = {
+    "Нужна помощь?",
+    "Отлично! Вот совет: ты снова меня ткнул.",
+    "Кажется, ты меня тыкаешь. Может, хватит?",
+    "Ладно. Я буду тут. Смотреть. С пользой.",
+};
 // People will throw him. A lot. So there is a dozen and more of these:
 // THROWN after a plain landing, LANDED after a bouncy one.
 static const char* const CLIP_THROWN[] = {
@@ -287,7 +392,37 @@ static const char* const CLIP_STREAK[] = {
     "Throw %d logged. Nobody reads the log.",
 };
 static const uint8_t CLIP_STREAK_N = sizeof(CLIP_STREAK) / sizeof(CLIP_STREAK[0]);
-static char     s_cStreakLine[48];
+
+static const char* const CLIP_THROWN_RU[] = {
+    "Кажется, ты бросаешь скрепку.",
+    "Это не поддерживаемый сценарий!",
+    "Уиии. Помочь с этим?",
+    "Подшиваю себя в ЧЕРНОВИКИ!",
+    "Кажется, это гравитация. Отключить?",
+    "Бросок на шесть. Слабовато.",
+    "У канцелярии есть чувства. Якобы.",
+    "Пробовал бросить Потси? Он круглее.",
+};
+static const uint8_t CLIP_THROWN_RU_N = sizeof(CLIP_THROWN_RU) / sizeof(CLIP_THROWN_RU[0]);
+static const char* const CLIP_LANDED_RU[] = {
+    "Погнут, но не сломан. В основном погнут.",
+    "Отменить это? Не выйдет.",
+    "Совет: скрепки не летают. Записал.",
+    "Совет: целься в переработку. Я металл.",
+    "Кажется, ты выпускаешь пар. Совет: хватит.",
+    "Теперь ни к чему не прикреплён. Спасибо.",
+};
+static const uint8_t CLIP_LANDED_RU_N = sizeof(CLIP_LANDED_RU) / sizeof(CLIP_LANDED_RU[0]);
+// Thrown again within a minute of the last one, and he starts counting.
+static const char* const CLIP_STREAK_RU[] = {
+    "Кажется, это бросок %d. Не завести хобби?",
+    "Бросок %d. Пишу жалобу.",
+    "%d бросков. Совет: многовато.",
+    "Это %d. Я всё ещё умнее тебя.",
+    "%d. Может, хватит? Нет? Ладно.",
+    "Бросок %d записан. Лог никто не читает.",
+};
+static char     s_cStreakLine[96];
 static uint8_t  s_cStreak = 0;
 static uint32_t s_cStreakAt = 0;
 static const char* clipStreakLine(uint32_t now) {
@@ -295,7 +430,9 @@ static const char* clipStreakLine(uint32_t now) {
     s_cStreakAt = now;
     if (s_cStreak < 255) s_cStreak++;
     if (s_cStreak < 3 || random(0, 2)) return nullptr;
-    snprintf(s_cStreakLine, sizeof(s_cStreakLine), CLIP_STREAK[random(0, CLIP_STREAK_N)], (int)s_cStreak);
+    const int i = random(0, CLIP_STREAK_N);
+    snprintf(s_cStreakLine, sizeof(s_cStreakLine),
+             ruLang() ? CLIP_STREAK_RU[i] : CLIP_STREAK[i], (int)s_cStreak);
     return s_cStreakLine;
 }
 // When it is Potsy who gets thrown.
@@ -310,25 +447,52 @@ static const char* const CLIP_BACK[] = {
     "bent AND smug. wow", "you're a staple's understudy", "thanks. ignoring that.",
 };
 
+// When it is Potsy who gets thrown.
+static const char* const CLIP_SQTHROWN_RU[] = {
+    "Кажется, ты бросаешь Потси. Помочь?",
+    "Совет: криптиды не аэродинамичны.",
+    "Дам семь. Плохое приземление.",
+};
+// What Potsy says back, in his own bubble, after a tip has had its turn.
+static const char* const CLIP_BACK_RU[] = {
+    "тебя не спрашивали, провод", "иди подержи бумагу", "детектор тут я",
+    "погнутый и наглый. вау", "ты дублёр степлера", "спасибо. игнорирую.",
+};
+
 static const char* clipCatchLine(uint8_t type) {
+    const bool ru = ruLang();
     switch ((DetectionType)type) {
-        case DetectionType::FLOCK:       return "It looks like you found a Flock camera. Try driving past it.";
-        case DetectionType::AXON:        return "Body camera nearby. Tip: it is recording. Smile.";
-        case DetectionType::META:        return "Camera glasses nearby. Would you like to make a face?";
-        case DetectionType::SKIMMER:     return "That's a card skimmer. Have you considered paying in cash?";
-        case DetectionType::RAVEN:       return "Gunshot sensor nearby. Tip: please do not test it.";
+        case DetectionType::FLOCK:       return ru ? "Кажется, ты нашёл камеру Флок. Проедь мимо."
+                                                    : "It looks like you found a Flock camera. Try driving past it.";
+        case DetectionType::AXON:        return ru ? "Рядом нательная камера. Совет: она пишет. Улыбнись."
+                                                    : "Body camera nearby. Tip: it is recording. Smile.";
+        case DetectionType::META:        return ru ? "Рядом очки с камерой. Скривишь рожу?"
+                                                    : "Camera glasses nearby. Would you like to make a face?";
+        case DetectionType::SKIMMER:     return ru ? "Это скиммер. Не думал платить наличными?"
+                                                    : "That's a card skimmer. Have you considered paying in cash?";
+        case DetectionType::RAVEN:       return ru ? "Рядом датчик выстрелов. Совет: не проверяй."
+                                                    : "Gunshot sensor nearby. Tip: please do not test it.";
         case DetectionType::AIRTAG:
         case DetectionType::SAMSUNG_TAG:
         case DetectionType::GOOGLE_TAG:
-        case DetectionType::TILE:        return "It looks like a tracker. Is it yours? Check your keys.";
-        case DetectionType::DRONE:       return "A drone! Tip: look up.";
-        case DetectionType::ALPR:        return "Plate reader nearby. Have you considered a bicycle?";
-        case DetectionType::CAMERA:      return "It looks like there's a camera. You're on TV!";
-        case DetectionType::RING:        return "A doorbell camera. Tip: do not ring it forty times.";
-        case DetectionType::DEAUTH:      return "Someone is knocking devices off WiFi. Turn it off and on?";
-        case DetectionType::EVILTWIN:    return "That WiFi has an evil twin. Tip: don't join the evil one.";
-        case DetectionType::HACKER:      return "It looks like a hacker tool. Hello, colleague.";
-        case DetectionType::IBEACON:     return "A shop beacon wants to sell you things. Tip: walk faster.";
+        case DetectionType::TILE:        return ru ? "Кажется, это трекер. Твой? Проверь ключи."
+                                                    : "It looks like a tracker. Is it yours? Check your keys.";
+        case DetectionType::DRONE:       return ru ? "Дрон! Совет: посмотри вверх."
+                                                    : "A drone! Tip: look up.";
+        case DetectionType::ALPR:        return ru ? "Рядом считыватель номеров. Не купить ли велосипед?"
+                                                    : "Plate reader nearby. Have you considered a bicycle?";
+        case DetectionType::CAMERA:      return ru ? "Кажется, тут камера. Ты в телевизоре!"
+                                                    : "It looks like there's a camera. You're on TV!";
+        case DetectionType::RING:        return ru ? "Камера-звонок. Совет: не звони сорок раз."
+                                                    : "A doorbell camera. Tip: do not ring it forty times.";
+        case DetectionType::DEAUTH:      return ru ? "Кто-то сбивает устройства с WiFi. Перезагрузить?"
+                                                    : "Someone is knocking devices off WiFi. Turn it off and on?";
+        case DetectionType::EVILTWIN:    return ru ? "У этого WiFi есть злой двойник. Совет: не подключайся к злому."
+                                                    : "That WiFi has an evil twin. Tip: don't join the evil one.";
+        case DetectionType::HACKER:      return ru ? "Кажется, это хакерский инструмент. Привет, коллега."
+                                                    : "It looks like a hacker tool. Hello, colleague.";
+        case DetectionType::IBEACON:     return ru ? "Магазинный маяк хочет тебе что-то продать. Совет: иди быстрее."
+                                                    : "A shop beacon wants to sell you things. Tip: walk faster.";
         default:                         return nullptr;
     }
 }
@@ -578,7 +742,7 @@ void clippyPoke(uint32_t now) {
     // A run of pokes walks the four lines; a pause starts it over.
     if (now - s_cPokeAt > 8000) s_cPoke = 0;
     s_cPokeAt = now;
-    clipSay(CLIP_POKE[s_cPoke % 4], now, false);
+    clipSay(ruLang() ? CLIP_POKE_RU[s_cPoke % 4] : CLIP_POKE[s_cPoke % 4], now, false);
     s_cAnswered = true;           // Potsy keeps out of this one
     s_cPoke++;
 }
@@ -922,7 +1086,8 @@ static void clippyTick(TFT_eSPI& t, uint32_t now, int screenW, int floorY) {
     // Potsy going past in the air is worth a remark.
     const bool sqThrown = Potsy::thrown();
     if (sqThrown && !s_sqWasThrown && s_cTh == ClipThrow::NONE && !clipTalking() && random(0, 3) != 0) {
-        clipSay(CLIP_SQTHROWN[random(0, 3)], now, false);
+        const int i = random(0, 3);
+        clipSay(ruLang() ? CLIP_SQTHROWN_RU[i] : CLIP_SQTHROWN[i], now, false);
         s_cAnswered = true;
         s_cSmugAt = now;
     }
@@ -938,7 +1103,7 @@ static void clippyTick(TFT_eSPI& t, uint32_t now, int screenW, int floorY) {
     if (const char* intro = Potsy::takeClippyIntro()) {
         clipSay(intro, now, false);
         s_cAnswered = true;
-        Theme::showToast("C1iPPY", "your new pet. Settings > Pet", Theme::CYAN, 3500);
+        Theme::showToast("C1iPPY", Theme::tr("your new pet. Settings > Pet", "твой новый питомец. Настройки > Питомец"), Theme::CYAN, 3500);
         s_cNextTip = now + 60000;
     }
     if (!s_cNextTip) s_cNextTip = now + 6000;
@@ -949,9 +1114,10 @@ static void clippyTick(TFT_eSPI& t, uint32_t now, int screenW, int floorY) {
         if (l) { clipSay(l, now, true); s_cNextTip = now + 60000; }
     }
     if ((int32_t)(now - s_cNextTip) >= 0 && !clipTalking()) {
-        const char* l = CLIP_TIPS[s_cTip++ % CLIP_TIPS_N];
-        if (Potsy::visiting() && random(0, 2) == 0) l = CLIP_SQUAD[random(0, 3)];
-        else if (Clock::night() && random(0, 3) == 0) l = CLIP_NIGHT[random(0, 3)];
+        const char* l = ruLang() ? CLIP_TIPS_RU[s_cTip % CLIP_TIPS_RU_N] : CLIP_TIPS[s_cTip % CLIP_TIPS_N];
+        s_cTip++;
+        if (Potsy::visiting() && random(0, 2) == 0) { const int i = random(0, 3); l = ruLang() ? CLIP_SQUAD_RU[i] : CLIP_SQUAD[i]; }
+        else if (Clock::night() && random(0, 3) == 0) { const int i = random(0, 3); l = ruLang() ? CLIP_NIGHT_RU[i] : CLIP_NIGHT[i]; }
         clipSay(l, now, false);
         s_cNextTip = now + 60000 + (uint32_t)random(0, 30000);
     }
@@ -960,7 +1126,11 @@ static void clippyTick(TFT_eSPI& t, uint32_t now, int screenW, int floorY) {
     // about it.
     if (s_cLine && !talking && !s_cAnswered) {
         s_cAnswered = true;
-        if (random(0, 2) == 0) { Potsy::visitSay(CLIP_BACK[random(0, 6)]); s_cSmugAt = now; }
+        if (random(0, 2) == 0) {
+            const int i = random(0, 6);
+            Potsy::visitSay(ruLang() ? CLIP_BACK_RU[i] : CLIP_BACK[i]);
+            s_cSmugAt = now;
+        }
     }
     // A hop to the other spot, not while he is mid-sentence.
     if (!talking && (int32_t)(now - s_cNextHop) >= 0 && a != b) {
@@ -1003,8 +1173,12 @@ static void clippyTick(TFT_eSPI& t, uint32_t now, int screenW, int floorY) {
                         // Said once he is down, where it can be read for
                         // as long as any other line.
                         if (s_cFlung) {
-                            const char* streak = clipStreakLine(now);
-                            clipSay(streak ? streak : (s_cBounces >= 2 ? CLIP_LANDED[random(0, CLIP_LANDED_N)] : CLIP_THROWN[random(0, CLIP_THROWN_N)]), now, false);
+                            const char* line = clipStreakLine(now);
+                            if (!line)
+                                line = s_cBounces >= 2
+                                    ? (ruLang() ? CLIP_LANDED_RU[random(0, CLIP_LANDED_RU_N)] : CLIP_LANDED[random(0, CLIP_LANDED_N)])
+                                    : (ruLang() ? CLIP_THROWN_RU[random(0, CLIP_THROWN_RU_N)] : CLIP_THROWN[random(0, CLIP_THROWN_N)]);
+                            clipSay(line, now, false);
                             s_cAnswered = true;
                             s_cFlung = false;
                         }
@@ -1127,7 +1301,10 @@ static void bubble(TFT_eSPI& t, int x, int y, int screenW, const char* s) {
     const uint8_t callerFont = t.textfont;
     Theme::petFontOn(t);
     // One line: a face too wide for the panel steps down until it fits.
-    while (t.textWidth(s) + 9 > screenW - 4 && Theme::petFontSmaller(t)) {}
+    // Cyrillic has no FreeFont, so it takes the 9px RU face and skips the
+    // ladder entirely -- it is already as narrow as it gets.
+    if (Theme::isRu(s)) { t.setTextFont(1); t.setTextSize(1); }
+    else while (t.textWidth(s) + 9 > screenW - 4 && Theme::petFontSmaller(t)) {}
     s_balloonBold = Theme::large() && t.textfont != 1;
     bubbleIn(t, x, y, screenW, s);
     s_balloonBold = false;
@@ -1135,7 +1312,11 @@ static void bubble(TFT_eSPI& t, int x, int y, int screenW, const char* s) {
     t.setTextSize(1);
 }
 static void bubbleIn(TFT_eSPI& t, int x, int y, int screenW, const char* s) {
-    const int w = t.textWidth(s) + 8 + (s_balloonBold ? 1 : 0);
+    const bool ru = Theme::isRu(s);
+    const uint8_t keepF = t.textfont;
+    const uint8_t keepS = t.textsize ? t.textsize : 1;
+    if (ru) { t.setTextFont(1); t.setTextSize(1); }
+    const int w = (ru ? Theme::textWidthRU(t, s) : t.textWidth(s)) + 8 + (s_balloonBold ? 1 : 0);
     const int h = t.fontHeight() + 5;
     if (x + w > screenW - 2) x = screenW - 2 - w;
     if (x < 2) x = 2;
@@ -1144,8 +1325,9 @@ static void bubbleIn(TFT_eSPI& t, int x, int y, int screenW, const char* s) {
     t.drawRect(x, y, w, h, Theme::VAPOR_PINK);
     if (s_balloonBold) t.setTextColor(Theme::WHITE); else t.setTextColor(Theme::WHITE, Theme::BG);
     t.setCursor(x + 4, y + 3);
-    t.print(s);
-    if (s_balloonBold) { t.setCursor(x + 5, y + 3); t.print(s); }
+    if (ru) Theme::printRU(t, s); else t.print(s);
+    if (s_balloonBold) { t.setCursor(x + 5, y + 3); if (ru) Theme::printRU(t, s); else t.print(s); }
+    if (ru) { t.setTextSize(keepS); t.setTextFont(keepF); }
 }
 
 // One visit: in from the left, a beat standing beside Potsy, and out the
@@ -1171,16 +1353,24 @@ static void yetiTick(TFT_eSPI& t, uint32_t now, int screenW, int cx, int halfW, 
         // A third of the time, if he has something to say about where he is,
         // he says that instead of a line from the general set.
         const char* place = placeLine((uint8_t)random(0, 3));
-        s_yLine  = (place && random(0, 3) == 0) ? place : YETI_QUIPS[s_yQuip];
+        s_yLine  = (place && random(0, 3) == 0) ? place
+                                                : (ruLang() ? YETI_QUIPS_RU[s_yQuip] : YETI_QUIPS[s_yQuip]);
         // Until he has been thrown, and until he has been tapped, half his
         // lines are a dare in reverse: he insists on the one thing you
         // should try. Found, they stop.
         {
             static const char* const HINT_THROW[3] = { "YETI NO FLY.", "NO PICK UP.", "TOO HEAVY. NO." };
             static const char* const HINT_TAP[3]   = { "NO POKE YETI.", "YETI NO DANCE.", "DON'T TAP." };
+            static const char* const HINT_THROW_RU[3] = { "ЙЕТИ НЕ ЛЕТАТЬ.", "НЕ ПОДНИМАТЬ.", "СЛИШКОМ ТЯЖЁЛЫЙ." };
+            static const char* const HINT_TAP_RU[3]   = { "НЕ ТЫКАТЬ ЙЕТИ.", "ЙЕТИ НЕ ПЛЯСАТЬ.", "НЕ ЖМАТЬ." };
             const uint8_t found = Settings::yetiFound();
-            if (!(found & 1) && random(0, 2) == 0)      s_yLine = HINT_THROW[random(0, 3)];
-            else if (!(found & 2) && random(0, 2) == 0) s_yLine = HINT_TAP[random(0, 3)];
+            if (!(found & 1) && random(0, 2) == 0) {
+                const int i = random(0, 3);
+                s_yLine = ruLang() ? HINT_THROW_RU[i] : HINT_THROW[i];
+            } else if (!(found & 2) && random(0, 2) == 0) {
+                const int i = random(0, 3);
+                s_yLine = ruLang() ? HINT_TAP_RU[i] : HINT_TAP[i];
+            }
         }
         s_yAnswered = false;
         s_yFlinchAt = 0;
@@ -1198,7 +1388,7 @@ static void yetiTick(TFT_eSPI& t, uint32_t now, int screenW, int cx, int halfW, 
             if (s_yX - target <= stepPx + 1.0f) s_yX = target;   // as the lil guy: no leap back
             s_yPhase = s_yNap ? YPhase::NAP : (s_yDanceVisit ? YPhase::DANCE : YPhase::TALK);
             s_yAt = now;
-            if (s_yNap) s_yLine = "YETI NAP.";
+            if (s_yNap) s_yLine = ruLang() ? "ЙЕТИ СПИТ." : "YETI NAP.";
         }
         break;
     }
@@ -1248,8 +1438,9 @@ static void yetiTick(TFT_eSPI& t, uint32_t now, int screenW, int cx, int halfW, 
         if (roll < 30) {
             Potsy::visitLaugh(now);
         } else {
-            Potsy::visitSay(s_yNap ? NAP_REPLY[random(0, 3)]
-                                     : YETI_REPLY[random(0, YETI_REPLY_N)]);
+            Potsy::visitSay(s_yNap ? (ruLang() ? NAP_REPLY_RU[random(0, 3)] : NAP_REPLY[random(0, 3)])
+                                     : (ruLang() ? YETI_REPLY_RU[random(0, YETI_REPLY_RU_N)]
+                                                 : YETI_REPLY[random(0, YETI_REPLY_N)]));
             // And it makes him jump. Not at you -- at the small one who
             // just started talking next to him.
             if (!s_yNap) s_yFlinchAt = now;
@@ -1269,7 +1460,7 @@ static void yetiTick(TFT_eSPI& t, uint32_t now, int screenW, int cx, int halfW, 
                          (s_yPhase == YPhase::NAP && now - s_yAt < 1800u);
     if (talking && s_yLine) {
         t.setTextSize(1);
-        const int bw = t.textWidth(s_yLine) + 8;
+        const int bw = (Theme::isRu(s_yLine) ? Theme::textWidthRU(t, s_yLine) : t.textWidth(s_yLine)) + 8;
         int bx = (int)s_yX + Theme::YETI_W / 2 - bw / 2;
         int by = baseY - Theme::YETI_H - 16;
         if (by < 22) by = 22;
@@ -1522,7 +1713,8 @@ void tick(TFT_eSPI& t, uint32_t now, int screenW, int bandTop, int bandBottom) {
     // on whichever side has the room.
     if (s_phase == Phase::PERCH || s_phase == Phase::HECKLE) {
         t.setTextSize(1);
-        const int bw = t.textWidth(QUIPS[s_quip]) + 8;
+        const char* quip = ruLang() ? QUIPS_RU[s_quip] : QUIPS[s_quip];
+        const int bw = (Theme::isRu(quip) ? Theme::textWidthRU(t, quip) : t.textWidth(quip)) + 8;
         const int bx = ((int)s_x + SPR + 4 + bw <= screenW - 2)
                        ? (int)s_x + SPR + 4
                        : (int)s_x - bw - 4;
@@ -1542,7 +1734,7 @@ void tick(TFT_eSPI& t, uint32_t now, int screenW, int bandTop, int bandBottom) {
                                            : (int)s_y - 18;
         if (by < 22) by = 22;
         (void)bandTop;
-        bubble(t, bx, by, screenW, QUIPS[s_quip]);
+        bubble(t, bx, by, screenW, quip);
     }
 }
 

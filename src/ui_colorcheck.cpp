@@ -13,7 +13,6 @@ static const uint16_t PURE_RED   = 0xF800;
 static const uint16_t PURE_GREEN = 0x07E0;
 static const uint16_t PURE_BLUE  = 0x001F;
 
-static const char* const CAPTION = "Wrong colors? Tap below till RED/GREEN/BLUE match.";
 static const uint8_t CAPTION_MAX_LINES = 3;
 
 // Shared by drawing and hit-testing so they can't drift apart -- no
@@ -77,13 +76,17 @@ void uiColorCheckTick(TFT_eSPI& t, uint32_t now) {
     Theme::bodyFontOn(t);
     t.setTextWrap(false);
     t.setTextColor(Theme::WHITE, Theme::BG);
+    const char* caption = Theme::tr("Wrong colors? Tap below till RED/GREEN/BLUE match.",
+                                    "Не те цвета? Жмите, пока цвета не совпадут.");
     char capLines[CAPTION_MAX_LINES][48];
-    uint8_t capN = Theme::wrapText(t, CAPTION, captionMaxW, capLines, CAPTION_MAX_LINES);
+    uint8_t capN = Theme::isRu(caption)
+        ? Theme::wrapTextRU(t, caption, captionMaxW, capLines, CAPTION_MAX_LINES)
+        : Theme::wrapText(t, caption, captionMaxW, capLines, CAPTION_MAX_LINES);
     int cy = captionTop;
     for (uint8_t i = 0; i < capN; i++) {
-        int lw = t.textWidth(capLines[i]);
+        int lw = Theme::isRu(capLines[i]) ? Theme::textWidthRU(t, capLines[i]) : t.textWidth(capLines[i]);
         t.setCursor((w - lw) / 2, cy);
-        t.print(capLines[i]);
+        if (Theme::isRu(capLines[i])) Theme::printRU(t, capLines[i]); else t.print(capLines[i]);
         cy += t.fontHeight() + 2;
     }
     Theme::bodyFontOff(t);

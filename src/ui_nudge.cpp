@@ -34,8 +34,8 @@ bool in(int x, int y, int bx, int by, int bw, int bh) {
 
 void centred(TFT_eSPI& t, int y, uint16_t c, const char* s) {
     t.setTextColor(c, Theme::BG);
-    t.setCursor((t.width() - t.textWidth(s)) / 2, y);
-    t.print(s);
+    const int w = Theme::rowWidth(t, s);
+    Theme::rowPrint(t, s, (t.width() - w) / 2, y);
 }
 } // namespace
 
@@ -60,15 +60,17 @@ void uiNudgeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     Theme::bodyFontOn(t);
     int y = Theme::LIST_TOP + Theme::listHeadingH() + 10;
     char line[48];
-    snprintf(line, sizeof line, "%s asked the squad to update", s_from);
+    snprintf(line, sizeof line, Theme::tr("%s asked the squad to update", "%s просит обновить сквад"), s_from);
     centred(t, y, Theme::WHITE, line);
     y += Theme::bodyY(12);
-    snprintf(line, sizeof line, "to %s. This board runs %s.", s_ver, OtaCore::runningVersion());
+    snprintf(line, sizeof line, Theme::tr("to %s. This board runs %s.", "до %s. Сейчас %s."), s_ver, OtaCore::runningVersion());
     centred(t, y, Theme::WHITE, line);
     y += Theme::bodyY(12);
-    centred(t, y, Theme::W95_LIGHT, "It joins WiFi, installs, and restarts.");
+    centred(t, y, Theme::W95_LIGHT, Theme::tr("It joins WiFi, installs, and restarts.",
+                                              "WiFi, установка и перезапуск."));
     y += Theme::bodyY(12);
-    centred(t, y, Theme::W95_LIGHT, "Nothing changes if that fails.");
+    centred(t, y, Theme::W95_LIGHT, Theme::tr("Nothing changes if that fails.",
+                                              "При сбое ничего не изменится."));
 
     // The count, big, in the middle of what is left.
     const Btns b = btns(t);

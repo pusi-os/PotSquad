@@ -1,6 +1,7 @@
 // PotsSquad-CYD — the PIN lock. See include/security.h.
 #include "security.h"
 #include "ignore_list.h"
+#include "settings.h"
 #include <Preferences.h>
 #include <esp_system.h>   // esp_random(), as meshtalk.cpp uses it
 #include <string.h>
@@ -226,15 +227,16 @@ void cycleAutoLock() {
     s_prefs.putUChar("auto", s_autoLock);
 }
 const char* autoLockLabel() {
+    const bool ru = Settings::lang() == 1;
     switch ((AutoLock)s_autoLock) {
-        case AutoLock::OFF:      return "OFF";
-        case AutoLock::ON_SLEEP: return "ON SLEEP";
-        case AutoLock::MIN_1:    return "1 MIN";
-        case AutoLock::MIN_5:    return "5 MIN";
-        case AutoLock::MIN_15:   return "15 MIN";
-        case AutoLock::MIN_30:   return "30 MIN";
+        case AutoLock::OFF:      return ru ? "ВЫКЛ" : "OFF";
+        case AutoLock::ON_SLEEP: return ru ? "ПО СНУ" : "ON SLEEP";
+        case AutoLock::MIN_1:    return ru ? "1 МИН" : "1 MIN";
+        case AutoLock::MIN_5:    return ru ? "5 МИН" : "5 MIN";
+        case AutoLock::MIN_15:   return ru ? "15 МИН" : "15 MIN";
+        case AutoLock::MIN_30:   return ru ? "30 МИН" : "30 MIN";
     }
-    return "OFF";
+    return ru ? "ВЫКЛ" : "OFF";
 }
 uint32_t autoLockIdleMs() {
     switch ((AutoLock)s_autoLock) {
@@ -256,12 +258,13 @@ void cycleLockAlerts() {
     s_prefs.putUChar("alerts", s_lockAlerts);
 }
 const char* lockAlertsLabel() {
+    const bool ru = Settings::lang() == 1;
     switch ((LockAlerts)s_lockAlerts) {
-        case LockAlerts::FULL:      return "FULL";
-        case LockAlerts::TYPE_ONLY: return "TYPE ONLY";
-        case LockAlerts::NONE:      return "NONE";
+        case LockAlerts::FULL:      return ru ? "ПОЛНОСТЬЮ" : "FULL";
+        case LockAlerts::TYPE_ONLY: return ru ? "ТОЛЬКО ТИП" : "TYPE ONLY";
+        case LockAlerts::NONE:      return ru ? "НИЧЕГО" : "NONE";
     }
-    return "TYPE ONLY";
+    return ru ? "ТОЛЬКО ТИП" : "TYPE ONLY";
 }
 
 void wipeSecrets() {

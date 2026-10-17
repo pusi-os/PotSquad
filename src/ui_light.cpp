@@ -117,8 +117,8 @@ void uiLightTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     }
     Theme::restorePalette(saved);
 
-    Theme::drawTitleBar(t, ">> STATUS LIGHT <<");
-    Theme::drawListHeading(t, "STATUS LIGHT", Theme::CYAN);
+    Theme::drawTitleBar(t, Theme::tr(">> STATUS LIGHT <<", ">> СВЕТ СТАТУСА <<"));
+    Theme::drawListHeading(t, Theme::tr("STATUS LIGHT", "СВЕТ СТАТУСА"), Theme::CYAN);
 
     const bool compact = (w < 300);
 
@@ -143,20 +143,21 @@ void uiLightTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     // heading, in landscape), it goes at the far end of the heading's line.
     Theme::bodyFontOn(t);
     if (!StatusLight::available()) {
-        const char* note = "No LED known on this board yet.";
+        const char* note = Theme::tr("No LED known on this board yet.", "На этой плате нет светодиода.");
         t.setTextColor(Theme::blend(Theme::BG, Theme::WHITE, 150), Theme::BG);
         if (y + t.fontHeight() + 4 <= bodyBottom) {
             t.setCursor(8, y + 4);
-            t.print(note);
+            if (Theme::isRu(note)) Theme::printRU(t, note); else t.print(note);
         } else if (Theme::large()) {
-            t.setCursor(w - 8 - t.textWidth(note), Theme::listHeadingY(t));
-            t.print(note);
+            t.setCursor(w - 8 - (Theme::isRu(note) ? Theme::textWidthRU(t, note) : t.textWidth(note)),
+                        Theme::listHeadingY(t));
+            if (Theme::isRu(note)) Theme::printRU(t, note); else t.print(note);
         }
     }
     Theme::bodyFontOff(t);
 
     Theme::drawScrollbar(t, w - 4, top, bodyBottom - top, n, visibleCount, g_scroll);
-    Theme::drawPinnedBack(t, "[ BACK ]");
+    Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
 }
 
 LightRow uiLightHitTest(TFT_eSPI& t, int x, int y, int screenW, int screenH) {

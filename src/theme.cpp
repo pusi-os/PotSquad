@@ -370,9 +370,17 @@ int  bubbleAscent() { bubbleMeasure(); return s_bubAb; }
 
 // On the large panels the size-2 heading sits low in a taller band, clear of
 // the corner icons above it (TITLE_ICON_BAND_H), which a centred one touched.
-int listHeadingH() { return large() ? 20 : 14; }
+//
+// Under Russian the heading is the 16px RU face rather than the 8px GLCD one,
+// so the band grows: every screen lays its first row at TOP_MARGIN +
+// listHeadingH(), and the old 14px band put a 16px heading straight over it.
+int listHeadingH() {
+    if (Settings::lang() == 1) return 22;
+    return large() ? 20 : 14;
+}
 
 int listHeadingY(TFT_eSPI& t) {
+    if (Settings::lang() == 1) return TITLE_ICON_BAND_H;   // 16px face, 20..36
     return large() ? TITLE_ICON_BAND_H + (16 - t.fontHeight()) / 2
                    : LIST_TOP + (listHeadingH() - t.fontHeight()) / 2;
 }
@@ -432,8 +440,21 @@ void drawPinnedBack(TFT_eSPI& t, const char* label) {
     // second band it lands outside the buffer and draws nothing at all. A
     // strip with no label on it. Shared helpers say what they want.
     t.setTextFont(1);
-    t.setTextSize(s_compact ? 1 : uiMenuTextSize(t));
+    const uint8_t sz = s_compact ? 1 : uiMenuTextSize(t);
     t.setTextColor(CYAN, BG);
+    if (label && isRu(label)) {
+        // A translated strip is Cyrillic; the GLCD has no glyphs for it, so it
+        // goes through the RU face at the strip's own size (the 16px face for
+        // the size-2 strip, the 9px face for a compact one).
+        t.setTextSize(1);
+        const int tw = sz >= 2 ? textWidthRU16(t, label) : textWidthRU(t, label);
+        const int th = sz >= 2 ? 16 : 8;
+        t.setCursor((w - tw) / 2, y + (h - th) / 2);
+        if (sz >= 2) printRU16(t, label); else printRU(t, label);
+        t.setTextSize(sz);
+        return;
+    }
+    t.setTextSize(sz);
     t.setCursor((w - t.textWidth(label)) / 2, y + (h - t.fontHeight()) / 2);
     t.print(label);
 }
@@ -721,7 +742,7 @@ static void labelFaceStep(TFT_eSPI& t, const char* label, uint8_t& font, uint8_t
 // Forward: defined beside drawInfoPanel below. True when the string
 // holds Cyrillic, i.e. it must go through the RU face -- the GLCD and
 // the button FreeFonts have no glyphs for it.
-static bool hasCyr(const char* s);
+static bool needsRuFace(const char* s);
 
 void drawButton(TFT_eSPI& t, int x, int y, int w, int h,
                 const char* label, bool pressed, uint8_t textSize) {
@@ -733,7 +754,7 @@ void drawButton(TFT_eSPI& t, int x, int y, int w, int h,
     // ladder below, so a RU label takes the RU face instead: size-2
     // buttons get the 16px face at size 1 (the same 16px line, keeping
     // the translated button's weight), small ones the 9px face.
-    if (label && hasCyr(label)) {
+    if (label && needsRuFace(label)) {
         const bool big = textSize >= 2 && h >= 20;
         t.setTextFont(1);
         t.setTextSize(1);
@@ -826,7 +847,7 @@ void drawWin95Button(TFT_eSPI& t, int x, int y, int w, int h,
     }
     // A RU label takes the 9px RU face at size 1: the FreeFonts above
     // have no Cyrillic either, and the Win95 buttons are small.
-    if (label && hasCyr(label)) {
+    if (label && needsRuFace(label)) {
         t.setTextFont(1);
         t.setTextSize(1);
         const int tw = textWidthRU(t, label);
@@ -4854,8 +4875,8 @@ void drawToast(TFT_eSPI& t, uint32_t now) {
     // A RU head goes in the 16px RU face at size 1 (same 16px line the
     // size-2 GLCD head stands); a RU sub goes through printRU at the
     // body size. EN keeps the exact path it always had.
-    const bool headCyr = hasCyr(s_toastHead);
-    const bool subCyr = hasCyr(s_toastSub);
+    const bool headCyr = needsRuFace(s_toastHead);
+    const bool subCyr = needsRuFace(s_toastSub);
     const int w = t.width(), h = t.height();
     t.setTextSize(headCyr ? 1 : 2);
     int bw = (headCyr ? textWidthRU16(t, s_toastHead) : t.textWidth(s_toastHead)) + 30;
@@ -10373,17 +10394,41 @@ bool infoPanelHitDismiss(int x, int y, int screenW, int screenH) {
     return true;
 }
 
-// True when the string holds Cyrillic: it must go through the RU face
-// (wrapTextRU measures it, printRU draws it) because the GLCD has no
-// glyphs for it -- byte-measuring Cyrillic with t.textWidth() breaks
-// every other line and t.print() draws blanks.
-static bool hasCyr(const char* s) { // (forward-declared above drawToast)
+// True when the string holds any non-ASCII byte: it must go through the RU
+// face (wrapTextRU measures it, printRU draws it). The GLCD has no glyphs for
+// Cyrillic -- byte-measuring it with t.textWidth() breaks every other line and
+// t.print() draws blanks -- and the same is true of the typographic marks
+// that ride along in the Russian cards (em dash, guillemets, ellipsis): those
+// are normalized to ASCII inside printRUFace()/ruInkFace(), which the plain
+// GLCD path would never do. An ASCII-only string still takes the old path, so
+// the English rendering stays pixel-identical.
+static bool needsRuFace(const char* s) { // (forward-declared above drawToast)
 
     if (!s) return false;
     for (const char* p = s; *p; ) {
-        if (RuText::isCyrillic(RuText::next(&p))) return true;
+        if (RuText::next(&p) >= 0x80) return true;
     }
     return false;
+}
+
+// Fold the few non-ASCII marks the Russian copy uses onto glyphs both faces
+// have. U+2014 EM DASH, the common quotes/dashes, the ellipsis and the
+// guillemets have no bitmap in RuCyr8/16, so without this they drew as '?'.
+// Applied identically in draw and measure, so layout never disagrees with ink.
+static uint16_t ruFoldCp(uint16_t cp) {
+    switch (cp) {
+        case 0x2010: case 0x2011: case 0x2012:
+        case 0x2013: case 0x2014: case 0x2015: return '-';   // dashes
+        case 0x2018: case 0x2019: case 0x201A: case 0x201B: return '\'';
+        case 0x201C: case 0x201D: case 0x201E: case 0x201F: return '"';
+        case 0x00AB: return '<';  case 0x00BB: return '>';    // « »
+        case 0x2026: return '.';                              // …
+        case 0x00A0: return ' ';                              // nbsp
+        case 0x2022: return '*';                              // bullet
+        case 0x2116: return 'N';                              // №
+        case 0x00B0: return 'o';                              // °
+        default: return cp;
+    }
 }
 
 void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
@@ -10399,7 +10444,7 @@ void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
         if (typeName) {
             t.setTextSize(1);
             t.setTextColor(VAPOR_PINK, BG);
-            if (hasCyr(typeName)) {
+            if (needsRuFace(typeName)) {
                 const int tw = textWidthRU16(t, typeName);
                 t.setCursor(px + (pw - tw) / 2, ly);
                 printRU16(t, typeName);
@@ -10415,7 +10460,7 @@ void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
         static const uint8_t MAXL = 24;
         static char lines[MAXL][48];
         t.setTextSize(1);
-        const bool bodyCyr = hasCyr(text);
+        const bool bodyCyr = needsRuFace(text);
         const uint8_t n = bodyCyr ? wrapTextRU(t, text, pw - 10, lines, MAXL)
                                   : wrapText(t, text, pw - 10, lines, MAXL);
         s_infoPages = (uint8_t)(per > 0 ? (n + per - 1) / per : 1);
@@ -10448,7 +10493,7 @@ void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
         // goes in the 16px RU face instead -- the same fallback the
         // compact path above uses. Pure-ASCII headings (device product
         // names) keep the Bangers face.
-        if (hasCyr(typeName)) {
+        if (needsRuFace(typeName)) {
             t.setTextSize(1);
             t.setTextColor(VAPOR_PINK, BG);
             int tw = textWidthRU16(t, typeName);
@@ -10471,7 +10516,7 @@ void drawInfoPanel(TFT_eSPI& t, int w, int h, uint32_t now,
     // TEXT smaller sets it at size 1 there too, still paged. RU body
     // stays size 1 everywhere: the 9px RU face has no size-2 form (the
     // heading above uses the 16px face instead), and 9px reads fine.
-    const bool bodyCyr = hasCyr(text);
+    const bool bodyCyr = needsRuFace(text);
     t.setTextSize(!bodyCyr && s_large && fontDelta(Settings::FontKind::TEXT) >= 0 ? 2 : 1);
     t.setTextWrap(false);
     t.setTextColor(WHITE, BG);
@@ -10531,6 +10576,7 @@ static const RuFace RU_HEAD = { &RuCyr16, RuCyr16Bitmaps, 12, 2 };
 // advance, so summing advances alone puts right-aligned text under the
 // panel edge -- measure the ink instead, the way the renderer draws it.
 static void ruInkFace(TFT_eSPI& t, uint16_t cp, int& pen, int& right, const RuFace& f) {
+    cp = ruFoldCp(cp);
     const uint8_t sz = t.textsize ? t.textsize : 1;
     if (cp >= 0x20 && cp < 0x7F) { pen += 6 * f.glcdSize; right = pen; return; }
     if (cp >= f.gfx->first && cp <= f.gfx->last) {
@@ -10560,7 +10606,7 @@ const char* onOff(bool on) {
 }
 
 bool isRu(const char* s) {
-    return hasCyr(s);
+    return needsRuFace(s);
 }
 
 int rowWidth(TFT_eSPI& t, const char* s) {
@@ -10615,14 +10661,23 @@ static void drawRuGlyph(TFT_eSPI& t, int x, int y, uint16_t cp) {
 static void printRUFace(TFT_eSPI& t, const char* s, const RuFace& f) {
     const char* p = s;
     while (p && *p) {
-        const uint16_t cp = RuText::next(&p);
+        const uint16_t cp = ruFoldCp(RuText::next(&p));
         if (cp == '\n' || cp == '\r' || cp == '\t') {
             t.write((uint8_t)cp);
         } else if (cp >= 0x20 && cp < 0x7F) {
+            // ASCII goes through the built-in font at the face's own size, and
+            // the FONT is pinned, not just the size: callers like the Win95
+            // System Properties window leave font 2 active, and writing ASCII
+            // in font 2 at size 2 drew 32px letters over the row. The RU face
+            // owns its ASCII, so it takes the GLCD font for it and gives the
+            // caller's font back.
             const uint8_t keep = t.textsize ? t.textsize : 1;
+            const uint8_t keepFont = t.textfont;
+            if (keepFont != 1) t.setTextFont(1);
             if (keep != f.glcdSize) t.setTextSize(f.glcdSize);
             t.write((uint8_t)cp);
             if (keep != f.glcdSize) t.setTextSize(keep);
+            if (keepFont != 1) t.setTextFont(keepFont);
         } else if (cp >= f.gfx->first && cp <= f.gfx->last) {
             const uint16_t i = cp - f.gfx->first;
             if (pgm_read_byte(&f.gfx->glyph[i].xAdvance)) {

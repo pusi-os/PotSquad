@@ -4,6 +4,7 @@
 #include "privacy.h"
 #include "signatures.h"
 #include "detection.h"
+#include "type_names.h"
 #include "ignore_list.h"
 #include <Arduino.h>
 #if defined(CYD_GPS)
@@ -383,7 +384,7 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
     // Measured anyway, with a fallback, because a label that runs off the
     // side of a 240px rotation is not something to find out on hardware.
     {
-        const char* tgt = targetLabel(s_last.type);
+        const char* tgt = Theme::tr(targetLabel(s_last.type), TypeNames::headlineRu(s_last.type));
         // The budget is the space left of the IGNORE button, NOT the screen
         // width. The button is drawn over this strip's right-hand end, so
         // measuring against w put "PROXIMITY BEACON" straight through it on
@@ -398,17 +399,32 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
         // Bangers face, at 151px -- into the built-in fallback. On the 240px
         // rotation the budget is now 154, so it clears by 3.
         const int avail = ibx - 10 - 6;
-        const int tw = Theme::bangersTextWidth(tgt, Theme::BangersSize::MD);
-        if (tw <= avail && !tinyAlert(h)) {
-            Theme::drawBangersText(t, 10, 4, tgt, Theme::BG, Theme::BangersSize::MD);
-        } else {
-            // No smaller Bangers exists, so step down through the built-in
-            // font rather than clip.
-            t.setTextSize(wideAlert(w) ? 3 : 2);
-            if (t.textWidth(tgt) > avail) t.setTextSize(wideAlert(w) ? 2 : 1);
+        if (Theme::isRu(tgt)) {
+            // Bangers has no Cyrillic: the 16px RU face at size 1, else the
+            // 9px face when even that will not fit the room left of IGNORE.
             t.setTextColor(Theme::BG, typeCol);
-            t.setCursor(10, (stripHOf(w, h) - t.fontHeight()) / 2);
-            t.print(tgt);
+            t.setTextFont(1);
+            t.setTextSize(1);
+            if (Theme::textWidthRU16(t, tgt) <= avail || tinyAlert(h)) {
+                t.setCursor(10, (stripHOf(w, h) - 16) / 2);
+                Theme::printRU16(t, tgt);
+            } else {
+                t.setCursor(10, (stripHOf(w, h) - 8) / 2);
+                Theme::printRU(t, tgt);
+            }
+        } else {
+            const int tw = Theme::bangersTextWidth(tgt, Theme::BangersSize::MD);
+            if (tw <= avail && !tinyAlert(h)) {
+                Theme::drawBangersText(t, 10, 4, tgt, Theme::BG, Theme::BangersSize::MD);
+            } else {
+                // No smaller Bangers exists, so step down through the built-in
+                // font rather than clip.
+                t.setTextSize(wideAlert(w) ? 3 : 2);
+                if (t.textWidth(tgt) > avail) t.setTextSize(wideAlert(w) ? 2 : 1);
+                t.setTextColor(Theme::BG, typeCol);
+                t.setCursor(10, (stripHOf(w, h) - t.fontHeight()) / 2);
+                t.print(tgt);
+            }
         }
     }
 
@@ -465,24 +481,35 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
     // come out "DID" -- upper-casing is what makes the vendor strings in
     // signatures.cpp renderable at all.
     {
-        const char* src = s_redacted ? "LOCKED" : vendorText(s_last);
-        char up[16];
-        size_t i = 0;
-        for (; src[i] && i + 1 < sizeof(up); i++) {
-            const char c = src[i];
-            up[i] = (c >= 'a' && c <= 'z') ? (char)(c - 32) : c;
-        }
-        up[i] = '\0';
-        const int vw = Theme::bangersTextWidth(up, Theme::BangersSize::MD);
-        if (vw > 0 && vw <= PLATE_W - 8 && !tiny) {
-            Theme::drawBangersText(t, PLATE_X + (PLATE_W - vw) / 2, PLATE_Y + 2, up,
-                                   Theme::CYAN, Theme::BangersSize::MD);
-        } else {
-            t.setTextSize(2);
-            if (tiny && t.textWidth(src) > PLATE_W - 8) t.setTextSize(1);
+        const char* src = s_redacted ? Theme::tr("LOCKED", "СКРЫТО") : vendorText(s_last);
+        if (Theme::isRu(src)) {
+            // A RU placeholder (or a Cyrillic vendor) takes the 16px face at
+            // size 1: Bangers has no Cyrillic.
+            t.setTextFont(1);
+            t.setTextSize(1);
             t.setTextColor(Theme::CYAN, Theme::BG);
-            t.setCursor(PLATE_X + (PLATE_W - t.textWidth(src)) / 2, PLATE_Y + (tiny ? 4 : (bigPlate ? 14 : 10)));
-            t.print(src);
+            const int vw = Theme::textWidthRU16(t, src);
+            t.setCursor(PLATE_X + (PLATE_W - vw) / 2, PLATE_Y + (tiny ? 4 : (bigPlate ? 14 : 10)));
+            Theme::printRU16(t, src);
+        } else {
+            char up[16];
+            size_t i = 0;
+            for (; src[i] && i + 1 < sizeof(up); i++) {
+                const char c = src[i];
+                up[i] = (c >= 'a' && c <= 'z') ? (char)(c - 32) : c;
+            }
+            up[i] = '\0';
+            const int vw = Theme::bangersTextWidth(up, Theme::BangersSize::MD);
+            if (vw > 0 && vw <= PLATE_W - 8 && !tiny) {
+                Theme::drawBangersText(t, PLATE_X + (PLATE_W - vw) / 2, PLATE_Y + 2, up,
+                                       Theme::CYAN, Theme::BangersSize::MD);
+            } else {
+                t.setTextSize(2);
+                if (tiny && t.textWidth(src) > PLATE_W - 8) t.setTextSize(1);
+                t.setTextColor(Theme::CYAN, Theme::BG);
+                t.setCursor(PLATE_X + (PLATE_W - t.textWidth(src)) / 2, PLATE_Y + (tiny ? 4 : (bigPlate ? 14 : 10)));
+                t.print(src);
+            }
         }
     }
 
@@ -501,11 +528,10 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
 
     char mac[24];
     if (s_redacted)
-        snprintf(mac, sizeof(mac), "%s", "-- LOCKED --");
+        snprintf(mac, sizeof(mac), "%s", Theme::tr("-- LOCKED --", "-- СКРЫТО --"));
     else
         Privacy::mac(mac, sizeof mac, s_last.mac);
-    t.setCursor(PLATE_X + (PLATE_W - t.textWidth(mac)) / 2, PLATE_Y + MAC_DY);
-    t.print(mac);
+    Theme::rowPrint(t, mac, PLATE_X + (PLATE_W - Theme::rowWidth(t, mac)) / 2, PLATE_Y + MAC_DY);
 
     // Signal as a bar as well as a number: -90 dBm empty, -40 full. The
     // number is for the log; the bar is what reads from across a room.
@@ -557,29 +583,27 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
     if (s_spam) {
         // A flood of fake tags, and this is its one alert. Beats FIRST and
         // AT NIGHT: they are about one catch, and this is about the room.
-        char fl[32];
-        snprintf(fl, sizeof fl, "* SPAM: %u FAKE TAGS *", (unsigned)s_spamFakes);
+        char fl[40];
+        snprintf(fl, sizeof fl, Theme::tr("* SPAM: %u FAKE TAGS *", "* СПАМ: %u ФЕЙКОВ *"), (unsigned)s_spamFakes);
         Theme::bodyFontOn(t);
         t.setTextColor(Theme::RED, Theme::BG);
-        t.setCursor(PLATE_X + (PLATE_W - t.textWidth(fl)) / 2, tiny ? PLATE_Y + NAME_DY : stripHOf(w, h) + 2);
-        t.print(fl);
+        Theme::rowPrint(t, fl, PLATE_X + (PLATE_W - Theme::rowWidth(t, fl)) / 2, tiny ? PLATE_Y + NAME_DY : stripHOf(w, h) + 2);
         Theme::bodyFontOff(t);
     } else if (s_first || s_night) {
-        const char* fl = (s_first && s_night) ? "* FIRST, AND AT NIGHT *"
-                       : s_first ? "* FIRST OF ITS KIND *" : "* AT NIGHT *";
+        const char* fl = (s_first && s_night) ? Theme::tr("* FIRST, AND AT NIGHT *", "* ПЕРВЫЙ, И НОЧЬЮ *")
+                       : s_first ? Theme::tr("* FIRST OF ITS KIND *", "* ПЕРВЫЙ В СВОЁМ РОДЕ *")
+                                 : Theme::tr("* AT NIGHT *", "* НОЧЬЮ *");
         Theme::bodyFontOn(t);
         t.setTextColor(Theme::VAPOR_YELLOW, Theme::BG);
-        t.setCursor(PLATE_X + (PLATE_W - t.textWidth(fl)) / 2, tiny ? PLATE_Y + NAME_DY : stripHOf(w, h) + 2);
-        t.print(fl);
+        Theme::rowPrint(t, fl, PLATE_X + (PLATE_W - Theme::rowWidth(t, fl)) / 2, tiny ? PLATE_Y + NAME_DY : stripHOf(w, h) + 2);
         Theme::bodyFontOff(t);
     } else if (s_lastFree) {
         // Shares the line, and loses it to FIRST or AT NIGHT, both of which
         // are about the catch itself. This one is housekeeping.
-        const char* fl = "* QUIET UNLESS IT NEARS *";
+        const char* fl = Theme::tr("* QUIET UNLESS IT NEARS *", "* МОЛЧИТ, ПОКА НЕ РЯДОМ *");
         Theme::bodyFontOn(t);
         t.setTextColor(Theme::CYAN, Theme::BG);
-        t.setCursor(PLATE_X + (PLATE_W - t.textWidth(fl)) / 2, tiny ? PLATE_Y + NAME_DY : stripHOf(w, h) + 2);
-        t.print(fl);
+        Theme::rowPrint(t, fl, PLATE_X + (PLATE_W - Theme::rowWidth(t, fl)) / 2, tiny ? PLATE_Y + NAME_DY : stripHOf(w, h) + 2);
         Theme::bodyFontOff(t);
     }
 #if defined(CYD_GPS)
@@ -591,15 +615,14 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
         char la[16], lo[16], pl[40];
         SdRow::degreesText(la, sizeof la, s_placeLat7, 5);
         SdRow::degreesText(lo, sizeof lo, s_placeLon7, 5);
-        snprintf(pl, sizeof pl, "%s, %s%s", la, lo, s_placeFake ? " FAKE" : "");
+        snprintf(pl, sizeof pl, "%s, %s%s", la, lo, s_placeFake ? Theme::tr(" FAKE", " ФЕЙК") : "");
         const int py = !banner ? stripHOf(w, h) + 2
                      : wide    ? PLATE_Y + PLATE_H + 3
                                : PLATE_Y + PLATE_H + 62;
         t.setTextSize(1);
         if (py + t.fontHeight() <= h - 56) {
             t.setTextColor(Theme::CYAN, Theme::BG);
-            t.setCursor(PLATE_X + (PLATE_W - t.textWidth(pl)) / 2, py);
-            t.print(pl);
+            Theme::rowPrint(t, pl, PLATE_X + (PLATE_W - Theme::rowWidth(t, pl)) / 2, py);
         }
     }
 #endif
@@ -678,7 +701,7 @@ void uiAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng,
         // In bold (asked for 2026-10-10): it is the one button here that
         // changes what the device does from now on.
         Theme::drawWin95Button(t, bx, by, bw, bh,
-                               already ? "MUTED" : "IGNORE", already, true);
+                               already ? Theme::tr("MUTED", "ТИХО") : Theme::tr("IGNORE", "ИГНОР"), already, true);
     }
 
     {

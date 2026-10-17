@@ -3,6 +3,7 @@
 #include "ota_core.h"
 #include "serial_flush.h"
 #include "ota_pubkey.h"
+#include "settings.h"   // Settings::lang() for the boot-note toasts
 #include <Arduino.h>
 #include <Preferences.h>
 #include <esp_ota_ops.h>
@@ -270,8 +271,9 @@ void boot() {
         // The bootloader was pointed at another slot and we are not in it:
         // that image failed to confirm itself and was rolled back.
         p.remove("try");
-        s_noteHead = "UPDATE UNDONE";
-        s_noteSub  = "New version didn't start";
+        const bool ru = Settings::lang() == 1;
+        s_noteHead = ru ? "ОБНОВЛЕНИЕ ОТМЕНЕНО" : "UPDATE UNDONE";
+        s_noteSub  = ru ? "Новая версия не запустилась" : "New version didn't start";
         s_noteGood = false;
         Serial.printf("[ota] %s did not confirm; rolled back to %s\n", tried.c_str(), run->label);
     } else if (tried.length() && !s_probation) {
@@ -298,8 +300,8 @@ void tick(uint32_t now) {
     p.begin(NVS_NS, false);
     p.remove("try");
     p.end();
-    snprintf(s_noteSubBuf, sizeof s_noteSubBuf, "Now on %s", FIRMWARE_VERSION);
-    s_noteHead = "UPDATE CONFIRMED";
+    snprintf(s_noteSubBuf, sizeof s_noteSubBuf, Settings::lang() == 1 ? "Теперь на %s" : "Now on %s", FIRMWARE_VERSION);
+    s_noteHead = Settings::lang() == 1 ? "ОБНОВЛЕНИЕ ПОДТВЕРЖДЕНО" : "UPDATE CONFIRMED";
     s_noteSub  = s_noteSubBuf;
     s_noteGood = true;
     Serial.println("[ota] new firmware confirmed");

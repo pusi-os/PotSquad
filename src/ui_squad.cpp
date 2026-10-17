@@ -192,7 +192,7 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         t.setTextColor(Theme::CYAN, Theme::BG);
         char sub[40];
         if (s_roster)
-            snprintf(sub, sizeof sub, "%s  MET %ux  %u/%u", Potsy::outfitNameAt(m.peer.outfit),
+            snprintf(sub, sizeof sub, Theme::tr("%s  MET %ux  %u/%u", "%s  ВСТРЕЧ %ux  %u/%u"), Potsy::outfitNameAt(m.peer.outfit),
                      (unsigned)s_met[s_sel], (unsigned)(s_sel + 1), (unsigned)s_n);
         else
             snprintf(sub, sizeof sub, "%s  %u/%u", Potsy::outfitNameAt(m.peer.outfit),
@@ -282,9 +282,8 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         char ago[8];
         const uint32_t mins = (now - msg.at) / 60000u;
         if (mins == 0) snprintf(ago, sizeof ago, "%s", Theme::tr("now", "щас"));
-        else           snprintf(ago, sizeof ago, "%lum", (unsigned long)(mins > 999 ? 999 : mins));
-        t.setCursor(ix + iw - 4 - t.textWidth(ago), y);
-        t.print(ago);
+        else           snprintf(ago, sizeof ago, Theme::tr("%lum", "%luм"), (unsigned long)(mins > 999 ? 999 : mins));
+        Theme::rowPrint(t, ago, ix + iw - 4 - Theme::rowWidth(t, ago), y);
         char lines[2][48];
         int maxW = iw - 8;
         if (maxW > 47 * t.textWidth("M")) maxW = 47 * t.textWidth("M");

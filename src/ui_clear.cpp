@@ -19,6 +19,7 @@
 #include "meshtutor.h"
 #include "potsy.h"
 #include "detection.h"
+#include "type_names.h"    // the counter tiles' short names, translated
 #include "ignore_list.h"   // the NEARBY headline leaves ignored and snoozed devices out
 #include "emote_script.h"
 #include <esp_system.h>
@@ -1993,12 +1994,12 @@ static int16_t s_wpX = 0, s_wpY = 0, s_wpW = 0, s_wpH = 0;
 static void drawWatchPill(TFT_eSPI& t, int screenW, bool watching, bool hunting, int spanR = -1) {
     // HUNT wins the label when both are set: it is the active, look-at-me mode.
     // The two are independent slots (see DetectionEngine), so both can be on.
-    const char* txt = hunting ? "HUNT" : "WATCH";
+    const char* txt = hunting ? Theme::tr("HUNT", "ОХОТА") : Theme::tr("WATCH", "СЛЕЖУ");
     const uint16_t accent = hunting ? Theme::AMBER : Theme::CYAN;
     t.setTextSize(1);
     // 16 in a 20px bar: two rows of clearance top and bottom.
     const int bh = 16;
-    const int bw = 16 + t.textWidth(txt) + 7;
+    const int bw = 16 + Theme::rowWidth(t, txt) + 7;
     // Left edge of the free span, past the gear. The right limit is the rotate
     // icon (28) plus the lock (26) -- reserve both whether or not either is
     // showing, so the pill cannot move when a PIN is set or rotation locked.
@@ -2014,8 +2015,7 @@ static void drawWatchPill(TFT_eSPI& t, int screenW, bool watching, bool hunting,
     t.fillCircle(x + 9, y + bh / 2, 1, accent);
     if (hunting) t.drawFastHLine(x + 3, y + bh / 2, 12, accent);
     t.setTextColor(accent, Theme::BG);
-    t.setCursor(x + 16, y + (bh - 8) / 2);
-    t.print(txt);
+    Theme::rowPrint(t, txt, x + 16, y + (bh - 8) / 2);
     // A finger-sized target: the bar is only 20px tall, so grow downward.
     s_wpX = (int16_t)(x - 4); s_wpY = (int16_t)0;
     s_wpW = (int16_t)(bw + 8); s_wpH = (int16_t)(bh + 14);
@@ -2876,6 +2876,9 @@ void uiClearInit(TFT_eSPI& t) {
 }
 
 static const char* counterLabel(DetectionType t) {
+    // Translated short names under RU: the tile is drawn through the RU face
+    // (drawXpTile) and measured by xpTextW(), so these must be the RU cells.
+    if (Settings::lang() == 1) return TypeNames::cellRu(t);
     switch (t) {
         case DetectionType::FLOCK:       return "FLOCK";
         case DetectionType::AXON:        return "AXON";
@@ -2989,11 +2992,33 @@ static void drawXpTile(TFT_eSPI& t, int x, int y, int w, int h, const char* txt,
     int tx = ix + XP_ICON_W * k;
     t.setTextColor(INK[state]);
     t.setTextSize(k);
-    for (const char* c = txt; *c; c++, tx += XP_ADV * k) {
-        t.setCursor(tx, ty);         t.write(*c);
-        t.setCursor(tx + 1, ty);     t.write(*c);
+    if (Theme::isRu(txt)) {
+        // A translated tile: the GLCD has no Cyrillic and this routine writes
+        // one byte at a time, so it goes through the RU face at the tile's own
+        // scale. Measured by xpTextW() with the same face.
+        t.setCursor(tx, ty);
+        Theme::printRU(t, txt);
+    } else {
+        for (const char* c = txt; *c; c++, tx += XP_ADV * k) {
+            t.setCursor(tx, ty);         t.write(*c);
+            t.setCursor(tx + 1, ty);     t.write(*c);
+        }
     }
     t.setTextSize(1);
+}
+
+// How wide a tile's text is, in device pixels: the per-letter advance for the
+// GLCD tiles, the RU face's own measure for a translated one (strlen lies 2x
+// on Cyrillic, and the RU glyphs are wider than the 7px advance).
+static int xpTextW(TFT_eSPI& t, const char* txt, int k) {
+    if (Theme::isRu(txt)) {
+        const uint8_t keep = t.textsize ? t.textsize : 1;
+        t.setTextSize(k);
+        const int w = Theme::textWidthRU(t, txt);
+        t.setTextSize(keep);
+        return w;
+    }
+    return (int)strlen(txt) * XP_ADV * k;
 }
 
 // The FONTS page's preview: one tile, lit, at the scale the main screen
@@ -3021,15 +3046,14 @@ static void drawCounterLine(TFT_eSPI& t, int w, int y, const DetectionEngine& en
     }
     // The trailing gap is spacing between entries, not part of the last one.
     while (off > 0 && buf[off - 1] == ' ') buf[--off] = '\0';
-    int tw = t.textWidth(buf);
+    int tw = Theme::rowWidth(t, buf);
     const int x = (w - tw) / 2;
     // A dark plate a few pixels past the text, not just the character cells:
     // tight to the glyphs, the numbers read as cut out of whatever the
     // background is doing behind them.
     const int PAD_X = 4, PAD_Y = 2;
     t.fillRect(x - PAD_X, y - PAD_Y, tw + 2 * PAD_X, t.fontHeight() + 2 * PAD_Y, Theme::BG);
-    t.setCursor(x, y);
-    t.print(buf);
+    Theme::rowPrint(t, buf, x, y);
 }
 
 // The same folds, asked the other way round: which column a device lands in.
@@ -3912,7 +3936,7 @@ void uiClearTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
             if (miniTiles) snprintf(tileTxt[i], sizeof(tileTxt[i]), "%u", counterCount(eng, counterTypes[i]));
             else           snprintf(tileTxt[i], sizeof(tileTxt[i]), "%s %u", counterLabel(counterTypes[i]),
                                     counterCount(eng, counterTypes[i]));
-            tileW[i] = (uint16_t)(((int)strlen(tileTxt[i]) * XP_ADV + 10 + XP_ICON_W) * tileK);
+            tileW[i] = (uint16_t)(xpTextW(t, tileTxt[i], tileK) + (10 + XP_ICON_W) * tileK);
         }
         int tileGap = 4 * tileK, tilePad = 5 * tileK;
         uint8_t rowsUsed = 0;

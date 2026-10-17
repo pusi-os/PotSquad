@@ -90,6 +90,10 @@ void formatTime(char* out, size_t n, bool twelveHour, bool* pm = nullptr);
 // ---- the zone ---------------------------------------------------------
 uint8_t     zoneCount();
 const char* zoneName(uint8_t i);
+// Display-only twin of zoneName(): the Russian zone name under lang()==1,
+// the same string zoneName() returns otherwise. zoneName() must stay English
+// because the ZONE <name> console command matches on it.
+const char* zoneDisplayName(uint8_t i);
 uint8_t     zoneStep(uint8_t i, int dir);   // the zone before (-1) or after (+1) i, west to east
 void        applyZone(uint8_t i);   // Settings calls this at boot and on change
 

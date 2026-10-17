@@ -1119,7 +1119,7 @@ static const uint16_t CLOTH_COLORS[] = {
 static const char* const CLOTH_NAMES[] = { "INDIGO", "BLUE", "MAGENTA", "TEAL",
                                            "CRIMSON", "PURPLE", "ORANGE", "WHITE" };
 static const char* const CLOTH_RU[]    = { "ИНДИГО", "СИНИЙ", "МАДЖЕНТА", "БИРЮЗА",
-                                           "МАЛИНОВЫЙ", "ФИОЛЕТОВЫЙ", "ОРАНЖ", "БЕЛЫЙ" };
+                                           "БАГРОВЫЙ", "ФИОЛЕТ", "ОРАНЖ", "БЕЛЫЙ" };
 static const uint8_t CLOTH_N = sizeof(CLOTH_COLORS) / sizeof(CLOTH_COLORS[0]);
 
 static uint8_t unlockedShadeCount() {
@@ -1215,6 +1215,32 @@ static const OutfitDef OUTFITS[] = {
 };
 static const uint8_t OUTFITS_N = sizeof(OUTFITS) / sizeof(OUTFITS[0]);
 static_assert(OUTFITS_N == (uint8_t)OutfitId::COUNT, "OUTFITS must match OutfitId");
+// Russian display twins for the names above, same order and same indexes.
+// The English OUTFITS[].name stays the identity (and stays what the popup's
+// bookkeeping keys off); only outfitName()/outfitNameAt() pick from here.
+static const char* const OUTFIT_RU[] = {
+    "НЕТ",
+    "ТАНОКИ",
+    "ЕДИНОРОГ",
+    "ФОЛЬГА",
+    "ТЕНЬ",
+    "САНТЕХНИК",
+    "ВЫСОКИЙ",
+    "КОСМОС",
+    "СИНИЙ ВИХРЬ",
+    "КАПИТАН",
+    "ВОЛЧЬЯ ШКУРА",
+    "ХРОМ КРЫЛО",
+    "ГЛАЗ ПУСТОТЫ",
+    "СНЕЖНАЯ ПАРКА",
+    "КОСТЮМ АКУЛЫ",
+    "ЙЗЗЕРД",
+    "СВЫШЕ 9000",
+    "ШАМБЛЕР",
+    "ИЗБРАННЫЙ",
+    "ПОЛОСАТЫЙ",
+};
+static_assert(sizeof(OUTFIT_RU) / sizeof(OUTFIT_RU[0]) == OUTFITS_N, "OUTFIT_RU mirrors OUTFITS");
 #if POTS_MESH
 // The mesh clamps a visitor's outfit index to what this build can draw. If
 // a new outfit lands here without that count moving, the newest outfit
@@ -2601,7 +2627,8 @@ void enableGodsMode() {
 
 const char* outfitName() {
     ensurePrefsLoaded();
-    return OUTFITS[(uint8_t)currentOutfit()].name;
+    const uint8_t i = (uint8_t)currentOutfit();
+    return Theme::tr(OUTFITS[i].name, OUTFIT_RU[i]);
 }
 
 void cycleOutfit() {
@@ -2654,7 +2681,7 @@ bool consumeOutfitUnlock(uint8_t& outIdx) {
 
 const char* outfitNameAt(uint8_t idx) {
     if (idx >= OUTFITS_N) return "";
-    return OUTFITS[idx].name;
+    return Theme::tr(OUTFITS[idx].name, OUTFIT_RU[idx]);
 }
 
 void setOutfitPreview(int8_t idx) {
@@ -2848,7 +2875,7 @@ void unlockBall() {
     if (s_ballUnlocked) return;
     s_ballUnlocked = true;
     s_petPrefs.putBool("ball", true);
-    Theme::showToast("BALL & CHAIN", "new pet. Settings > Pet", Theme::AMBER, 3500);
+    Theme::showToast(Theme::tr("BALL & CHAIN", "ЯДРО И ЦЕПЬ"), Theme::tr("new pet. Settings > Pet", "новый питомец. Настройки > Питомец"), Theme::AMBER, 3500);
 }
 
 // Whether a pet somebody chose is actually out: petSel defaults to SHAGGY
@@ -2876,7 +2903,7 @@ void unlockClippy(const char* why) {
         s_petPrefs.putUChar("petSel", s_petSel);
         s_clippyIntro = why;
     } else {
-        Theme::showToast("C1iPPY", "new pet. Settings > Pet", Theme::CYAN, 3500);
+        Theme::showToast(Theme::tr("C1iPPY", "К1ЛИППИ"), Theme::tr("new pet. Settings > Pet", "новый питомец. Настройки > Питомец"), Theme::CYAN, 3500);
     }
 }
 
@@ -2894,7 +2921,7 @@ void unlockToaster(const char* why) {
         s_petPrefs.putUChar("petSel", s_petSel);
         s_toasterIntro = why;
     } else {
-        Theme::showToast("T0@$TY", "new pet. Settings > Pet", Theme::AMBER, 3500);
+        Theme::showToast(Theme::tr("T0@$TY", "Т0@$ти"), Theme::tr("new pet. Settings > Pet", "новый питомец. Настройки > Питомец"), Theme::AMBER, 3500);
     }
 }
 
@@ -2911,7 +2938,7 @@ void unlockMeaty(const char* why) {
         s_petPrefs.putUChar("petSel", s_petSel);
         s_meatyIntro = why;
     } else {
-        Theme::showToast("M3@ty", "new pet. Settings > Pet", Theme::AMBER, 3500);
+        Theme::showToast(Theme::tr("M3@ty", "М3@ти"), Theme::tr("new pet. Settings > Pet", "новый питомец. Настройки > Питомец"), Theme::AMBER, 3500);
     }
 }
 
@@ -2986,13 +3013,13 @@ PetId petChoice() {
 
 const char* petName() {
     switch (petChoice()) {
-        case PetId::SHAGGY: return "VAPOR SHAGGY";
-        case PetId::YETI:   return "THE YETI";
-        case PetId::CLIPPY: return "C1iPPY";
-        case PetId::TOASTER: return "T0@$TY";
-        case PetId::BALL:   return "BALL & CHAIN";
-        case PetId::MEATY: return "M3@ty";
-        default:            return "OFF";
+        case PetId::SHAGGY: return Theme::tr("VAPOR SHAGGY", "ВЕЙП ШЭГГИ");
+        case PetId::YETI:   return Theme::tr("THE YETI", "ЙЕТИ");
+        case PetId::CLIPPY: return Theme::tr("C1iPPY", "К1ЛИППИ");
+        case PetId::TOASTER: return Theme::tr("T0@$TY", "Т0@$ТИ");
+        case PetId::BALL:   return Theme::tr("BALL & CHAIN", "ЯДРО И ЦЕПЬ");
+        case PetId::MEATY: return Theme::tr("M3@ty", "М3@ти");
+        default:            return Theme::tr("OFF", "ВЫКЛ");
     }
 }
 
@@ -3044,7 +3071,7 @@ static uint32_t s_ballToastAt = 0;        // the "new pet" toast, due after the 
 bool jailed() {
     if (s_ballToastAt && (int32_t)(millis() - s_ballToastAt) >= 0) {
         s_ballToastAt = 0;
-        Theme::showToast("BALL & CHAIN", "new pet. Settings > Pet", Theme::AMBER, 3500);
+        Theme::showToast(Theme::tr("BALL & CHAIN", "ЯДРО И ЦЕПЬ"), Theme::tr("new pet. Settings > Pet", "новый питомец. Настройки > Питомец"), Theme::AMBER, 3500);
     }
     if (!s_jailLeft) return false;
     const uint32_t now = millis();
@@ -3983,7 +4010,7 @@ void scanReaction(ScanMoment moment, uint8_t count) {
             // changes. Longer than his other bubbles get (5500 vs
             // 2200-4500), and MIN_BUBBLE_MS still applies underneath --
             // this is the one line that actually needs to be read.
-            say(SCAN_STARTED_LINE, 5500);
+            say(Theme::tr(SCAN_STARTED_LINE, "Нажми и удерживай строку, чтобы взять цель."), 5500);
             s_scanHintUntil = now + SCAN_HINT_GRACE_MS;
             break;
         case ScanMoment::HIT:
@@ -4028,7 +4055,7 @@ void huntReaction(HuntMoment moment) {
             // Longer than his other HUNT bubbles (5500 vs 2200-3500),
             // same reasoning as SCAN_STARTED_LINE -- this is the one
             // line that actually needs to be read.
-            say(HUNT_STARTED_LINE, 5500);
+            say(Theme::tr(HUNT_STARTED_LINE, "Компаса нет. Поворачивайся — слабее значит позади."), 5500);
             s_huntHintUntil = now + HUNT_HINT_GRACE_MS;
             break;
         case HuntMoment::FIRST_SIGNAL:
@@ -8304,18 +8331,18 @@ void tick(TFT_eSPI& t, int cx, int topY, int availHeight, uint32_t now,
                              say(Theme::tr("TOASTER DUCK", "ТОСТЕР, ЛОЖИСЬ"), SHOW_STEP_MS); break;
                     case 14: mood = Mood::IDLE; say(Theme::tr("PICK UP + DROP", "ВЗЯЛ + БРОСИЛ"), SHOW_STEP_MS); break;
                     case 15: mood = Mood::LEAN; s_leanStart = now; s_leanDir = 1;
-                             say("LEAN + LISTEN", SHOW_STEP_MS); break;
+                             say(Theme::tr("LEAN + LISTEN", "НАКЛОН + СЛУШАЮ"), SHOW_STEP_MS); break;
                     case 16: mood = Mood::TRIP; s_dtStart = now; s_recoilK = 0.8f;
-                             say("TRIP", SHOW_STEP_MS); break;
+                             say(Theme::tr("TRIP", "СПОТКНУЛСЯ"), SHOW_STEP_MS); break;
                     case 17: mood = Mood::IDLE; s_shakeStart = now + 200u;
-                             say("SHAKE IT OFF", SHOW_STEP_MS); break;
+                             say(Theme::tr("SHAKE IT OFF", "ОТРЯХНУЛСЯ"), SHOW_STEP_MS); break;
                     case 18: mood = Mood::IDLE; s_backSteps = 3; s_backAt = now;
-                             say("BACKING AWAY", SHOW_STEP_MS); break;
+                             say(Theme::tr("BACKING AWAY", "ОТХОЖУ"), SHOW_STEP_MS); break;
                     case 19: mood = Mood::ACT; s_hostAct = (uint8_t)VisitPose::CROUCH;
                              s_hostActUntil = now + SHOW_STEP_MS + 300u; s_backSteps = 0;
-                             say("SIT DOWN", SHOW_STEP_MS); break;
+                             say(Theme::tr("SIT DOWN", "САЖУСЬ"), SHOW_STEP_MS); break;
                     case 20: mood = Mood::IDLE; s_flickStart = now; s_flickDir = 1;
-                             say("FLICK", SHOW_STEP_MS); break;
+                             say(Theme::tr("FLICK", "ФЛИК"), SHOW_STEP_MS); break;
                     default: mood = Mood::SLEEPY; say(Theme::tr("NAP", "СПЛЮ"), SHOW_STEP_MS); break;
                 }
             }

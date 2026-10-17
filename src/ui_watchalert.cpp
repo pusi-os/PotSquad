@@ -2,6 +2,7 @@
 #include "ui_watchalert.h"
 #include "theme.h"
 #include "ru_text.h"
+#include "type_names.h"
 #include "privacy.h"
 #include "potsy.h"
 #include <Arduino.h>
@@ -233,9 +234,9 @@ void scope(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, const WatchVie
         }
     // A tag on a leader line: what it is, pinned to where it is.
     if (tag && v.type != DetectionType::UNKNOWN) {
-        const char* nm = detectionTypeName(v.type);
+        const char* nm = TypeNames::display(v.type);
         t.setTextSize(1);
-        const int lw = t.textWidth(nm) + 6;
+        const int lw = Theme::rowWidth(t, nm) + 6;
         const int dir = (cosf(b) > 0) ? -1 : 1;              // point the tag back toward the middle
         const int lx = bx + dir * (s + 10), ly = by - s - 10;
         t.drawLine(bx + dir * s, by - s, lx, ly + 5, lc);
@@ -243,8 +244,7 @@ void scope(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, const WatchVie
         t.fillRect(rx, ly, lw, 11, Theme::BLACK);
         t.drawRect(rx, ly, lw, 11, g3);
         t.setTextColor(g3);
-        t.setCursor(rx + 3, ly + 2);
-        t.print(nm);
+        Theme::rowPrint(t, nm, rx + 3, ly + 2);
     }
 }
 
@@ -360,16 +360,23 @@ void uiWatchAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, boo
         const WatchView v = gather(eng);
         switch (s_lineStep) {
             case 0:
-                snprintf(s_line, sizeof s_line, "Heads up! The %s you're watching is back in range.", v.label);
+                snprintf(s_line, sizeof s_line,
+                         Theme::tr("Heads up! The %s you're watching is back in range.",
+                                   "Внимание! %s, за кем следишь, снова в зоне."), v.label);
                 break;
             case 1:
                 snprintf(s_line, sizeof s_line, "%s",
-                         v.trend > 0 ? "It's getting closer. The nearer the middle, the nearer to you."
-                       : v.trend < 0 ? "It's moving away. The dot drifts out as it goes."
-                                     : "It's holding still. The nearer the middle, the nearer to you.");
+                         v.trend > 0 ? Theme::tr("It's getting closer. The nearer the middle, the nearer to you.",
+                                                 "Приближается. Чем ближе к центру, тем ближе к тебе.")
+                       : v.trend < 0 ? Theme::tr("It's moving away. The dot drifts out as it goes.",
+                                                 "Удаляется. Точка уходит к краю.")
+                                     : Theme::tr("It's holding still. The nearer the middle, the nearer to you.",
+                                                 "Держится на месте. Чем ближе к центру, тем ближе к тебе."));
                 break;
             default:
-                snprintf(s_line, sizeof s_line, "Tap anywhere to close this. The button stops watching it.");
+                snprintf(s_line, sizeof s_line, "%s",
+                         Theme::tr("Tap anywhere to close this. The button stops watching it.",
+                                   "Нажми в любом месте, чтобы закрыть. Кнопка прекращает слежку."));
                 break;
         }
         s_lineStep = (uint8_t)((s_lineStep + 1) % 3);
@@ -383,11 +390,13 @@ void uiWatchAlertTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, boo
         Theme::drawButton(t, bx, by, bw, bh, removeLabel(t, bw), false, 1);
         return;
     }
-    const char* tapMsg = "tap anywhere to dismiss";
+    const char* tapMsg = Theme::tr("tap anywhere to dismiss", "нажми в любом месте");
     Theme::bodyFontOn(t);
     t.setTextColor(Theme::WHITE);
-    t.setCursor((w - t.textWidth(tapMsg)) / 2, hintY);
-    t.print(tapMsg);
+    const bool tpu = Theme::isRu(tapMsg);
+    if (tpu) { t.setTextFont(1); t.setTextSize(1); }
+    t.setCursor((w - (tpu ? Theme::textWidthRU(t, tapMsg) : t.textWidth(tapMsg))) / 2, hintY);
+    if (tpu) Theme::printRU(t, tapMsg); else t.print(tapMsg);
     Theme::bodyFontOff(t);
     int bx, by, bw, bh;
     removeRect(t, bx, by, bw, bh);

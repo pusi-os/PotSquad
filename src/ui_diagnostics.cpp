@@ -3,6 +3,7 @@
 #include "clock.h"
 #include "theme.h"
 #include "detection.h"
+#include "settings.h"
 #if POTS_MESH
 #include "meshtalk.h"
 #endif
@@ -36,6 +37,17 @@ bool uiDiagnosticsHitBack(int x, int y, int screenW, int screenH) {
 static int s_page = 0, s_pages = 1, s_clipTop = 0, s_clipBottom = 32767, s_off = 0;
 void uiDiagnosticsNextPage() { s_page = (s_page + 1) % (s_pages > 0 ? s_pages : 1); }
 
+// Mixed-script output for the report's 8px rows: ASCII keeps the GLCD face,
+// a string with Cyrillic goes through the 9px RU face. Measure and draw both
+// route here so the value column lines up under either script.
+static void put(TFT_eSPI& t, const char* s) {
+    if (Theme::isRu(s)) Theme::printRU(t, s);
+    else                t.print(s);
+}
+static int wid(TFT_eSPI& t, const char* s) {
+    return Theme::isRu(s) ? Theme::textWidthRU(t, s) : t.textWidth(s);
+}
+
 static int drawLine(TFT_eSPI& t, int y, uint16_t labelColor, const char* label, const char* fmt, ...) {
     const int fh = t.fontHeight();
     const int sy = y - s_off;
@@ -43,7 +55,7 @@ static int drawLine(TFT_eSPI& t, int y, uint16_t labelColor, const char* label, 
     y = sy;
     t.setTextColor(labelColor, Theme::BG);
     t.setCursor(6, y);
-    t.print(label);
+    put(t, label);
 
     char buf[48];
     va_list args;
@@ -52,8 +64,8 @@ static int drawLine(TFT_eSPI& t, int y, uint16_t labelColor, const char* label, 
     va_end(args);
 
     t.setTextColor(Theme::WHITE, Theme::BG);
-    t.setCursor(6 + t.textWidth(label) + 6, y);
-    t.print(buf);
+    t.setCursor(6 + wid(t, label) + 6, y);
+    put(t, buf);
     return y + s_off + t.fontHeight() + 2;
 }
 
@@ -61,7 +73,7 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
     (void)now;
     int w = t.width(), h = t.height();
 
-    Theme::drawTitleBar(t, ">> DIAGNOSTICS <<");
+    Theme::drawTitleBar(t, Theme::tr(">> DIAGNOSTICS <<", ">> ДИАГНОСТИКА <<"));
 
     Theme::ButtonBarGeom bar = Theme::computeButtonBar(w, h);
     int bodyTop = 16, bodyBottom = bar.y - 4;
@@ -76,34 +88,37 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
     s_clipBottom = paged ? bodyBottom : 32767;
     s_off = paged ? s_page * pageH : 0;
 
-    y = drawLine(t, y, Theme::CYAN, "BOARD:", "%s (%s)", info.boardName,
-                 info.usingCapTouch ? "capacitive" : "resistive");
-    y = drawLine(t, y, Theme::CYAN, "RESET:", "%s", info.resetReason);
+    y = drawLine(t, y, Theme::CYAN, Theme::tr("BOARD:", "ПЛАТА:"), "%s (%s)", info.boardName,
+                 info.usingCapTouch ? Theme::tr("capacitive", "ёмкостный") : Theme::tr("resistive", "резистивный"));
+    y = drawLine(t, y, Theme::CYAN, Theme::tr("RESET:", "СБРОС:"), "%s", info.resetReason);
     // Only after an actual panic, and only when the breadcrumb survived. A
     // blank line here means a clean boot, not a missing feature.
     if (info.crash.valid || info.crash.haveDump) {
         if (info.crash.valid)
-            y = drawLine(t, y, Theme::RED, "LAST CRASH:", "%lum%lus up, %lu free, %lu block",
+            y = drawLine(t, y, Theme::RED, Theme::tr("LAST CRASH:", "ПАДЕНИЕ:"),
+                         Theme::tr("%lum%lus up, %lu free, %lu block", "%luм%luс работы, %lu своб, %lu блок"),
                          (unsigned long)(info.crash.uptimeMs / 60000),
                          (unsigned long)((info.crash.uptimeMs / 1000) % 60),
                          (unsigned long)info.crash.heapFree,
                          (unsigned long)info.crash.heapBlock);
         else
-            y = drawLine(t, y, Theme::RED, "LAST CRASH:", "no breadcrumb survived");
+            y = drawLine(t, y, Theme::RED, Theme::tr("LAST CRASH:", "ПАДЕНИЕ:"),
+                         Theme::tr("no breadcrumb survived", "хлебных крошек нет"));
         if (info.crash.haveDump) {
             // Where it died, from the core dump. With these two lines and the
             // ELF of the build that crashed, addr2line names the functions --
             // which is the difference between "it crashed" and a fix.
-            y = drawLine(t, y, Theme::RED, "  IN:", "%s @ %08lX%s", info.crash.task,
-                         (unsigned long)info.crash.pc, info.crash.dumpOlder ? " (old fw)" : "");
+            y = drawLine(t, y, Theme::RED, Theme::tr("  IN:", "  ГДЕ:"), "%s @ %08lX%s", info.crash.task,
+                         (unsigned long)info.crash.pc, info.crash.dumpOlder ? Theme::tr(" (old fw)", " (старая прошивка)") : "");
             char bt[40] = "--";
             size_t o = 0;
             for (uint8_t i = 0; i < info.crash.btN && i < 3; i++)
                 o += snprintf(bt + o, sizeof bt - o, "%s%08lX", i ? " " : "",
                               (unsigned long)info.crash.bt[i]);
-            y = drawLine(t, y, Theme::RED, "  BT:", "%s", bt);
+            y = drawLine(t, y, Theme::RED, Theme::tr("  BT:", "  СТЕК:"), "%s", bt);
         } else {
-            y = drawLine(t, y, Theme::RED, "  ON:", "screen %u, %lu detections",
+            y = drawLine(t, y, Theme::RED, Theme::tr("  ON:", "  НА ЭКРАНЕ:"),
+                         Theme::tr("screen %u, %lu detections", "экран %u, %lu найдено"),
                          (unsigned)info.crash.screen, (unsigned long)info.crash.lifetime);
         }
     }
@@ -112,41 +127,46 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
     {
         char up[24];
         Clock::formatUptime(up, sizeof(up));
-        y = drawLine(t, y, Theme::CYAN, "UPTIME:", "%s", up);
+        y = drawLine(t, y, Theme::CYAN, Theme::tr("UPTIME:", "АПТАЙМ:"), "%s", up);
         char clk[32];
         Clock::formatClock(clk, sizeof(clk));
-        y = drawLine(t, y, Theme::CYAN, "CLOCK:", "%s%s", clk,
-                     Clock::trusted() ? "" : "  (TIME <epoch> over serial)");
+        y = drawLine(t, y, Theme::CYAN, Theme::tr("CLOCK:", "ЧАСЫ:"), "%s%s", clk,
+                     Clock::trusted() ? "" : Theme::tr("  (TIME <epoch> over serial)", "  (ВРЕМЯ <epoch> по serial)"));
     }
-    y = drawLine(t, y, Theme::CYAN, "HEAP:", "%lu free / %lu largest",
+    y = drawLine(t, y, Theme::CYAN, Theme::tr("HEAP:", "ПАМЯТЬ:"),
+                 Theme::tr("%lu free / %lu largest", "%lu своб / %lu макс"),
                  (unsigned long)info.freeHeap, (unsigned long)info.largestBlock);
 #if defined(CYD_GPS)
     if (info.gpsShown) {
         if (info.gpsGood == 0)
-            y = drawLine(t, y, Theme::CYAN, "GPS:", "no data from the module");
+            y = drawLine(t, y, Theme::CYAN, "GPS:", Theme::tr("no data from the module", "нет данных от модуля"));
         else
-            y = drawLine(t, y, Theme::CYAN, "GPS:", "%u in view, %u heard, %u used",
+            y = drawLine(t, y, Theme::CYAN, "GPS:", Theme::tr("%u in view, %u heard, %u used", "%u в поле, %u слышно, %u исп"),
                          info.view, info.heard, info.used);
         if (info.fixAgeMs == UINT32_MAX) {
-            y = drawLine(t, y, Theme::CYAN, "FIX:", "none");
+            y = drawLine(t, y, Theme::CYAN, Theme::tr("FIX:", "ФИКС:"), Theme::tr("none", "нет"));
         } else {
             char la[16], lo[16], acc[12];
             SdRow::degreesText(la, sizeof la, info.lat7, 5);
             SdRow::degreesText(lo, sizeof lo, info.lon7, 5);
-            if (info.faked) snprintf(acc, sizeof acc, "FAKE");
-            else            snprintf(acc, sizeof acc, "+-%u m", info.accM);
-            y = drawLine(t, y, info.fresh ? Theme::GREEN : Theme::CYAN, "FIX:", "%s,%s %s %lus",
+            if (info.faked) snprintf(acc, sizeof acc, Theme::tr("FAKE", "ФЕЙК"));
+            else            snprintf(acc, sizeof acc, Theme::tr("+-%u m", "+-%u м"), info.accM);
+            y = drawLine(t, y, info.fresh ? Theme::GREEN : Theme::CYAN, Theme::tr("FIX:", "ФИКС:"), "%s,%s %s %lus",
                          la, lo, acc, (unsigned long)(info.fixAgeMs / 1000));
         }
         // Two lines: the file name does not fit beside the counts at 320 px.
         static const char* const WD[] = { "OFF", "NO CARD", "LOW MEMORY", "WAITING FOR FIX", "ON" };
+        static const char* const WD_RU[] = { "ВЫКЛ", "НЕТ КАРТЫ", "МАЛО ПАМЯТИ", "ЖДЁТ ФИКСА", "ВКЛ" };
+        const bool ruWd = Settings::lang() == 1;
         if (!info.wdOn)
-            y = drawLine(t, y, Theme::CYAN, "WARDRIVE:", "off");
+            y = drawLine(t, y, Theme::CYAN, "WARDRIVE:", Theme::tr("off", "выкл"));
         else
-            y = drawLine(t, y, Theme::CYAN, "WARDRIVE:", "%s, %lu written, %lu repeats, %lu dropped",
-                         info.wdState < 5 ? WD[info.wdState] : "?", (unsigned long)info.wdWritten,
+            y = drawLine(t, y, Theme::CYAN, "WARDRIVE:",
+                         Theme::tr("%s, %lu written, %lu repeats, %lu dropped",
+                                   "%s, %lu записано, %lu повторов, %lu отброшено"),
+                         (info.wdState < 5 ? (ruWd ? WD_RU : WD)[info.wdState] : "?"), (unsigned long)info.wdWritten,
                          (unsigned long)info.wdSkipped, (unsigned long)info.wdDropped);
-        y = drawLine(t, y, Theme::CYAN, "WIGLE:", "%s", info.wdFile && *info.wdFile ? info.wdFile : "no file yet");
+        y = drawLine(t, y, Theme::CYAN, "WIGLE:", "%s", info.wdFile && *info.wdFile ? info.wdFile : Theme::tr("no file yet", "файла ещё нет"));
     }
 #endif
 #if POTS_MESH
@@ -156,20 +176,23 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
     {
         const Mesh::TxStatus tx = Mesh::txStatus();
         y = drawLine(t, y, tx.advertising ? Theme::GREEN : Theme::AMBER,
-                     "MESH TX:", "%s %s, ok %lu / fail %lu (%u)",
-                     tx.advertising ? "ON" : "OFF",
-                     tx.sendingFrame ? "FRAME" : "IDLE",
+                     Theme::tr("MESH TX:", "MESH ПЕРЕД:"), "%s %s, ok %lu / fail %lu (%u)",
+                     tx.advertising ? Theme::tr("ON", "ВКЛ") : Theme::tr("OFF", "ВЫКЛ"),
+                     tx.sendingFrame ? Theme::tr("FRAME", "КАДР") : Theme::tr("IDLE", "ПАУЗА"),
                      (unsigned long)tx.starts, (unsigned long)tx.failures,
                      (unsigned)tx.lastFailure);
         const MeshTalk::RxDiagnostics rx = MeshTalk::rxDiagnostics();
-        y = drawLine(t, y, Theme::CYAN, "MESH RX:", "%lu queued / %lu heard, full %lu",
+        y = drawLine(t, y, Theme::CYAN, Theme::tr("MESH RX:", "MESH ПРИЁМ:"),
+                     Theme::tr("%lu queued / %lu heard, full %lu", "%lu в очереди / %lu услышано, полн %lu"),
                      (unsigned long)rx.queued, (unsigned long)rx.seen,
                      (unsigned long)rx.queueFull);
-        y = drawLine(t, y, Theme::CYAN, "INV RX:", "parts %lu mask %x/15 done %lu",
+        y = drawLine(t, y, Theme::CYAN, Theme::tr("INV RX:", "INV ПРИЁМ:"),
+                     Theme::tr("parts %lu mask %x/15 done %lu", "части %lu маска %x/15 готово %lu"),
                      (unsigned long)rx.inviteParts, (unsigned)rx.mask,
                      (unsigned long)rx.inviteComplete);
         y = drawLine(t, y, rx.inviteRejected ? Theme::AMBER : Theme::CYAN,
-                     "INV ERR:", "%lu rejected (%u), replay %lu",
+                     Theme::tr("INV ERR:", "INV ОШИБКА:"),
+                     Theme::tr("%lu rejected (%u), replay %lu", "%lu отклонено (%u), повтор %lu"),
                      (unsigned long)rx.inviteRejected,
                      (unsigned)rx.lastReject,
                      (unsigned long)rx.replayRejected);
@@ -179,43 +202,52 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
     // with Bluetooth up, and at the first pass of loop().
     {
         const BootHeap bh = bootHeap();
-        y = drawLine(t, y, Theme::CYAN, "BOOT:", "wifi %lu/%lu  ble %lu/%lu  loop %lu/%lu KB",
+        y = drawLine(t, y, Theme::CYAN, Theme::tr("BOOT:", "ЗАГРУЗКА:"),
+                     Theme::tr("wifi %lu/%lu  ble %lu/%lu  loop %lu/%lu KB",
+                               "wifi %lu/%lu  ble %lu/%lu  loop %lu/%lu КБ"),
                      (unsigned long)(bh.wifiFree / 1024), (unsigned long)(bh.wifiLargest / 1024),
                      (unsigned long)(bh.bleFree / 1024),  (unsigned long)(bh.bleLargest / 1024),
                      (unsigned long)(info.loopFree / 1024), (unsigned long)(info.loopLargest / 1024));
     }
-    y = drawLine(t, y, Theme::CYAN, "SLOT:", "%s  other: %s",
-                 info.otaSlot ? info.otaSlot : "?", info.otaOther ? info.otaOther : "none");
+    y = drawLine(t, y, Theme::CYAN, Theme::tr("SLOT:", "СЛОТ:"), Theme::tr("%s  other: %s", "%s  другой: %s"),
+                 info.otaSlot ? info.otaSlot : "?", info.otaOther ? info.otaOther : Theme::tr("none", "нет"));
     // The black box: what is kept in flash across restarts. The newest crash
     // kept by date and version, which is what a photo of this screen needs
     // to match it to a build; BLACKBOX on the console has the rest.
     if (!info.bbReady) {
-        y = drawLine(t, y, Theme::CYAN, "KEPT:", "off (flash space in use)");
+        y = drawLine(t, y, Theme::CYAN, Theme::tr("KEPT:", "ХРАНИТСЯ:"), Theme::tr("off (flash space in use)", "выкл (флеш занята)"));
     } else if (!info.bbCrashes) {
-        y = drawLine(t, y, Theme::CYAN, "KEPT:", "%u seen, no crashes", (unsigned)info.bbKept);
+        y = drawLine(t, y, Theme::CYAN, Theme::tr("KEPT:", "ХРАНИТСЯ:"),
+                     Theme::tr("%u seen, no crashes", "%u увидено, падений нет"), (unsigned)info.bbKept);
     } else {
         char when[12] = "";
         if (info.bbHaveLast) Clock::formatEpochStamp(info.bbLast.epoch, when, sizeof when);
         // The version only where it fits: portrait is forty characters.
         const bool wide = w >= 300;
-        y = drawLine(t, y, Theme::RED, "KEPT:", "%u seen, %u crash%s, last %s%s%s",
-                     (unsigned)info.bbKept, (unsigned)info.bbCrashes, info.bbCrashes == 1 ? "" : "es",
-                     when, wide ? " v" : "", wide ? info.bbLast.version : "");
+        if (Settings::lang() == 1)
+            y = drawLine(t, y, Theme::RED, Theme::tr("KEPT:", "ХРАНИТСЯ:"),
+                         "%u увидено, падений %u, посл %s%s%s",
+                         (unsigned)info.bbKept, (unsigned)info.bbCrashes,
+                         when, wide ? " v" : "", wide ? info.bbLast.version : "");
+        else
+            y = drawLine(t, y, Theme::RED, Theme::tr("KEPT:", "ХРАНИТСЯ:"), "%u seen, %u crash%s, last %s%s%s",
+                         (unsigned)info.bbKept, (unsigned)info.bbCrashes, info.bbCrashes == 1 ? "" : "es",
+                         when, wide ? " v" : "", wide ? info.bbLast.version : "");
     }
     y += 4;
 
     if (info.hasRaw) {
-        y = drawLine(t, y, Theme::VAPOR_PURPLE, "RAW TOUCH:", "%s a=%d b=%d",
-                     info.rawTouching ? "DOWN" : "up", info.rawA, info.rawB);
+        y = drawLine(t, y, Theme::VAPOR_PURPLE, Theme::tr("RAW TOUCH:", "RAW ТАЧ:"), "%s a=%d b=%d",
+                     info.rawTouching ? Theme::tr("DOWN", "ВНИЗ") : Theme::tr("up", "вверх"), info.rawA, info.rawB);
     }
-    y = drawLine(t, y, Theme::VAPOR_PURPLE, "MAPPED:", "%s x=%d y=%d",
-                 info.touchValid ? "valid" : "--", info.mappedX, info.mappedY);
+    y = drawLine(t, y, Theme::VAPOR_PURPLE, Theme::tr("MAPPED:", "ЭКРАН:"), "%s x=%d y=%d",
+                 info.touchValid ? Theme::tr("valid", "ок") : "--", info.mappedX, info.mappedY);
     y += 4;
 
-    y = drawLine(t, y, Theme::VAPOR_PINK, "CAL SOURCE:", "%s",
+    y = drawLine(t, y, Theme::VAPOR_PINK, Theme::tr("CAL SOURCE:", "КАЛИБРОВКА:"), "%s",
                  info.calSource ? info.calSource
-                                : info.usingSavedCal ? "saved" : "compiled-in default");
-    y = drawLine(t, y, Theme::VAPOR_PINK, "CAL RANGE:", "A[%d,%d] B[%d,%d]",
+                                : (info.usingSavedCal ? Theme::tr("saved", "сохранено") : Theme::tr("compiled-in default", "по умолчанию")));
+    y = drawLine(t, y, Theme::VAPOR_PINK, Theme::tr("CAL RANGE:", "ДИАПАЗОН:"), "A[%d,%d] B[%d,%d]",
                  info.calA0, info.calA1, info.calB0, info.calB1);
     y += 4;
 
@@ -227,7 +259,8 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
     // report grew a line: the screen already ran into the BACK button.
     {
         uint32_t fus = info.frameUs ? info.frameUs : 1;
-        y = drawLine(t, y, Theme::AMBER, "FRAME:", "%lu.%lu ms (%lu fps), push %lu.%lu",
+        y = drawLine(t, y, Theme::AMBER, Theme::tr("FRAME:", "КАДР:"),
+                     Theme::tr("%lu.%lu ms (%lu fps), push %lu.%lu", "%lu.%lu мс (%lu к/с), push %lu.%lu"),
                      (unsigned long)(fus / 1000),
                      (unsigned long)((fus % 1000) / 100),
                      (unsigned long)(1000000UL / fus),
@@ -238,19 +271,22 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
         // you actually saw there -- and the part of it its background took.
         if (info.lastScreenName && info.lastScreenUs) {
             const uint32_t lus = info.lastScreenUs;
-            y = drawLine(t, y, Theme::AMBER, "LAST:", "%s %lu.%lu ms (%lu fps), bg %lu.%lu",
+            y = drawLine(t, y, Theme::AMBER, Theme::tr("LAST:", "ПРЕДЫДУЩИЙ:"),
+                         Theme::tr("%s %lu.%lu ms (%lu fps), bg %lu.%lu", "%s %lu.%lu мс (%lu к/с), bg %lu.%lu"),
                          info.lastScreenName,
                          (unsigned long)(lus / 1000), (unsigned long)((lus % 1000) / 100),
                          (unsigned long)(1000000UL / lus),
                          (unsigned long)(info.bgUs / 1000), (unsigned long)((info.bgUs % 1000) / 100));
         } else {
-            y = drawLine(t, y, Theme::AMBER, "LAST:", "no screen timed yet, bg %lu.%lu",
+            y = drawLine(t, y, Theme::AMBER, Theme::tr("LAST:", "ПРЕДЫДУЩИЙ:"),
+                         Theme::tr("no screen timed yet, bg %lu.%lu", "экран ещё не замерен, bg %lu.%lu"),
                          (unsigned long)(info.bgUs / 1000), (unsigned long)((info.bgUs % 1000) / 100));
         }
     }
     y += 4;
 
-    y = drawLine(t, y, Theme::GREEN, "LOG:", "%u entries, %lu lifetime",
+    y = drawLine(t, y, Theme::GREEN, Theme::tr("LOG:", "ЛОГ:"),
+                 Theme::tr("%u entries, %lu lifetime", "%u записей, %lu всего"),
                  (unsigned)eng.logCount(), (unsigned long)eng.lifetimeTotal());
 
 #if POTS_MESH
@@ -261,16 +297,17 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
     {
         y += 4;
         const MeshProbe::Stats ms = MeshProbe::stats();
-        y = drawLine(t, y, ms.advOn ? Theme::GREEN : Theme::CYAN, "BLE SEEN:", "%u.%u /s, %s%s",
+        y = drawLine(t, y, ms.advOn ? Theme::GREEN : Theme::CYAN, Theme::tr("BLE SEEN:", "BLE ВИДНО:"), "%u.%u /s, %s%s",
                      (unsigned)(ms.offRate / 10), (unsigned)(ms.offRate % 10),
-                     ms.advOn ? "advertising" : "not advertising",
-                     scanPassiveNow() ? ", passive" : ", active");
+                     ms.advOn ? Theme::tr("advertising", "реклама") : Theme::tr("not advertising", "не реклама"),
+                     scanPassiveNow() ? Theme::tr(", passive", ", пассив") : Theme::tr(", active", ", актив"));
         // The seatbelt's count: adverts refused because the largest free
         // block was under 1.5 KB when they came in. A big number here with
         // a small HEAP line is a board that is only alive because it is
         // ignoring the radio.
         if (advertsDropped())
-            y = drawLine(t, y, Theme::VAPOR_PINK, "DROPPED:", "%lu adverts, no heap for them",
+            y = drawLine(t, y, Theme::VAPOR_PINK, Theme::tr("DROPPED:", "ПОТЕРЯНО:"),
+                         Theme::tr("%lu adverts, no heap for them", "%lu реклам, нет памяти"),
                          (unsigned long)advertsDropped());
         // What the once-a-minute scan restart gave back: the leak it closes,
         // measured. This row used to repeat the HEAP line at the top, which
@@ -279,7 +316,8 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
         // devices that never answered; zeros here and a falling heap mean it
         // was not, and the search goes on.
         const ScanFlushStats fs = scanFlushStats();
-        y = drawLine(t, y, Theme::VAPOR_PINK, "FLUSHED:", "%lu KB total, %lu B last (x%lu)",
+        y = drawLine(t, y, Theme::VAPOR_PINK, Theme::tr("FLUSHED:", "ОЧИЩЕНО:"),
+                     Theme::tr("%lu KB total, %lu B last (x%lu)", "%lu КБ всего, %lu Б посл (x%lu)"),
                      (unsigned long)(fs.totalFreed / 1024), (unsigned long)fs.lastFreed,
                      (unsigned long)fs.count);
     }
@@ -298,5 +336,5 @@ void uiDiagnosticsTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, co
     s_clipTop = 0; s_clipBottom = 32767; s_off = 0;
     int bx, by, bw, bh;
     backButtonRect(w, h, bx, by, bw, bh);
-    Theme::drawButton(t, bx, by, bw, bh, "[ BACK ]", false);
+    Theme::drawButton(t, bx, by, bw, bh, Theme::tr("[ BACK ]", "[ НАЗАД ]"), false);
 }

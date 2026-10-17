@@ -85,16 +85,29 @@ void drawDigitOutline(TFT_eSPI& t, int x, int y, int w, int h, int th, int d, in
 // Text with no box behind it: a one-pixel dark keyline, then the colour on
 // top. For the date and AM/PM over a clock backdrop.
 void printOutlined(TFT_eSPI& t, int x, int y, const char* s, uint16_t col) {
+    const bool ru = Theme::isRu(s);
+    const uint8_t sz = t.textsize ? t.textsize : 1;
+    const bool big = sz >= 2;
+    auto put = [&]() {
+        if (!ru) { t.print(s); return; }
+        if (big) {
+            const uint8_t keepF = t.textfont;
+            t.setTextFont(1); t.setTextSize(1);
+            Theme::printRU16(t, s);
+            t.setTextSize(sz); t.setTextFont(keepF);
+        }
+        else Theme::printRU(t, s);
+    };
     t.setTextColor(Theme::BG);
     for (int dy = -1; dy <= 1; dy++)
         for (int dx = -1; dx <= 1; dx++) {
             if (!dx && !dy) continue;
             t.setCursor(x + dx, y + dy);
-            t.print(s);
+            put();
         }
     t.setTextColor(col);
     t.setCursor(x, y);
-    t.print(s);
+    put();
 }
 
 void timerRects(int screenW, int screenH, int& tx, int& ty, int& tw, int& th, int& bx, int& bw) {
@@ -258,7 +271,8 @@ static void drawMessageBox(TFT_eSPI& t, int restTop, float p, uint32_t now) {
     t.drawLine(bx + 5, by + 5, bx + 9, by + 9, XP_BLUE);
     t.drawLine(bx + 13, by + 5, bx + 9, by + 9, XP_BLUE);
     t.setCursor(bx + 18, by + 4);
-    t.print(Theme::tr("MESSAGE", "СООБЩЕНИЕ"));
+    const char* msgTitle = Theme::tr("MESSAGE", "СООБЩЕНИЕ");
+    if (Theme::isRu(msgTitle)) { t.setTextFont(1); Theme::printRU(t, msgTitle); } else t.print(msgTitle);
     t.fillRoundRect(bx + bw - 15, by + 2, 12, 11, 2, XP_CLOSE);
     t.setTextColor(Theme::WHITE, XP_CLOSE);
     t.setCursor(bx + bw - 12, by + 4);
@@ -271,7 +285,10 @@ static void drawMessageBox(TFT_eSPI& t, int restTop, float p, uint32_t now) {
         char tm[8], date[20];
         Clock::formatStamp(m.at, tm, sizeof tm);
         Clock::formatDate(date, sizeof date);
-        snprintf(stamp, sizeof stamp, "%s %s", tm, date + 4);   // drop the weekday
+        const char* rest = date;                       // drop the weekday
+        while (*rest && *rest != ' ') rest++;
+        if (*rest == ' ') rest++;
+        snprintf(stamp, sizeof stamp, "%s %s", tm, rest);
     } else {
         Clock::formatStamp(m.at, stamp, sizeof stamp);
     }
@@ -288,8 +305,8 @@ static void drawMessageBox(TFT_eSPI& t, int restTop, float p, uint32_t now) {
     // The time, bottom right of the body, in the orange of a film camera.
     t.setTextSize(1);
     t.setTextColor(XP_CLOSE, XP_BODY);
-    t.setCursor(bx + bw - 6 - t.textWidth(stamp), by + bh - 11);
-    t.print(stamp);
+    t.setCursor(bx + bw - 6 - (Theme::isRu(stamp) ? Theme::textWidthRU(t, stamp) : t.textWidth(stamp)), by + bh - 11);
+    if (Theme::isRu(stamp)) { t.setTextFont(1); Theme::printRU(t, stamp); } else t.print(stamp);
     // The tap target: the box where it will come to rest, plus the polaroid.
     s_msgX0 = 0; s_msgY0 = restTop; s_msgX1 = bx + bw; s_msgY1 = restTop + bh;
 }
@@ -383,12 +400,13 @@ void uiDeskTapTimer(uint32_t now) {
     if (s_timer == Timer::IDLE) {
         s_timer = Timer::FOCUS;
         s_timerEnd = now + FOCUS_MS;
-        sayFocus("Twenty-five minutes. I'll keep the time. You keep the focus.", now);
+        sayFocus(Theme::tr("Twenty-five minutes. I'll keep the time. You keep the focus.",
+                           "Двадцать пять минут. Время держу я. Ты держи фокус."), now);
     } else {
         // A running block is stopped by a tap, no confirmation: the cost of
         // a stray tap is one more tap.
         s_timer = Timer::IDLE;
-        Potsy::announce("Timer off. No judgement.");
+        Potsy::announce(Theme::tr("Timer off. No judgement.", "Таймер выключен. Без осуждений."));
     }
 }
 
@@ -416,10 +434,12 @@ void uiDeskTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
         if (s_timer == Timer::FOCUS) {
             s_timer = Timer::BREAK;
             s_timerEnd = now + BREAK_MS;
-            sayFocus("Time. Stand up, look at something far away. Five minutes.", now);
+            sayFocus(Theme::tr("Time. Stand up, look at something far away. Five minutes.",
+                               "Время. Встань, посмотри вдаль. Пять минут."), now);
         } else {
             s_timer = Timer::IDLE;
-            Potsy::announce("Break's over. Back to it, or don't, I'm a screen.");
+            Potsy::announce(Theme::tr("Break's over. Back to it, or don't, I'm a screen.",
+                                      "Перерыв кончился. Возвращайся, или нет, я просто экран."));
         }
     }
 
@@ -530,7 +550,10 @@ void uiDeskTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
     char date[20];
     Clock::formatDate(date, sizeof date);
     t.setTextSize(2);
-    const int dateW = t.textWidth(date);
+    const bool dateRu = Theme::isRu(date);
+    if (dateRu) t.setTextSize(1);
+    const int dateW = dateRu ? Theme::textWidthRU16(t, date) : t.textWidth(date);
+    if (dateRu) t.setTextSize(2);
     // Four px of air a side, not ten: the plate hugs the time. It still grows
     // when the hour gets its second digit at ten, but by the digit alone, and
     // in portrait a two-digit hour no longer runs it into the corner icons.
@@ -562,10 +585,15 @@ void uiDeskTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
     } else {
         t.setTextColor(Theme::CYAN, Theme::BG);
         t.setCursor((w - dateW) / 2, plateTop + 3 + pad);
-        t.print(date);
+        if (dateRu) {
+            const uint8_t keepF = t.textfont;
+            t.setTextFont(1); t.setTextSize(1);
+            Theme::printRU16(t, date);
+            t.setTextSize(2); t.setTextFont(keepF);
+        } else t.print(date);
     }
     t.setTextSize(1);
-    Theme::drawTitleBar(t, ">> DESK <<");
+    Theme::drawTitleBar(t, Theme::tr(">> DESK <<", ">> ЧАСЫ <<"));
 
     // Bangers draws into the same cells the segments use, so the plate, the
     // AM/PM and everything measured off them stay where they are. Each digit
@@ -609,13 +637,13 @@ void uiDeskTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
     // AM / PM beside the last digit, at its foot.
     if (twelveHour) {
         const uint16_t ac = set ? Theme::VAPOR_YELLOW : Theme::W95_SHADOW;
-        const char* half = set ? (pm ? "PM" : "AM") : "--";
+        const char* half = set ? (pm ? Theme::tr("PM", "ПП") : Theme::tr("AM", "ДП")) : "--";
         if (backdrop) {
             printOutlined(t, x - gap + 2, y + dh - 8, half, ac);
         } else {
             t.setTextColor(ac, Theme::BG);
             t.setCursor(x - gap + 2, y + dh - 8);
-            t.print(half);
+            if (Theme::isRu(half)) Theme::printRU(t, half); else t.print(half);
         }
     }
 
@@ -625,8 +653,9 @@ void uiDeskTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
                                          : Theme::tr("SET BY WIFI AT BOOT, OR TIME <EPOCH> ON SERIAL",
                                                      "WIFI ПРИ СТАРТЕ, ЛИБО TIME <EPOCH> В ПОРТ");
         t.setTextColor(Theme::W95_SHADOW, Theme::BG);
-        t.setCursor((w - t.textWidth(m)) / 2, y + dh + 4);
-        t.print(m);
+        const int mw = Theme::isRu(m) ? Theme::textWidthRU(t, m) : t.textWidth(m);
+        t.setCursor((w - mw) / 2, y + dh + 4);
+        if (Theme::isRu(m)) { t.setTextFont(1); Theme::printRU(t, m); } else t.print(m);
     }
 
     // The timer's progress, a thin bar under the digits while a block runs.

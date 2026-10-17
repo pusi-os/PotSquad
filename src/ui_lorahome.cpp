@@ -47,26 +47,38 @@ uint16_t netCol(Lora::Proto p) { return p == Lora::Proto::MESHCORE ? Theme::PINK
 
 void age(uint32_t now, uint32_t ms, char* out, size_t cap) {
     const uint32_t s = (now - ms) / 1000;
-    if (s < 60)         snprintf(out, cap, "%lus", (unsigned long)s);
-    else if (s < 3600)  snprintf(out, cap, "%lum", (unsigned long)(s / 60));
-    else if (s < 86400) snprintf(out, cap, "%luh", (unsigned long)(s / 3600));
-    else                snprintf(out, cap, "%lud", (unsigned long)(s / 86400));
+    if (s < 60)         snprintf(out, cap, "%lu%s", (unsigned long)s, Theme::tr("s", "с"));
+    else if (s < 3600)  snprintf(out, cap, "%lu%s", (unsigned long)(s / 60), Theme::tr("m", "м"));
+    else if (s < 86400) snprintf(out, cap, "%lu%s", (unsigned long)(s / 3600), Theme::tr("h", "ч"));
+    else                snprintf(out, cap, "%lu%s", (unsigned long)(s / 86400), Theme::tr("d", "д"));
 }
 
 // Text in the 6x8 font, size 1: the whole page is drawn in it, like the lab.
 void small(TFT_eSPI& t, int x, int y, const char* s, uint16_t col, uint16_t bg = Theme::BG) {
     t.setTextFont(1); t.setTextSize(1);
     t.setTextColor(col, bg);
-    t.setCursor(x, y); t.print(s);
+    t.setCursor(x, y);
+    if (Theme::isRu(s)) Theme::printRU(t, s); else t.print(s);
 }
 void smallClip(TFT_eSPI& t, int x, int y, const char* s, uint16_t col, int maxW) {
     char buf[64];
     snprintf(buf, sizeof buf, "%s", s);
     t.setTextFont(1); t.setTextSize(1);
+    const bool ru = Theme::isRu(buf);
     size_t n = strlen(buf);
-    while (n && t.textWidth(buf) > maxW) buf[--n] = '\0';
+    if (ru) {
+        while (n && Theme::textWidthRU(t, buf) > maxW) {
+            size_t k = n;
+            while (k > 0 && ((unsigned char)buf[k - 1] & 0xC0) == 0x80) k--;   // one codepoint back
+            if (k > 0) k--;
+            buf[k] = '\0'; n = k;
+        }
+    } else {
+        while (n && t.textWidth(buf) > maxW) buf[--n] = '\0';
+    }
     t.setTextColor(col, Theme::BG);
-    t.setCursor(x, y); t.print(buf);
+    t.setCursor(x, y);
+    if (ru) Theme::printRU(t, buf); else t.print(buf);
 }
 
 // Every third row a shade darker over a region: the lab's scanlines, kept
@@ -84,16 +96,18 @@ void scanlines(TFT_eSPI& t, int x, int y, int w, int h) {
 void drawHeader(TFT_eSPI& t, uint32_t now) {
     char line[40];
     const uint8_t nodes = Lora::nodeCount();
-    snprintf(line, sizeof line, "LORA  %s  %u NODES",
-             Settings::loraListen() == 3 ? "BOTH" : Settings::loraListen() == 2 ? "MESHCORE" : "MESHTASTIC", (unsigned)nodes);
+    snprintf(line, sizeof line, Theme::tr("LORA  %s  %u NODES", "LORA  %s  %u УЗЛОВ"),
+             Settings::loraListen() == 3 ? Theme::tr("BOTH", "ОБА") : Settings::loraListen() == 2 ? "MESHCORE" : "MESHTASTIC", (unsigned)nodes);
     t.setTextFont(1); t.setTextSize(1);
-    small(t, (t.width() - t.textWidth(line)) / 2, 3, line, Theme::WHITE);
-    if (Lora::mode() != Lora::Mode::OFF && (now / 600) % 2) small(t, 60, 3, "LIVE", Theme::GREEN);
+    small(t, (t.width() - (Theme::isRu(line) ? Theme::textWidthRU(t, line) : t.textWidth(line))) / 2, 3, line, Theme::WHITE);
+    if (Lora::mode() != Lora::Mode::OFF && (now / 600) % 2) small(t, 60, 3, Theme::tr("LIVE", "ЭФИР"), Theme::GREEN);
     // BACK in the top-right corner, away from the compose line's switch: at
     // the bottom it was a thumb's slip from MESHCORE (asked for 2026-10-15).
-    small(t, t.width() - 6 - 54, 3, "[ BACK ]", Theme::PURPLE);
+    small(t, t.width() - 6 - 54, 3, Theme::tr("[ BACK ]", "[ НАЗАД ]"), Theme::PURPLE);
     // Each network's preset, under the title, in its colour.
-    char mt[32] = "MT off", mc[32] = "MC off";
+    char mt[32], mc[32];
+    snprintf(mt, sizeof mt, "%s", Theme::tr("MT off", "MT ВЫКЛ"));
+    snprintf(mc, sizeof mc, "%s", Theme::tr("MC off", "MC ВЫКЛ"));
     for (uint8_t i = 0; i < Lora::profileCount(); i++) {
         const Lora::Profile& p = Lora::profile(i);
         if (p.group != Lora::PG_MESH_US && p.group != Lora::PG_MESH_EU) continue;
@@ -142,7 +156,8 @@ Numbers numbers(uint32_t nowMs) {
 }
 
 void drawTiles(TFT_eSPI& t, const Numbers& n) {
-    const char* keys[4] = { "NOW", "FLOOR", "PEAK", "MARGIN" };
+    const char* keys[4] = { Theme::tr("NOW", "СЕЙЧАС"), Theme::tr("FLOOR", "ШУМ"),
+                            Theme::tr("PEAK", "ПИК"), Theme::tr("MARGIN", "ЗАПАС") };
     const int16_t vals[4] = { n.now, n.floor, n.peak, n.margin };
     const uint16_t cols[4] = { Theme::WHITE, dim(Theme::WHITE, 120), Theme::AMBER,
                                n.margin <= -128 ? dim(Theme::WHITE, 120) : n.margin >= 15 ? Theme::GREEN : n.margin >= 6 ? Theme::AMBER : Theme::RED };
@@ -151,7 +166,8 @@ void drawTiles(TFT_eSPI& t, const Numbers& n) {
         t.fillRect(x, TILE_Y, TILE_W, TILE_H, 0x0862);
         t.drawRect(x, TILE_Y, TILE_W, TILE_H, 0x2946);
         t.setTextFont(1); t.setTextSize(1);
-        small(t, x + (TILE_W - t.textWidth(keys[i])) / 2, TILE_Y + 3, keys[i], dim(Theme::WHITE, 110), 0x0862);
+        const int kw = Theme::isRu(keys[i]) ? Theme::textWidthRU(t, keys[i]) : t.textWidth(keys[i]);
+        small(t, x + (TILE_W - kw) / 2, TILE_Y + 3, keys[i], dim(Theme::WHITE, 110), 0x0862);
         char v[8];
         if (vals[i] <= -128) snprintf(v, sizeof v, "--");
         else if (i == 3)     snprintf(v, sizeof v, "%+d", (int)vals[i]);
@@ -583,8 +599,9 @@ struct Blip { float x, y; bool known, direct; Lora::Proto proto; float miles; co
 
 const char* compass(float deg) {
     static const char* N[8] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
+    static const char* R[8] = { "С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ" };
     int i = (int)((deg + 22.5f) / 45.0f) % 8; if (i < 0) i += 8;
-    return N[i];
+    return Settings::lang() == 1 ? R[i] : N[i];
 }
 
 void drawDish(TFT_eSPI& t, uint32_t now) {
@@ -660,7 +677,7 @@ void drawDish(TFT_eSPI& t, uint32_t now) {
                 char pv[24];
                 const char* nm = Privacy::name(b.tag, pv, sizeof pv);
                 t.setTextFont(1); t.setTextSize(1);
-                const int tw = t.textWidth(nm);
+                const int tw = Theme::isRu(nm) ? Theme::textWidthRU(t, nm) : t.textWidth(nm);
                 int lx = x > cx ? x + 5 : x - 5 - tw;
                 if (lx + tw > cx + R + 6) lx = x - 5 - tw;
                 if (lx < 2) lx = 2;
@@ -674,17 +691,17 @@ void drawDish(TFT_eSPI& t, uint32_t now) {
         }
     }
     t.fillCircle(cx, cy, 2, Theme::WHITE);
-    small(t, cx - 3, cy - R - 9, "N", dim(Theme::WHITE, 110));
-    small(t, cx - R + 2, cy + R - 8, "10mi", dim(Theme::WHITE, 110), 0x0041);
+    small(t, cx - 3, cy - R - 9, Theme::tr("N", "С"), dim(Theme::WHITE, 110));
+    small(t, cx - R + 2, cy + R - 8, Theme::tr("10mi", "10 МИЛЬ"), dim(Theme::WHITE, 110), 0x0041);
     // Under the dish, three lines. The GPS's own state first, in words: the
     // legend used to end "NO POS", which meant "a rim dot sent no position"
     // and read as "your GPS has no position" (a tester, 2026-10-15).
     {
         char g[24];
         uint16_t gc;
-        if (haveFix)                 { snprintf(g, sizeof g, "GPS FIX %u SATS", (unsigned)fix.used); gc = Theme::GREEN; }
-        else if (Gnss::good() > 0)   { snprintf(g, sizeof g, "GPS SEARCHING"); gc = Theme::AMBER; }
-        else                         { snprintf(g, sizeof g, "GPS NOT HEARD"); gc = dim(Theme::WHITE, 150); }
+        if (haveFix)                 { snprintf(g, sizeof g, Theme::tr("GPS FIX %u SATS", "GPS: %u СПУТН"), (unsigned)fix.used); gc = Theme::GREEN; }
+        else if (Gnss::good() > 0)   { snprintf(g, sizeof g, "%s", Theme::tr("GPS SEARCHING", "GPS: ПОИСК")); gc = Theme::AMBER; }
+        else                         { snprintf(g, sizeof g, "%s", Theme::tr("GPS NOT HEARD", "GPS МОЛЧИТ")); gc = dim(Theme::WHITE, 150); }
         smallClip(t, 4, cy + R + 3, g, gc, 100);
     }
     // Then the nearest node that has said where it is, or why there is none.
@@ -692,20 +709,20 @@ void drawDish(TFT_eSPI& t, uint32_t now) {
         const Blip& b = blips[order[0]];
         char pv[24], line[28];
         const char* nm = Privacy::name(b.tag, pv, sizeof pv);
-        if (b.miles < 10) snprintf(line, sizeof line, "%s %u.%umi %s", nm, (unsigned)b.miles, (unsigned)(b.miles * 10) % 10, compass(b.bearing));
-        else              snprintf(line, sizeof line, "%s %umi %s", nm, (unsigned)b.miles, compass(b.bearing));
+        if (b.miles < 10) snprintf(line, sizeof line, Theme::tr("%s %u.%umi %s", "%s %u.%u МИЛЬ %s"), nm, (unsigned)b.miles, (unsigned)(b.miles * 10) % 10, compass(b.bearing));
+        else              snprintf(line, sizeof line, Theme::tr("%s %umi %s", "%s %u МИЛЬ %s"), nm, (unsigned)b.miles, compass(b.bearing));
         smallClip(t, 4, cy + R + 12, line, netCol(b.proto), 100);
     } else if (nb) {
         // Heard, but none has sent a position yet (Meshtastic's default is one
         // every 15-30 min, and many owners turn it off), or no fix to place them.
-        smallClip(t, 4, cy + R + 12, haveFix ? "NO NODE POS YET" : "NEEDS A GPS FIX", dim(Theme::WHITE, 150), 100);
+        smallClip(t, 4, cy + R + 12, haveFix ? Theme::tr("NO NODE POS YET", "НЕТ ПОЗИЦИЙ") : Theme::tr("NEEDS A GPS FIX", "НУЖЕН GPS"), dim(Theme::WHITE, 150), 100);
     } else {
-        small(t, 4, cy + R + 12, "NOBODY HEARD YET", dim(Theme::WHITE, 150));
+        small(t, 4, cy + R + 12, Theme::tr("NOBODY HEARD YET", "ПОКА НИКОГО"), dim(Theme::WHITE, 150));
     }
     // And the key: filled heard direct, hollow through relays. A rim dot is a
     // node with no position; the line above says when that is all of them.
-    t.fillCircle(7, cy + R + 25, 1, Theme::WHITE);   small(t, 11, cy + R + 21, "DIRECT", dim(Theme::WHITE, 150));
-    t.drawCircle(56, cy + R + 25, 2, Theme::WHITE);  small(t, 61, cy + R + 21, "RELAY", dim(Theme::WHITE, 150));
+    t.fillCircle(7, cy + R + 25, 1, Theme::WHITE);   small(t, 11, cy + R + 21, Theme::tr("DIRECT", "ПРЯМО"), dim(Theme::WHITE, 150));
+    t.drawCircle(56, cy + R + 25, 2, Theme::WHITE);  small(t, 61, cy + R + 21, Theme::tr("RELAY", "РЕЛЕЙ"), dim(Theme::WHITE, 150));
 }
 
 // ---- the chats -------------------------------------------------------------------
@@ -748,9 +765,9 @@ void drawChats(TFT_eSPI& t, uint32_t now) {
         small(t, x + 4, CHAT_Y + 3, names[c], cols[c], dim(cols[c], 36));
         char badge[12];
         if (c == 0 && unread) {
-            snprintf(badge, sizeof badge, "%u NEW", (unsigned)unread);
+            snprintf(badge, sizeof badge, Theme::tr("%u NEW", "%u НОВ"), (unsigned)unread);
             t.setTextFont(1); t.setTextSize(1);
-            const int bw = t.textWidth(badge) + 6;
+            const int bw = (Theme::isRu(badge) ? Theme::textWidthRU(t, badge) : t.textWidth(badge)) + 6;
             t.fillRect(x + colW - 3 - bw, CHAT_Y + 2, bw, 10, cols[c]);
             small(t, x + colW - bw, CHAT_Y + 3, badge, Theme::BLACK, cols[c]);
         } else {
@@ -759,7 +776,7 @@ void drawChats(TFT_eSPI& t, uint32_t now) {
             small(t, x + colW - 4 - t.textWidth(badge), CHAT_Y + 3, badge, cols[c], dim(cols[c], 36));
         }
         if (!kept[c]) {
-            small(t, x + 4, CHAT_Y + 18, "nothing yet", dim(Theme::WHITE, 120));
+            small(t, x + 4, CHAT_Y + 18, Theme::tr("nothing yet", "пока ничего"), dim(Theme::WHITE, 120));
             continue;
         }
         for (uint8_t i = 0; i < kept[c]; i++) {
@@ -771,14 +788,27 @@ void drawChats(TFT_eSPI& t, uint32_t now) {
             age(now, r.ms, ago, sizeof ago);
             t.setTextFont(1); t.setTextSize(1);
             const uint16_t bg = i == 0 ? dim(cols[c], 22) : Theme::BG;
-            t.setTextColor(cols[c], bg); t.setCursor(x + 4, y + 1); t.print(who);
+            t.setTextColor(cols[c], bg); t.setCursor(x + 4, y + 1);
+            if (Theme::isRu(who)) Theme::printRU(t, who); else t.print(who);
             const int tx = t.getCursorX() + 4;
-            const int agoW = t.textWidth(ago);
+            const bool agoRu = Theme::isRu(ago);
+            const int agoW = agoRu ? Theme::textWidthRU(t, ago) : t.textWidth(ago);
             char text[48]; snprintf(text, sizeof text, "%s", r.text);
             size_t tn = strlen(text);
-            while (tn && tx + t.textWidth(text) > x + colW - 8 - agoW) text[--tn] = '\0';
-            t.setTextColor(Theme::WHITE, bg); t.setCursor(tx, y + 1); t.print(text);
-            t.setTextColor(dim(Theme::WHITE, 110), bg); t.setCursor(x + colW - 4 - agoW, y + 1); t.print(ago);
+            if (Theme::isRu(text)) {
+                while (tn && tx + Theme::textWidthRU(t, text) > x + colW - 8 - agoW) {
+                    size_t k = tn;
+                    while (k > 0 && ((unsigned char)text[k - 1] & 0xC0) == 0x80) k--;
+                    if (k > 0) k--;
+                    text[k] = '\0'; tn = k;
+                }
+            } else {
+                while (tn && tx + t.textWidth(text) > x + colW - 8 - agoW) text[--tn] = '\0';
+            }
+            t.setTextColor(Theme::WHITE, bg); t.setCursor(tx, y + 1);
+            if (Theme::isRu(text)) Theme::printRU(t, text); else t.print(text);
+            t.setTextColor(dim(Theme::WHITE, 110), bg); t.setCursor(x + colW - 4 - agoW, y + 1);
+            if (agoRu) Theme::printRU(t, ago); else t.print(ago);
         }
     }
 }
@@ -793,9 +823,9 @@ void drawCompose(TFT_eSPI& t, uint32_t now) {
     if (s_status[0] && now - s_statusAt < 2500) {
         small(t, 8, COMPOSE_Y + 2, s_status, Theme::VAPOR_YELLOW, dim(Theme::WHITE, 18));
     } else if (!Settings::loraTxDbm() && !s_composeN) {
-        small(t, 8, COMPOSE_Y + 2, "TYPE TO SEND (LORA TX IS OFF: SETTINGS)", dim(Theme::WHITE, 120), dim(Theme::WHITE, 18));
+        small(t, 8, COMPOSE_Y + 2, Theme::tr("TYPE TO SEND (LORA TX IS OFF: SETTINGS)", "LORA TX ВЫКЛ: НАСТРОЙКИ"), dim(Theme::WHITE, 120), dim(Theme::WHITE, 18));
     } else if (!s_composeN) {
-        small(t, 8, COMPOSE_Y + 2, "TYPE TO SEND, ENTER SENDS", dim(accent, 170), dim(Theme::WHITE, 18));
+        small(t, 8, COMPOSE_Y + 2, Theme::tr("TYPE TO SEND, ENTER SENDS", "НАБЕРИ, ENTER ШЛЁТ"), dim(accent, 170), dim(Theme::WHITE, 18));
     } else {
         char line[168]; snprintf(line, sizeof line, "%s_", s_compose);
         const char* p = line;
@@ -806,8 +836,8 @@ void drawCompose(TFT_eSPI& t, uint32_t now) {
 
 void drawBar(TFT_eSPI& t) {
     t.fillRect(0, BAR_Y, t.width(), t.height() - BAR_Y, 0x0862);
-    small(t, 6, BAR_Y + 3, "[ CHATS ]", Theme::CYAN, 0x0862);
-    small(t, 96, BAR_Y + 3, "ENTER SENDS", dim(Theme::WHITE, 110), 0x0862);
+    small(t, 6, BAR_Y + 3, Theme::tr("[ CHATS ]", "[ ЧАТЫ ]"), Theme::CYAN, 0x0862);
+    small(t, 96, BAR_Y + 3, Theme::tr("ENTER SENDS", "ENTER ШЛЁТ"), dim(Theme::WHITE, 110), 0x0862);
 }
 
 // The switch: which network Enter sends to. Twice the compose line's height
@@ -884,11 +914,11 @@ void uiLoraHomeKey(char c, uint32_t now) {
     if (c == '\b') { if (s_composeN) s_compose[--s_composeN] = '\0'; return; }
     if (c == '\n') {
         if (!s_composeN) return;
-        if (!Settings::loraTxDbm()) { snprintf(s_status, sizeof s_status, "LORA TX IS OFF: SETTINGS > LORA"); s_statusAt = now; return; }
+        if (!Settings::loraTxDbm()) { snprintf(s_status, sizeof s_status, "%s", Theme::tr("LORA TX IS OFF: SETTINGS > LORA", "LORA TX ВЫКЛ: НАСТРОЙКИ")); s_statusAt = now; return; }
         const char* nick = Potsy::nickname();
         if (!nick || !*nick) nick = "POTSY";
         const bool ok = Lora::sendText(s_net ? Lora::Proto::MESHCORE : Lora::Proto::MESHTASTIC, nick, s_compose, (int8_t)Settings::loraTxDbm());
-        snprintf(s_status, sizeof s_status, ok ? "SENT" : "SEND FAILED");
+        snprintf(s_status, sizeof s_status, "%s", ok ? Theme::tr("SENT", "ОТПРАВЛЕНО") : Theme::tr("SEND FAILED", "НЕ УДАЛОСЬ"));
         s_statusAt = now;
         if (ok) { s_composeN = 0; s_compose[0] = '\0'; }
         return;

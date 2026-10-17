@@ -1304,7 +1304,7 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             break;
 #if defined(FREENOVE_S3) || defined(FREENOVE_S3_35) || defined(MARAUDER_V8) || defined(TDECK_PLUS)
         case SettingsRow::BOARD_BATTERY:
-            label = "BATTERY"; boardBatteryLine(valBuf, valBufN); value = valBuf;
+            label = Theme::tr("BATTERY", "БАТАРЕЯ"); boardBatteryLine(valBuf, valBufN); value = valBuf;
             break;
 #endif
 #if defined(TWATCH_S3)
@@ -1350,7 +1350,7 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
         // they fell through to "?" on the T-Deck (2026-10-13).
 #if POTS_LORA
         case SettingsRow::WATCH_LORA:
-            label = "LORA"; value = Settings::loraListenName();
+            label = Theme::tr("LORA", "LORA"); value = Settings::loraListenName();
             break;
         case SettingsRow::WATCH_LORA_CHATS: {
             label = Theme::tr("LORA CHATS", "LORA ЧАТЫ");
@@ -1360,7 +1360,7 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             break;
         }
         case SettingsRow::LORA_TX:
-            label = "LORA TX"; value = Settings::loraTxName();
+            label = Theme::tr("LORA TX", "LORA TX"); value = Settings::loraTxName();
             break;
 #endif
 #if defined(CYD_GPS)
@@ -1398,55 +1398,55 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             break;
         }
         case SettingsRow::POWER_SAVER:
-            label = "POWER SAVER"; value = Settings::powerSaver() ? "ON" : "OFF";
+            label = Theme::tr("POWER SAVER", "ЭНЕРГОСБЕР"); value = Theme::onOff(Settings::powerSaver());
             break;
         case SettingsRow::STATUS_LIGHT:
-            label = "STATUS LIGHT"; value = Settings::lightOn() ? "ON" : "OFF";
+            label = Theme::tr("STATUS LIGHT", "ПОДСВЕТКА"); value = Theme::onOff(Settings::lightOn());
             break;
         case SettingsRow::SECURITY:
-            label = "SECURITY"; value = Security::enabled() ? "PIN ON" : "OFF";
+            label = Theme::tr("SECURITY", "БЕЗОПАСНОСТЬ"); value = Security::enabled() ? Theme::tr("PIN ON", "ПИН ВКЛ") : Theme::tr("OFF", "ВЫКЛ");
             break;
         case SettingsRow::CALIBRATE:
-            label = "CALIBRATE TOUCH";
+            label = Theme::tr("CALIBRATE TOUCH", "КАЛИБРОВКА");
             break;
         case SettingsRow::CHECK_COLORS:
-            label = "CHECK COLORS";
+            label = Theme::tr("CHECK COLORS", "ПРОВЕРКА ЦВЕТА");
             break;
         case SettingsRow::DIAGNOSTICS:
-            label = "DIAGNOSTICS";
+            label = Theme::tr("DIAGNOSTICS", "ДИАГНОСТИКА");
             break;
         case SettingsRow::UPDATE_FIRMWARE:
             // The row names the newer version when one is known, so the boot
             // check and a member's hello have somewhere to point.
-            label = "UPDATE FIRMWARE";
+            label = Theme::tr("UPDATE FIRMWARE", "ОБНОВЛЕНИЕ");
             if (OtaCore::availableVersion()[0]) { snprintf(valBuf, valBufN, "v%s >", OtaCore::availableVersion()); value = valBuf; }
             else value = ">";
             break;
         case SettingsRow::UPDATE_CHECK:
-            label = "UPDATE CHECK"; value = Settings::updateCheck() ? "AT BOOT" : "OFF";
+            label = Theme::tr("UPDATE CHECK", "ПРОВЕРКА ОБНОВ"); value = Settings::updateCheck() ? Theme::tr("AT BOOT", "ПРИ СТАРТЕ") : Theme::tr("OFF", "ВЫКЛ");
             break;
         case SettingsRow::LANGUAGE:
             label = Theme::tr("LANGUAGE", "ЯЗЫК"); value = Settings::langName();
             break;
         case SettingsRow::WIFI_NETWORKS:
-            label = "WIFI NETWORKS";
-            if (OtaWifi::savedCount()) { snprintf(valBuf, valBufN, "%u SAVED >", (unsigned)OtaWifi::savedCount()); value = valBuf; }
-            else value = "NONE >";
+            label = Theme::tr("WIFI NETWORKS", "WIFI СЕТИ");
+            if (OtaWifi::savedCount()) { snprintf(valBuf, valBufN, Theme::tr("%u SAVED >", "%u СОХР >"), (unsigned)OtaWifi::savedCount()); value = valBuf; }
+            else value = Theme::tr("NONE >", "НЕТ >");
             break;
         case SettingsRow::TIME_ZONE:
             // Two arrows like BRIGHT's minus and plus: the left half of the
             // row steps west, the right half east, so going one past your
             // zone is one tap back rather than a lap of the world.
-            label = "ZONE <  >"; value = Settings::timeZoneName();
+            label = Theme::tr("ZONE <  >", "ПОЯС <  >"); value = Settings::timeZoneName();
             break;
         case SettingsRow::REPLAY_INTRO:
-            label = "REPLAY INTRO";
+            label = Theme::tr("REPLAY INTRO", "ПОВТОР ИНТРО");
             break;
         case SettingsRow::SHOW_OFF:
-            label = "SHOW OFF";
+            label = Theme::tr("SHOW OFF", "ВЫКЛ ПОКАЗ");
             break;
         case SettingsRow::SHADES_COLOR:
-            label = "SHADES COLOR"; value = Potsy::shadesColorName();
+            label = Theme::tr("SHADES COLOR", "ЦВЕТ ОЧКОВ"); value = Potsy::shadesColorName();
             break;
         case SettingsRow::SHIRT_COLOR:
             label = Theme::tr("SHIRT COLOR", "ЦВЕТ ФУТБОЛКИ");
@@ -1498,7 +1498,7 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             break;
         }
         case SettingsRow::PUSIMESH:
-            label = "PUSIMESH";
+            label = Theme::tr("PUSIMESH", "PUSIMESH");
             value = Settings::meshSummary();
             break;
 #endif
@@ -1627,12 +1627,12 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     }
     Theme::restorePalette(saved);
 
-    const char* pageTitle = ">> SETTINGS <<";
-    if (s_page == SettingsPage::APPEARANCE) pageTitle = ">> APPEARANCE <<";
-    else if (s_page == SettingsPage::SYSTEM) pageTitle = ">> SYSTEM <<";
-    else if (s_page == SettingsPage::DESK)   pageTitle = ">> DESK MODE <<";
-    else if (s_page == SettingsPage::WATCH)  pageTitle = ">> WATCH SETTINGS <<";
-    else if (s_page == SettingsPage::FONTS)  pageTitle = ">> FONTS <<";
+    const char* pageTitle = Theme::tr(">> SETTINGS <<", ">> НАСТРОЙКИ <<");
+    if (s_page == SettingsPage::APPEARANCE) pageTitle = Theme::tr(">> APPEARANCE <<", ">> ВНЕШНОСТЬ <<");
+    else if (s_page == SettingsPage::SYSTEM) pageTitle = Theme::tr(">> SYSTEM <<", ">> СИСТЕМА <<");
+    else if (s_page == SettingsPage::DESK)   pageTitle = Theme::tr(">> DESK MODE <<", ">> РЕЖИМ ЧАСОВ <<");
+    else if (s_page == SettingsPage::WATCH)  pageTitle = Theme::tr(">> WATCH SETTINGS <<", ">> НАСТРОЙКИ ЧАСОВ <<");
+    else if (s_page == SettingsPage::FONTS)  pageTitle = Theme::tr(">> FONTS <<", ">> ШРИФТЫ <<");
     Theme::drawTitleBar(t, pageTitle);
 
     // +6, not +4: four group headers plus the two tracking rows.

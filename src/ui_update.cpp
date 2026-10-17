@@ -162,13 +162,13 @@ void drawMenu(TFT_eSPI& t) {
 
     Theme::drawWin95Button(t, g.x, g.wifiY, g.w, btnH(), Theme::tr("UPDATE OVER WIFI", "ОБНОВА ПО WIFI"), false);
     if (OtaBle::available())
-        Theme::drawWin95Button(t, g.x, g.btY,   g.w, btnH(), "UPDATE OVER BLUETOOTH (BETA)", false);
+        Theme::drawWin95Button(t, g.x, g.btY,   g.w, btnH(), Theme::tr("UPDATE OVER BLUETOOTH (BETA)", "ОБНОВА ПО BLUETOOTH (БЕТА)"), false);
 #if POTS_MESH
     Theme::drawWin95Button(t, g.x, g.squadY, g.w, btnH(), Theme::tr("UPDATE SQUAD", "ОБНОВИТЬ СКВАД"), false);
 #endif
     if (other) {
         char b[40];
-        snprintf(b, sizeof b, "SWITCH TO %.20s", other);
+        snprintf(b, sizeof b, Theme::tr("SWITCH TO %.20s", "НА %.20s"), other);
         Theme::drawWin95Button(t, g.x, g.switchY, g.w, btnH(), b, false);
     }
     backButton(t, Theme::tr("BACK", "НАЗАД"));
@@ -179,21 +179,19 @@ void drawSwitchPanel(TFT_eSPI& t) {
     Theme::dimRegion(t, 0, 0, t.width(), t.height(), 140);
     t.fillRect(p.x, p.y, p.w, p.h, Theme::BG);
     t.drawRect(p.x, p.y, p.w, p.h, Theme::CYAN);
-    char head[40];
-    snprintf(head, sizeof head, "SWITCH TO %.20s?", OtaCore::otherVersion() ? OtaCore::otherVersion() : "");
+    char head[48];
+    snprintf(head, sizeof head, Theme::tr("SWITCH TO %.20s?", "НА %.20s?"), OtaCore::otherVersion() ? OtaCore::otherVersion() : "");
     int y = p.y + 10;
     t.setTextColor(Theme::AMBER, Theme::BG);
-    t.setCursor(p.x + (p.w - t.textWidth(head)) / 2, y);
-    t.print(head);
+    Theme::rowPrint(t, head, p.x + (p.w - Theme::rowWidth(t, head)) / 2, y);
     y += lineH(t) + 4;
-    const char* l1 = "Restarts into the other version.";
-    const char* l2 = "Your settings stay.";
+    const char* l1 = Theme::tr("Restarts into the other version.", "Перезапустится в другую версию.");
+    const char* l2 = Theme::tr("Your settings stay.", "Твои настройки сохранятся.");
     t.setTextColor(Theme::WHITE, Theme::BG);
-    t.setCursor(p.x + (p.w - t.textWidth(l1)) / 2, y); t.print(l1);
-    y += lineH(t);
-    t.setCursor(p.x + (p.w - t.textWidth(l2)) / 2, y); t.print(l2);
-    Theme::drawWin95Button(t, p.yesX, p.btnY, p.btnW, btnH(), "SWITCH", false);
-    Theme::drawWin95Button(t, p.noX,  p.btnY, p.btnW, btnH(), "CANCEL", false);
+    Theme::rowPrint(t, l1, p.x + (p.w - Theme::rowWidth(t, l1)) / 2, y); y += lineH(t);
+    Theme::rowPrint(t, l2, p.x + (p.w - Theme::rowWidth(t, l2)) / 2, y);
+    Theme::drawWin95Button(t, p.yesX, p.btnY, p.btnW, btnH(), Theme::tr("SWITCH", "ПЕРЕКЛЮЧИТЬ"), false);
+    Theme::drawWin95Button(t, p.noX,  p.btnY, p.btnW, btnH(), Theme::tr("CANCEL", "ОТМЕНА"), false);
 }
 
 // ---- shared progress screens --------------------------------------------------
@@ -350,8 +348,8 @@ void drawPick(TFT_eSPI& t) {
         signalBars(t, w - 16 - 16, y + rowH() - 5, net->rssi);
     }
     const Row r = bottomRow(t, 2);
-    Theme::drawWin95Button(t, r.x[0], r.y, r.w, btnH(), "RESCAN", false);
-    Theme::drawWin95Button(t, r.x[r.n - 1], r.y, r.w, btnH(), "CANCEL", false);
+    Theme::drawWin95Button(t, r.x[0], r.y, r.w, btnH(), Theme::tr("RESCAN", "ЗАНОВО"), false);
+    Theme::drawWin95Button(t, r.x[r.n - 1], r.y, r.w, btnH(), Theme::tr("CANCEL", "ОТМЕНА"), false);
 }
 
 void drawReady(TFT_eSPI& t) {

@@ -36,6 +36,7 @@ const char* onOff(bool on) { return on ? "ON" : "OFF"; } }
 namespace Clock {
 uint8_t     zoneCount()        { return 1; }
 const char* zoneName(uint8_t)  { return "UTC"; }
+const char* zoneDisplayName(uint8_t i) { return zoneName(i); }   // RU display twin, EN stub passes through
 void        applyZone(uint8_t) {}
 uint8_t     zoneStep(uint8_t i, int) { return i; }
 }

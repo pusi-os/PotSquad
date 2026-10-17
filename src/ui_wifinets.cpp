@@ -117,7 +117,7 @@ int  uiWifiNetsSelected()      { return s_selected; }
 
 void uiWifiNetsTick(TFT_eSPI& t, uint32_t now) {
     t.fillRect(0, 0, t.width(), t.height(), Theme::BG);
-    Theme::drawTitleBar(t, ">> WIFI NETWORKS <<");
+    Theme::drawTitleBar(t, Theme::tr(">> WIFI NETWORKS <<", ">> СЕТИ WIFI <<"));
     Theme::bodyFontOn(t);
     t.setTextWrap(false);
     const int w = t.width();
@@ -192,7 +192,7 @@ void uiWifiAddInit(TFT_eSPI& t) {
 
 void uiWifiAddTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     t.fillRect(0, 0, t.width(), t.height(), Theme::BG);
-    Theme::drawTitleBar(t, ">> ADD A NETWORK <<");
+    Theme::drawTitleBar(t, Theme::tr(">> ADD A NETWORK <<", ">> ДОБАВИТЬ СЕТЬ <<"));
     Theme::bodyFontOn(t);
     t.setTextWrap(false);
     const int w = t.width();
@@ -219,10 +219,9 @@ void uiWifiAddTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
         const int maxChars = (w - 16 - 12 - 20 - tagW) / t.textWidth("M");
         char name[40];
         char pv[40];
-        snprintf(name, sizeof name, "%.*s", maxChars > 32 ? 32 : maxChars, ssid[0] ? Privacy::name(ssid, pv, sizeof pv) : "(hidden)");
+        snprintf(name, sizeof name, "%.*s", maxChars > 32 ? 32 : maxChars, ssid[0] ? Privacy::name(ssid, pv, sizeof pv) : Theme::tr("(hidden)", "(скрыта)"));
         t.setTextColor(Theme::WHITE, Theme::TASKBAR);
-        t.setCursor(14, y + (rowH() - t.fontHeight()) / 2);
-        t.print(name);
+        Theme::rowPrint(t, name, 14, y + (rowH() - t.fontHeight()) / 2);
         if (tag[0]) {
             t.setTextColor(saved ? Theme::CYAN : Theme::AMBER, Theme::TASKBAR);
             t.setCursor(w - 16 - 20 - tagW, y + (rowH() - t.fontHeight()) / 2);
@@ -230,8 +229,8 @@ void uiWifiAddTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
         }
         signalBars(t, w - 16 - 16, y + rowH() - 5, eng.rawWifiRssi((uint8_t)i));
     }
-    Theme::drawWin95Button(t, b.x[0], b.y[0], b.w, btnH(), "RESCAN", false);
-    Theme::drawWin95Button(t, b.x[1], b.y[1], b.w, btnH(), "BACK",   false);
+    Theme::drawWin95Button(t, b.x[0], b.y[0], b.w, btnH(), Theme::tr("RESCAN", "ЗАНОВО"), false);
+    Theme::drawWin95Button(t, b.x[1], b.y[1], b.w, btnH(), Theme::tr("BACK", "НАЗАД"),   false);
     Theme::bodyFontOff(t);
     Theme::drawToast(t, now);
 }

@@ -136,11 +136,11 @@ int keyAt(int x, int y, int reach) {
 
 const char* label(char ch, char* one) {
     switch (ch) {
-        case K_SHIFT: return "SHIFT";
+        case K_SHIFT: return Theme::tr("SHIFT", "СДВИГ");
         case K_SYM:   return s_sym ? "abc" : "#+=";
-        case K_DEL:   return "DEL";
-        case K_OK:    return "OK";
-        case ' ':     return "SPACE";
+        case K_DEL:   return Theme::tr("DEL", "УДАЛ");
+        case K_OK:    return Theme::tr("OK", "ОК");
+        case ' ':     return Theme::tr("SPACE", "ПРОБЕЛ");
         default:      one[0] = ch; one[1] = '\0'; return one;
     }
 }
@@ -199,11 +199,13 @@ void drawKey(TFT_eSPI& t, uint8_t i) {
     Theme::drawSteelKey(t, k.x, k.y, k.w, k.h, lit);
     char one[2];
     const char* lab = label(k.ch, one);
+    const bool ru = Theme::isRu(lab);
     t.setTextSize(2);
-    if (t.textWidth(lab) > k.w - 6) t.setTextSize(1);
+    int lw = ru ? Theme::textWidthRU(t, lab) : t.textWidth(lab);
+    if (lw > k.w - 6) { t.setTextSize(1); lw = ru ? Theme::textWidthRU(t, lab) : t.textWidth(lab); }
     t.setTextColor(lit ? Theme::VAPOR_YELLOW : Theme::WHITE);
-    t.setCursor(k.x + (k.w - t.textWidth(lab)) / 2, k.y + (k.h - t.fontHeight()) / 2);
-    t.print(lab);
+    t.setCursor(k.x + (k.w - lw) / 2, k.y + (k.h - t.fontHeight()) / 2);
+    if (ru) Theme::printRU(t, lab); else t.print(lab);
     t.setTextSize(1);
 }
 
@@ -237,7 +239,7 @@ void drawField(TFT_eSPI& t, int w, uint32_t now) {
 
 void drawShow(TFT_eSPI& t, int w) {
     t.setTextSize(1);
-    Theme::drawWin95Button(t, showX(w), FIELD_Y, SHOW_W, FIELD_H, s_show ? "HIDE" : "SHOW", false);
+    Theme::drawWin95Button(t, showX(w), FIELD_Y, SHOW_W, FIELD_H, s_show ? Theme::tr("HIDE", "СКРЫТЬ") : Theme::tr("SHOW", "ПОКАЗАТЬ"), false);
     s_drawnShow = s_show;
 }
 
@@ -257,16 +259,18 @@ void drawAll(TFT_eSPI& t, uint32_t now) {
     Theme::drawSteelPanel(t, 0, panelTop, w, h - panelTop, false);
     t.setTextWrap(false);
     // Header: BACK, then which network this is for.
-    Theme::drawWin95Button(t, BACK_X, BACK_Y, BACK_W, BACK_H, "BACK", false);
+    Theme::drawWin95Button(t, BACK_X, BACK_Y, BACK_W, BACK_H, Theme::tr("BACK", "НАЗАД"), false);
     // On the large panels the two lines become one, in the body font: the
     // 16-row face has no room to stack in the 25 rows above the field.
     const bool big = Theme::large();
     Theme::bodyFontOn(t);
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
     t.setCursor(BACK_X + BACK_W + 8, BACK_Y + 1);
-    t.print(big ? "PASSWORD FOR " : "PASSWORD FOR");
+    const char* pwdFor = big ? Theme::tr("PASSWORD FOR ", "ПАРОЛЬ ДЛЯ ") : Theme::tr("PASSWORD FOR", "ПАРОЛЬ ДЛЯ");
+    if (Theme::isRu(pwdFor)) Theme::printRU(t, pwdFor); else t.print(pwdFor);
     t.setTextColor(Theme::CYAN, Theme::BG);
-    const int sx = BACK_X + BACK_W + 8 + (big ? t.textWidth("PASSWORD FOR ") : 0);
+    const int pwdW = big ? (Theme::isRu(pwdFor) ? Theme::textWidthRU(t, pwdFor) : t.textWidth(pwdFor)) : 0;
+    const int sx = BACK_X + BACK_W + 8 + pwdW;
     t.setCursor(sx, big ? BACK_Y + 1 : BACK_Y + 11);
     char ssid[40];
     const int maxChars = (w - sx - MARGIN) / t.textWidth("M");

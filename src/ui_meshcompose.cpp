@@ -64,6 +64,15 @@ const char* const FILL_LINES[8] = {
     "MEET AT ", "I'M AT ", "BACK IN ", "CALL ME AT ",
     "HEADING TO ", "LOOK FOR THE ", "BRING THE ", "SAW A ",
 };
+// The same openings in Russian, picked by Settings::lang(). The trailing
+// space is the whole point of an opening -- the rest is what gets typed.
+const char* const FILL_LINES_RU[8] = {
+    "ВСТРЕЧА ", "Я В ", "ВЕРНУСЬ ЧЕРЕЗ ", "ЗВОНИ ",
+    "ЕДУ В ", "ИЩИ ", "НЕСИ ", "ВИДЕЛ ",
+};
+static const char* fillLine(int i) {
+    return (Settings::lang() == 1 ? FILL_LINES_RU : FILL_LINES)[i];
+}
 // Kept across visits to this screen, not across a reboot: whoever sends a lot
 // of pranks should find the pranks where they left them.
 uint8_t     s_tab = 0;
@@ -481,8 +490,11 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
         t.fillRect(px, py, pw, ph, Theme::BG);
         t.drawRect(px, py, pw, ph, Theme::VAPOR_PINK);
         t.setTextColor(Theme::W95_LIGHT, Theme::BG);
+        const char* ym = Theme::tr("YOUR MESSAGE", "ТВОЁ СООБЩЕНИЕ");
+        const bool yru = Theme::isRu(ym);
+        if (yru) { t.setTextFont(1); t.setTextSize(1); }
         t.setCursor(px + 6, py + 5);
-        t.print(Theme::tr("YOUR MESSAGE", "ТВОЁ СООБЩЕНИЕ"));
+        if (yru) Theme::printRU(t, ym); else t.print(ym);
         // A typed message may be Cyrillic (the phone types RU): the 9px
         // RU face then, which is what wrapTextRU above measured with.
         const bool tru = Theme::isRu(s_typed);
@@ -570,10 +582,13 @@ void uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
             t.drawRect(x, y, cw, ch, Theme::VAPOR_YELLOW);
             t.setTextSize(Theme::uiTextSize(t, 1));
             t.setTextColor(Theme::WHITE, Theme::BG);
-            t.setCursor(x + 6, y + (ch - t.fontHeight()) / 2);
-            t.print(FILL_LINES[i]);
+            const char* fl = fillLine(i);
+            const bool fru = Theme::isRu(fl);
+            if (fru) { t.setTextFont(1); t.setTextSize(1); }
+            Theme::rowPrint(t, fl, x + 6, y + (ch - t.fontHeight()) / 2);
             t.setTextColor(Theme::W95_SHADOW, Theme::BG);
             t.print("___");
+            t.setTextFont(1);
         }
     } else {
         // The same tab row the emote half draws, in the same place, so the two
@@ -812,7 +827,7 @@ ComposeHit uiMeshComposeTouch(int x, int y, uint32_t now) {
             // Straight into the buffer, not through uiMeshComposeSetTyped():
             // that trims trailing spaces, and the space after "MEET AT" is
             // the whole point of an opening.
-            snprintf(s_typed, sizeof s_typed, "%s", FILL_LINES[s_lineIdx[i]]);
+            snprintf(s_typed, sizeof s_typed, "%s", fillLine(s_lineIdx[i]));
             s_typedOn = false;
             s_fillOn  = false;
             return ComposeHit::TYPE;

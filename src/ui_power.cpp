@@ -171,8 +171,8 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     }
     Theme::restorePalette(saved);
 
-    Theme::drawTitleBar(t, ">> POWER SAVER <<");
-    Theme::drawListHeading(t, "POWER SAVER", Theme::VAPOR_PURPLE);
+    Theme::drawTitleBar(t, Theme::tr(">> POWER SAVER <<", ">> ЭНЕРГОСБЕР <<"));
+    Theme::drawListHeading(t, Theme::tr("POWER SAVER", "ЭНЕРГОСБЕР"), Theme::VAPOR_PURPLE);
 
     // Portrait is 240px wide, which is not enough for "SCREEN TIMEOUT" and
     // its value side by side at size 2's 12px per glyph -- the same collision
@@ -193,7 +193,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     }
 
     Theme::drawScrollbar(t, w - 4, top, bodyBottom - top, n, visibleCount, g_scroll);
-    Theme::drawPinnedBack(t, "[ BACK ]");
+    Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
 }
 
 PowerRow uiPowerHitTest(TFT_eSPI& t, int x, int y, int screenW, int screenH) {

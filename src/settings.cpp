@@ -718,7 +718,10 @@ static void stepDeskBackground(int dir) {
     s_prefs.putUChar("deskBg", s_deskBg);
 }
 uint8_t     clockFont()         { return s_clockFont; }
-const char* clockFontName()     { return s_clockFont ? "BANGERS" : "DIGITAL"; }
+const char* clockFontName()     { static const char* const EN[2] = { "DIGITAL", "BANGERS" };
+                                  static const char* const RU[2] = { "ЦИФРЫ", "БАНГЕРС" };
+                                  const uint8_t i = s_clockFont < 2 ? s_clockFont : 0;
+                                  return Theme::tr(EN[i], RU[i]); }
 void        cycleClockFont()    { s_clockFont = (uint8_t)((s_clockFont + 1) % 2); s_prefs.putUChar("clkfont", s_clockFont); }
 uint8_t     clockSize()         { return s_clockSize; }
 const char* clockSizeName()     { static const char* const EN[3] = { "SMALL", "MEDIUM", "LARGE" };
@@ -919,7 +922,7 @@ void        setLang(uint8_t v) {
     s_prefs.putUChar("lang", s_lang);
 }
 uint8_t     timeZone()      { return s_timeZone; }
-const char* timeZoneName()  { return Clock::zoneName(s_timeZone); }
+const char* timeZoneName()  { return Clock::zoneDisplayName(s_timeZone); }
 bool        timeZoneChosen(){ return s_tzChosen; }
 void markTimeZoneChosen() {
     if (!s_tzChosen) { s_tzChosen = true; s_prefs.putBool("tzSet", true); }
@@ -978,7 +981,7 @@ uint8_t autoQuietAfter() { return s_autoQuiet; }
 
 const char* autoQuietLabel() {
 #if defined(TWATCH_S3)
-    if (autoQuietForced()) return "SAVER 5";
+    if (autoQuietForced()) return Theme::tr("SAVER 5", "ЭНЕРГО 5");
 #endif
     switch (s_autoQuiet) {
         case 5:  return Theme::tr("AFTER 5", "ЧЕРЕЗ 5");
@@ -1096,9 +1099,9 @@ const char* meshSummary() {
     // "DETECT+SEND" collides with itself on the 240px portrait rotation at
     // this row's size-2 text, which is the same trap already documented on
     // TYPE FILTER and IGNORED.
-    if (s_meshDetect && meshTransmit()) return "RX+TX >";
-    if (s_meshDetect)                   return "RX >";
-    if (meshTransmit())                 return "TX >";
+    if (s_meshDetect && meshTransmit()) return Theme::tr("RX+TX >", "ПРМ+ПРД >");
+    if (s_meshDetect)                   return Theme::tr("RX >", "ПРМ >");
+    if (meshTransmit())                 return Theme::tr("TX >", "ПРД >");
     return Theme::tr("OFF >", "ВЫКЛ >");
 }
 

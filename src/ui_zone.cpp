@@ -58,7 +58,7 @@ void uiZoneCardDraw(TFT_eSPI& t, uint32_t now) {
     const bool twelveHour = !Settings::clock24Hour();
     Clock::formatTime(tm, sizeof tm, twelveHour, &pm);
     Clock::formatDate(date, sizeof date);
-    if (twelveHour) snprintf(line, sizeof line, "%s %s  %s", tm, pm ? "PM" : "AM", date);
+    if (twelveHour) snprintf(line, sizeof line, "%s %s  %s", tm, pm ? Theme::tr("PM", "ПП") : Theme::tr("AM", "ДП"), date);
     else            snprintf(line, sizeof line, "%s  %s", tm, date);
     t.setTextColor(Theme::VAPOR_YELLOW, Theme::BG);
     if (Theme::isRu(line)) { t.setCursor(x + (cardW() - Theme::textWidthRU(t, line)) / 2, ly); Theme::printRU(t, line); }

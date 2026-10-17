@@ -7,6 +7,10 @@
 #include "test_util.h"
 #include "security.h"
 #include "ignore_list.h"
+#include "settings.h"
+// security.cpp names its two display labels in the chosen language; the test
+// links no settings.cpp, so it supplies the one symbol it needs (English).
+namespace Settings { uint8_t lang() { return 0; } }
 #include <Preferences.h>
 #include <stdlib.h>
 #include <string.h>

@@ -59,7 +59,7 @@ RawScanTap uiRawScanHitTest(int x, int y, int screenW, int screenH) {
 static void drawBottomBar(TFT_eSPI& t, int w, int h, bool isBle) {
     int bx, by, bw, bh, ax, ay, aw, ah;
     bottomButtonRects(w, h, bx, by, bw, bh, ax, ay, aw, ah);
-    Theme::drawButton(t, bx, by, bw, bh, "[ BACK ]", false);
+    Theme::drawButton(t, bx, by, bw, bh, Theme::tr("[ BACK ]", "[ НАЗАД ]"), false);
     Theme::drawButton(t, ax, ay, aw, ah, isBle ? "[ WIFI ]" : "[ BLE ]", false);
 }
 
@@ -119,10 +119,9 @@ static void drawConfirmPanel(TFT_eSPI& t, int w, int h, const char* label, bool 
     t.setTextSize(1);
     t.setTextWrap(false);
     t.setTextColor(Theme::CYAN, Theme::BG);
-    const char* q = "TRACK THIS TARGET?";
-    int qw = t.textWidth(q);
-    t.setCursor(px + (pw - qw) / 2, py + 8);
-    t.print(q);
+    const char* q = Theme::tr("TRACK THIS TARGET?", "СЛЕДИТЬ ЗА ЦЕЛЬЮ?");
+    int qw = Theme::rowWidth(t, q);
+    Theme::rowPrint(t, q, px + (pw - qw) / 2, py + 8);
 
     t.setTextColor(Theme::WHITE, Theme::BG);
     int lw = t.textWidth(label);
@@ -171,13 +170,31 @@ static void drawTargetFlags(TFT_eSPI& t, int x, int y,
                             bool watched, bool hunted, bool ignored) {
     auto flag = [&](const char* label, uint16_t color) {
         t.setTextColor(color, Theme::BG);
-        t.setCursor(x, y);
-        t.print(label);
-        x += t.textWidth(label) + 8;
+        Theme::rowPrint(t, label, x, y);
+        x += Theme::rowWidth(t, label) + 8;
     };
     if (watched) flag(Theme::tr("WATCH", "СЛЕЖУ"),  Theme::CYAN);
     if (hunted)  flag(Theme::tr("HUNT", "ОХОЧУСЬ"),   Theme::VAPOR_PINK);
     if (ignored) flag(Theme::tr("IGNORE", "ИГНОР"), Theme::AMBER);
+}
+
+// A size-3 headline for the scanning/empty states, or its RU twin: the 16px
+// face at size 2, which is the RU answer to a size-3 GLCD line.
+static void bigCentred(TFT_eSPI& t, int w, int y, const char* msg) {
+    if (Theme::isRu(msg)) {
+        t.setTextFont(1);
+        t.setTextSize(1);
+        const int mw = Theme::textWidthRU16(t, msg);
+        t.setTextSize(2);
+        t.setCursor((w - mw * 2) / 2, y);
+        Theme::printRU16(t, msg);
+        t.setTextSize(1);
+    } else {
+        t.setTextSize(3);
+        const int mw = t.textWidth(msg);
+        t.setCursor((w - mw) / 2, y);
+        t.print(msg);
+    }
 }
 
 // Row index (0 = topmost visible, adjusted for current scroll) a tap
@@ -284,21 +301,20 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     if (!done) {
         float pulse = 0.55f + 0.45f * sinf((float)(now % 2000) / 2000.0f * 6.2831853f);
         uint16_t col = Theme::blend(Theme::GREEN, Theme::CYAN, (uint16_t)(pulse * 200.0f));
-        t.setTextSize(3);
         t.setTextColor(col, Theme::BG);
-        const char* msg = "SCANNING...";
-        int mw = t.textWidth(msg);
-        t.setCursor((w - mw) / 2, bodyTop + bodyH / 3);
-        t.print(msg);
+        const char* msg = Theme::tr("SCANNING...", "СКАНИРУЮ...");
+        bigCentred(t, w, bodyTop + bodyH / 3, msg);
 
         if (isBle) {
             char sub[24];
-            snprintf(sub, sizeof(sub), "%u found so far", (unsigned)eng.rawBleCount());
+            snprintf(sub, sizeof(sub), Theme::tr("%u found so far", "%u найдено"), (unsigned)eng.rawBleCount());
             Theme::bodyFontOn(t);
             t.setTextColor(Theme::CYAN, Theme::BG);
-            int sw = t.textWidth(sub);
+            const bool sru = Theme::isRu(sub);
+            if (sru) { t.setTextFont(1); t.setTextSize(1); }
+            int sw = sru ? Theme::textWidthRU(t, sub) : t.textWidth(sub);
             t.setCursor((w - sw) / 2, bodyTop + bodyH / 3 + 35);
-            t.print(sub);
+            if (sru) Theme::printRU(t, sub); else t.print(sub);
             Theme::bodyFontOff(t);
         }
 
@@ -310,12 +326,9 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
     uint8_t count = isBle ? eng.rawBleCount() : eng.rawWifiCount();
 
     if (count == 0) {
-        t.setTextSize(3);
         t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
         const char* msg = Theme::tr("NOTHING FOUND", "НИЧЕГО НЕТ");
-        int mw = t.textWidth(msg);
-        t.setCursor((w - mw) / 2, bodyTop + bodyH / 3);
-        t.print(msg);
+        bigCentred(t, w, bodyTop + bodyH / 3, msg);
 
         drawBottomBar(t, w, h, isBle);
         if (confirmPending) drawConfirmPanel(t, w, h, confirmLabel, confirmWatched, confirmHunted, confirmIgnored);
@@ -346,9 +359,10 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
             Theme::bodyFontOff(t);
             t.setTextSize(2);
             t.setTextColor(Theme::CYAN, Theme::BG);
-            t.setCursor(4, y + topPad);
             char pv[40];
-            t.print(r->name[0] ? Privacy::name(r->name, pv, sizeof pv) : "(unnamed)");
+            const char* nm = r->name[0] ? Privacy::name(r->name, pv, sizeof pv)
+                                        : Theme::tr("(unnamed)", "(без имени)");
+            Theme::rowPrint(t, nm, 4, y + topPad);
 
             Theme::bodyFontOn(t);
             t.setTextColor(Theme::WHITE, Theme::BG);
@@ -380,9 +394,8 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
             Theme::bodyFontOff(t);
             t.setTextSize(2);
             t.setTextColor(Theme::CYAN, Theme::BG);
-            t.setCursor(4, y + topPad);
             char pv[40];
-            t.print(Privacy::name(eng.rawWifiSsid(idx), pv, sizeof pv));
+            Theme::rowPrint(t, Privacy::name(eng.rawWifiSsid(idx), pv, sizeof pv), 4, y + topPad);
 
             Theme::bodyFontOn(t);
             t.setTextColor(Theme::WHITE, Theme::BG);
@@ -395,10 +408,9 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
 #endif
             snprintf(line, sizeof(line), "CH%u  %s", (unsigned)eng.rawWifiChannel(idx),
                      eng.rawWifiOpen(idx) ? Theme::tr("OPEN", "ОТКРЫТА") : Theme::tr("LOCKED", "ЗАКРЫТА"));
-            t.setCursor(4, y + detailY);
-            t.print(line);
+            Theme::rowPrint(t, line, 4, y + detailY);
             const uint8_t* bssid = eng.rawWifiBssid(idx);
-            drawTargetFlags(t, 4 + t.textWidth(line) + 8, y + detailY,
+            drawTargetFlags(t, 4 + Theme::rowWidth(t, line) + 8, y + detailY,
                             bssid && eng.isWatched(bssid, false),
                             bssid && eng.isHunted(bssid, false),
                             bssid && IgnoreList::contains(bssid));

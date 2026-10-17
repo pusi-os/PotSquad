@@ -51,23 +51,25 @@ void uiOutfitTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool ad
     // dirty-rect clear a few px above titleBottom into the title bar's
     // row, and this fully repaints its own row every frame so it
     // always ends up on top (same reasoning as the CLEAR screen).
-    Theme::drawTitleBar(t, ">> OUTFIT <<");
+    Theme::drawTitleBar(t, Theme::tr(">> OUTFIT <<", ">> ОБРАЗ <<"));
 
     const char* name = Potsy::outfitName();
     t.setTextSize(2);
     t.setTextColor(Theme::WHITE, Theme::BG);
-    int nw = t.textWidth(name);
+    int nw = Theme::isRu(name) ? Theme::textWidthRU(t, name) : t.textWidth(name);
     t.setCursor((w - nw) / 2, footerTop + 2);
-    t.print(name);
+    if (Theme::isRu(name)) Theme::printRU(t, name); else t.print(name);
 
     char buf[24];
-    snprintf(buf, sizeof(buf), "%u / %u unlocked",
+    snprintf(buf, sizeof(buf), Theme::tr("%u / %u unlocked", "%u / %u ОТКРЫТО"),
              (unsigned)Potsy::unlockedOutfitCount(), (unsigned)Potsy::outfitCount());
     Theme::bodyFontOn(t);
     t.setTextColor(Theme::CYAN, Theme::BG);
-    int bw = t.textWidth(buf);
+    const bool bru = Theme::isRu(buf);
+    if (bru) t.setTextFont(1);
+    int bw = bru ? Theme::textWidthRU(t, buf) : t.textWidth(buf);
     t.setCursor((w - bw) / 2, footerTop + 22);
-    t.print(buf);
+    if (bru) Theme::printRU(t, buf); else t.print(buf);
     Theme::bodyFontOff(t);
 
     int ay = footerTop + 12;

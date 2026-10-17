@@ -251,7 +251,7 @@ void arrived(const Slot& s, uint32_t now) {
     s_inbox.unread = true;
     s_inbox.at     = now;
     memcpy(s_inbox.mac, s.mac, 6);
-    const char* from = s.name[0] ? s.name : "SOMEONE";
+    const char* from = s.name[0] ? s.name : Theme::tr("SOMEONE", "КТО-ТО");
     size_t i = 0;
     for (; i < sizeof s_inbox.from - 1 && from[i]; i++) s_inbox.from[i] = from[i];
     s_inbox.from[i] = '\0';
@@ -315,7 +315,7 @@ void deliverInvite(const Slot& s, uint32_t now, uint32_t ctr, uint8_t kind) {
             }
             memcpy(s_invPeerMac, s.mac, 6);
             memcpy(s_invPeerPub, pub, sizeof s_invPeerPub);
-            snprintf(s_invPeerName, sizeof s_invPeerName, "%s", s.name[0] ? s.name : "SOMEONE");
+            snprintf(s_invPeerName, sizeof s_invPeerName, "%s", s.name[0] ? s.name : Theme::tr("SOMEONE", "КТО-ТО"));
             s_invInviter = false;
             inviteTo(InviteState::ASKED, now);
             Serial.printf("[invite] %s offers to add us to their squad\n", s_invPeerName);
@@ -390,7 +390,7 @@ void deliver(const Slot& s, uint32_t now) {
             squadNote(s.mac, now);
             if (mc == s_sentCtr) {
                 s_readHave = true;
-                snprintf(s_readBy, sizeof s_readBy, "%s", s.name[0] ? s.name : "SOMEONE");
+                snprintf(s_readBy, sizeof s_readBy, "%s", s.name[0] ? s.name : Theme::tr("SOMEONE", "КТО-ТО"));
                 Serial.printf("[meshtalk] %s read #%lu\n", s_readBy, (unsigned long)mc);
             }
         }
@@ -504,7 +504,7 @@ void deliver(const Slot& s, uint32_t now) {
         s_nudge.wifiParts = parts;
         s_nudge.wifiBase  = ctr + 1;
         memcpy(s_nudge.mac, s.mac, 6);
-        const char* from = s.name[0] ? s.name : "SOMEONE";
+        const char* from = s.name[0] ? s.name : Theme::tr("SOMEONE", "КТО-ТО");
         size_t i = 0;
         for (; i < sizeof s_nudge.from - 1 && from[i]; i++) s_nudge.from[i] = from[i];
         s_nudge.from[i] = '\0';
@@ -536,7 +536,7 @@ void deliver(const Slot& s, uint32_t now) {
         squadNote(s.mac, now);
         memcpy(s_updated.ver, ver, 3);
         memcpy(s_updated.mac, s.mac, 6);
-        const char* from = s.name[0] ? s.name : "SOMEONE";
+        const char* from = s.name[0] ? s.name : Theme::tr("SOMEONE", "КТО-ТО");
         size_t i = 0;
         for (; i < sizeof s_updated.from - 1 && from[i]; i++) s_updated.from[i] = from[i];
         s_updated.from[i] = '\0';
@@ -560,7 +560,7 @@ void deliver(const Slot& s, uint32_t now) {
         s_huIn.rssi = rssi;
         memcpy(s_huIn.tail, tail, 3);
         memcpy(s_huIn.mac, s.mac, 6);
-        snprintf(s_huIn.from, sizeof s_huIn.from, "%s", s.name[0] ? s.name : "SOMEONE");
+        snprintf(s_huIn.from, sizeof s_huIn.from, "%s", s.name[0] ? s.name : Theme::tr("SOMEONE", "КТО-ТО"));
         s_huIn.at = now;
         s_huHave  = true;
         Serial.printf("[meshtalk] heads-up from %s: type %u at %d dBm\n", s_huIn.from, (unsigned)type, (int)rssi);
@@ -900,7 +900,7 @@ Send inviteStart(const uint8_t target[6], const char* name, uint32_t now) {
     inviteWipe();
     if (!MeshCrypto::dhKeypair(s_invPriv, s_invPub)) return Send::FAILED;
     memcpy(s_invPeerMac, target, 6);
-    snprintf(s_invPeerName, sizeof s_invPeerName, "%s", name && name[0] ? name : "SOMEONE");
+    snprintf(s_invPeerName, sizeof s_invPeerName, "%s", name && name[0] ? name : Theme::tr("SOMEONE", "КТО-ТО"));
     s_invInviter = true;
     uint8_t blob[MeshMsg::INVITE_BLOB];
     MeshMsg::invitePubBlob(target, 0, s_invPub, blob);

@@ -181,7 +181,7 @@ void uiMeshWarnTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool 
     if (maxW > 47 * charW) maxW = 47 * charW;
 
     const int lineH = t.fontHeight() + 1;
-    int y = 40;
+    int y = ru ? 46 : 40;   // clear the 16px RU heading (26..42); EN's 8px one ends at 34
     t.setTextColor(Theme::WHITE, Theme::BG);
     for (uint8_t p = 0; p < PARA_N; p++) {
         const char* para = ru ? PARAS_RU[p] : PARAS_EN[p];

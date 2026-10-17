@@ -31,6 +31,26 @@ static const char* BOOT_LINES[] = {
 static const uint8_t BOOT_LINE_COUNT = sizeof(BOOT_LINES) / sizeof(BOOT_LINES[0]);
 static uint8_t s_bootLineIdx = 0;
 
+// The same one-liners in Russian, picked by Settings::lang(). Kept as its own
+// table rather than Theme::tr() pairs so the random index picks the same line
+// in either language.
+static const char* BOOT_LINES_RU[] = {
+    "Полицейское государство? Не при мне.",
+    "Улыбнись! Я слежу за следящими.",
+    "Ни одна камера не пострадала. Пока.",
+    "Приватность мертва. Я - надгробное слово.",
+    "Я двоюродный брат Большого Брата.",
+    "Я собираю MAC-адреса, а не друзей.",
+    "Они видят всё. Я вижу их.",
+    "Где-то камера занервничала.",
+    "Не параноик. Просто хорошо информирован.",
+    "Не верь ни одному объективу.",
+    "Ищу всякий вздор с первого дня.",
+};
+static const char* bootLine() {
+    return (Settings::lang() == 1 ? BOOT_LINES_RU : BOOT_LINES)[s_bootLineIdx];
+}
+
 // When this splash started, and how far through its scripted glitch
 // bursts we are. The subtitle's chromatic split rides the shared burst
 // (Theme::glitchActive()), but that rolls on its own every 5-10s while
@@ -225,7 +245,7 @@ void uiBootTick(TFT_eSPI& t, uint32_t now) {
             // His head anchor is baseY - 58 units, but his hair rises about
             // ten more above it, so he is 68 units tall for this, and the
             // bubble sits that hair's height higher again.
-            const int bh   = Potsy::bubbleHeight(t, BOOT_LINES[s_bootLineIdx]);
+            const int bh   = Potsy::bubbleHeight(t, bootLine());
             const int band = (h - 21) - (bh + 8) - (sy + 16);   // feet, bubble, subtitle
             bootScale = (float)(band - 6) / 68.0f;
             // The cap is the width, not a constant: about 70 units across with
@@ -241,7 +261,7 @@ void uiBootTick(TFT_eSPI& t, uint32_t now) {
             if (bootScale < 1.95f) bootScale = 1.95f;
             if (bootScale > 3.2f)  bootScale = 3.2f;
         }
-        Potsy::drawWaving(t, w / 2, h - 21, now, bootScale, BOOT_LINES[s_bootLineIdx],
+        Potsy::drawWaving(t, w / 2, h - 21, now, bootScale, bootLine(),
                             false, 0, true, gap);
         Potsy::setBubbleSmall(false);
     }
@@ -263,17 +283,19 @@ void uiBootTick(TFT_eSPI& t, uint32_t now) {
     // bands, and it is the one most likely to still surprise somebody -- so
     // the word goes where nobody can miss it rather than in a release note
     // they may never have read.
-    snprintf(init, sizeof(init), "3.5in BETA   %s", FIRMWARE_VERSION);
+    snprintf(init, sizeof(init), Theme::tr("3.5in BETA   %s", "3.5in БЕТА   %s"), FIRMWARE_VERSION);
 #else
-    snprintf(init, sizeof(init), "INITIALIZING...  %s", FIRMWARE_VERSION);
+    snprintf(init, sizeof(init), Theme::tr("INITIALIZING...  %s", "ИНИЦИАЛИЗАЦИЯ...  %s"), FIRMWARE_VERSION);
 #endif
     Theme::bodyFontOn(t);
-    int iw = t.textWidth(init);
+    const bool iru = Theme::isRu(init);
+    if (iru) { t.setTextFont(1); t.setTextSize(1); }
+    int iw = iru ? Theme::textWidthRU(t, init) : t.textWidth(init);
     t.setCursor((w - iw) / 2, h - t.fontHeight() - 8);
 #if defined(CYD35)
     t.setTextColor(Theme::AMBER);   // not the cyan the rest of the line uses
 #endif
-    t.print(init);
+    if (iru) Theme::printRU(t, init); else t.print(init);
     Theme::bodyFontOff(t);
 
     // animated scanline sweeping top to bottom every 600 ms

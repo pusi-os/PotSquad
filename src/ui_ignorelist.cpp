@@ -2,6 +2,7 @@
 #include "ui_ignorelist.h"
 #include "ui_scroll.h"
 #include "theme.h"
+#include "type_names.h"
 #include "privacy.h"
 #include "ignore_list.h"
 #include <Arduino.h>
@@ -47,8 +48,7 @@ static void drawRow(TFT_eSPI& t, int w, int y, int hgt, uint8_t idx) {
     const DetectionType ty = IgnoreList::typeAt(idx);
     Theme::menuFontOn(t, false);   // FONTS > MENUS
     t.setTextColor(Theme::colorFor(ty), Theme::BG);
-    t.setCursor(6, y + 3);
-    t.print(detectionTypeName(ty));
+    Theme::rowPrint(t, TypeNames::display(ty), 6, y + 3);
 
     char buf[20];
     Privacy::mac(buf, sizeof buf, mac);
@@ -75,7 +75,7 @@ void uiIgnoreListTick(TFT_eSPI& t, uint32_t now) {
     computeGeom(t, h, top, bodyBottom, rowH);
 
     t.fillRect(0, 0, w, h, Theme::BG);
-    Theme::drawTitleBar(t, ">> IGNORED <<");
+    Theme::drawTitleBar(t, Theme::tr(">> IGNORED <<", ">> ИГНОР <<"));
     Theme::drawListHeading(t, Theme::tr("IGNORED", "ИГНОР"), Theme::AMBER);
     Theme::drawPinnedBack(t, Theme::tr("[ BACK ]", "[ НАЗАД ]"));
 

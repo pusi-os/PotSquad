@@ -296,11 +296,11 @@ static const char* keyLabel(char c) {
     static char one[2];
     if (Qwerty::isRuKey(c)) return Qwerty::ruGlyph((uint8_t)(c - Qwerty::RU_BASE));
     switch (c) {
-        case Qwerty::BKSP: return "DEL";
-        case Qwerty::CLR:  return "CLR";
-        case Qwerty::SHUF: return "SHUFFLE";
+        case Qwerty::BKSP: return Theme::tr("DEL", "УДАЛ");
+        case Qwerty::CLR:  return Theme::tr("CLR", "СБРОС");
+        case Qwerty::SHUF: return Theme::tr("SHUFFLE", "МИКС");
         case Qwerty::OK:   return Theme::tr("OK", "ОК");
-        case ' ':          return "SPACE";
+        case ' ':          return Theme::tr("SPACE", "ПРОБЕЛ");
         default: one[0] = c; one[1] = '\0'; return one;
     }
 }
@@ -308,7 +308,13 @@ static const char* keyLabel(char c) {
 // The small print under a keypad digit.
 static const char* padLabel(int i) {
     if (msg() && i == 0) return ".,?!'-";
-    return KEY_L[i];
+    switch (i) {
+        case 0:  return Theme::tr("SHUFFLE", "МИКС");
+        case 9:  return Theme::tr("DEL", "УДАЛ");
+        case 10: return Theme::tr("SPACE", "ПРОБЕЛ");
+        case 11: return Theme::tr("OK", "ОК");
+        default: return KEY_L[i];
+    }
 }
 
 // QWERTY_TRACE: every press, every slide sample (raw, filtered, the filter's
@@ -495,7 +501,7 @@ static void drawPinPad(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bo
     for (int i = 0; i < 12; i++) {
         const int kx = keysX() + (i % 3) * (KW + KGAP);
         const int ky = KY + (i / 3) * (KH + KGAP);
-        const char* lab = (i == 9) ? "DEL" : (i <= 8) ? KEY_D[i] : (i == 10) ? "0" : "";
+        const char* lab = (i == 9) ? Theme::tr("DEL", "УДАЛ") : (i <= 8) ? KEY_D[i] : (i == 10) ? "0" : "";
         if (!lab[0]) continue;                       // * and # left blank
         bevel(t, kx, ky, KW, KH, Theme::TASKBAR, STEEL_LT, STEEL, STEEL_DK, STEEL_SH, false);
         t.setTextSize(2);
@@ -788,8 +794,7 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
             if (small[0]) {
                 t.setTextSize(1);
                 t.setTextColor(lit ? Theme::VAPOR_YELLOW : STEEL_LT);
-                t.setCursor(kx + (KW - t.textWidth(small)) / 2, ky + KH - 9);
-                t.print(small);
+                Theme::rowPrint(t, small, kx + (KW - Theme::rowWidth(t, small)) / 2, ky + KH - 9);
             }
         }
 

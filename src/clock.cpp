@@ -231,7 +231,8 @@ void formatUptime(char* out, size_t n) {
     const uint32_t h = (s % 86400u) / 3600u;
     const uint32_t m = (s % 3600u) / 60u;
     const uint32_t sec = s % 60u;
-    if (d) snprintf(out, n, "%lud %02lu:%02lu:%02lu",
+    if (d) snprintf(out, n, Settings::lang() == 1 ? "%luд %02lu:%02lu:%02lu"
+                                                   : "%lud %02lu:%02lu:%02lu",
                     (unsigned long)d, (unsigned long)h,
                     (unsigned long)m, (unsigned long)sec);
     else   snprintf(out, n, "%02lu:%02lu:%02lu",
@@ -390,6 +391,52 @@ static const Zone ZONES[] = {
 };
 static const uint8_t ZONES_N = sizeof(ZONES) / sizeof(ZONES[0]);
 
+// Display-only Russian twins, same order and same indexes as ZONES. These
+// never reach the radio or the ZONE <name> console match -- a board's zone
+// is still its index in ZONES; see zoneDisplayName() below.
+static const char* const ZONES_RU[] = {
+    "ВОСТ. США",
+    "ЦЕНТР. США",
+    "ГОРЫ США",
+    "АРИЗОНА",
+    "ТИХ. США",
+    "АЛЯСКА",
+    "ГАВАЙИ",
+    "АТЛАНТИКА",
+    "НЬЮФАУНДЛЕНД",
+    "БРАЗИЛИЯ",
+    "UTC",
+    "БРИТАНИЯ",
+    "ЦЕНТР. ЕВРОПА",
+    "ВОСТ. ЕВРОПА",
+    "МОСКВА",
+    "ИНДИЯ",
+    "КИТАЙ",
+    "ЯПОНИЯ",
+    "ВОСТ. АВСТР.",
+    "ЗАП. АВСТР.",
+    "НОВ. ЗЕЛАНДИЯ",
+    "МЕКСИКА",
+    "КОЛУМБИЯ",
+    "ЧИЛИ",
+    "АРГЕНТИНА",
+    "ЗАП. АФРИКА",
+    "ЮЖ. АФРИКА",
+    "ВОСТ. АФРИКА",
+    "ИЗРАИЛЬ",
+    "ТУРЦИЯ",
+    "ЗАЛИВ",
+    "ПАКИСТАН",
+    "БАНГЛАДЕШ",
+    "ЮВ АЗИЯ",
+    "СИНГАПУР",
+    "КОРЕЯ",
+    "КВИНСЛЕНД",
+    "ЦЕНТР. АВСТР.",
+    "ДАРВИН",
+};
+static_assert(sizeof(ZONES_RU) / sizeof(ZONES_RU[0]) == ZONES_N, "ZONES_RU mirrors ZONES");
+
 // The order PREV/NEXT and the settings row walk them: west to east from the
 // US, the way the list always started. Indexes into ZONES.
 static const uint8_t ORDER[] = {
@@ -404,6 +451,13 @@ static_assert(sizeof(ORDER) == ZONES_N, "every zone once in ORDER");
 
 uint8_t     zoneCount()        { return ZONES_N; }
 const char* zoneName(uint8_t i){ return ZONES[i < ZONES_N ? i : 0].name; }
+// On-screen twin of zoneName(): Russian under lang()==1, otherwise the exact
+// same string zoneName() returns. zoneName() itself stays English because it
+// is also what the ZONE <name> console command matches.
+const char* zoneDisplayName(uint8_t i) {
+    const uint8_t k = i < ZONES_N ? i : 0;
+    return Settings::lang() == 1 ? ZONES_RU[k] : ZONES[k].name;
+}
 uint8_t zoneStep(uint8_t i, int dir) {
     uint8_t at = 0;
     for (uint8_t k = 0; k < ZONES_N; k++) if (ORDER[k] == i) { at = k; break; }
