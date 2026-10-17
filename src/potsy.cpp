@@ -1153,6 +1153,15 @@ enum class OutfitId : uint8_t {
     COUNT
 };
 
+// Outfits that add nothing over the torso, hips or feet -- a hat, a pelt on
+// the back, a pair of wings -- so the base outfit still shows under them,
+// exactly as it does on the bare look. Every costume that dresses or
+// recolours the body keeps the base outfit OFF, so it never fights it.
+static bool outfitWearsBaseClothes(OutfitId o) {
+    return o == OutfitId::NONE || o == OutfitId::TINFOIL ||
+           o == OutfitId::WOLFPELT || o == OutfitId::CHROMEWING;
+}
+
 struct OutfitDef { const char* name; uint32_t threshold; };
 // Threshold sentinel: this outfit is not unlocked by lifetime count at
 // all, so no reachable total should ever satisfy it.
@@ -6355,18 +6364,17 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     // gold afterward instead of plain brown.
     uint16_t furMain = FUR_MAIN, furLight = FUR_LIGHT;
     switch (currentStage()) {
-        case GrowthStage::TRACKER:
-            furMain  = blend(FUR_MAIN, CYAN, 50);
-            furLight = blend(FUR_LIGHT, CYAN, 50);
-            break;
-        case GrowthStage::VETERAN:
-            furMain  = blend(FUR_MAIN, WHITE, 90);
-            furLight = blend(FUR_LIGHT, WHITE, 90);
-            break;
-        case GrowthStage::LEGEND:
-            furMain  = blend(FUR_MAIN, AMBER, 110);
-            furLight = blend(FUR_LIGHT, VAPOR_YELLOW, 110);
-            break;
+        // One tint for BOTH tokens. They used to differ (LEGEND tinted the
+        // body AMBER and the limbs VAPOR_YELLOW), which was invisible while
+        // the two base tokens were themselves different -- but now that the
+        // skin is a single yellow it made the head gold and the arms yellow.
+        // Body and limbs take the same wash, so he is always one colour.
+        case GrowthStage::TRACKER: furMain = furLight = blend(FUR_MAIN, CYAN, 50);  break;
+        case GrowthStage::VETERAN: furMain = furLight = blend(FUR_MAIN, WHITE, 90); break;
+        // LEGEND keeps him YELLOW (a brighter, richer yellow) rather than
+        // tinting the skin gold/amber -- the aura already says "Legend", and
+        // a gold body read as orange. Both tokens together, so limbs match.
+        case GrowthStage::LEGEND:  furMain = furLight = blend(FUR_MAIN, VAPOR_YELLOW, 110); break;
         default: break;
     }
     // Some outfits recolor the fur itself rather than just adding an
@@ -6903,11 +6911,12 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
 
     // ---- base outfit ---------------------------------------------------
     // The bare look's clothes: a tee, shorts and sneakers in the colours
-    // picked on the APPEARANCE page. ONLY the NONE outfit wears them --
-    // every costume dresses or recolours him its own way (VOID EYE, for
-    // one, wants bare legs), so the base outfit steps aside entirely
-    // rather than fighting the costume for the same pixels.
-    if (outfitNow == OutfitId::NONE) {
+    // picked on the APPEARANCE page. Worn on the bare look and on the
+    // costumes that do not cover the body (see outfitWearsBaseClothes) --
+    // a foil hat, a pelt on the back, a pair of wings all leave the torso,
+    // hips and feet free, so the outfit goes on top. Every costume that
+    // dresses or recolours the body keeps them off, so it never fights it.
+    if (outfitWearsBaseClothes(outfitNow)) {
         const int th = torsoHalf();
         const uint16_t teeC   = shirtColor();
         const uint16_t teeDk  = blend(teeC, BLACK, 90);
@@ -7322,7 +7331,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
     // The base tee's short sleeves, over each shoulder. Drawn after the arm
     // chain, which has recorded both arms' endpoints by now, so a raised arm
     // takes its sleeve with it instead of leaving it hanging at the old spot.
-    if (outfitNow == OutfitId::NONE) {
+    if (outfitWearsBaseClothes(outfitNow)) {
         const uint16_t teeC  = shirtColor();
         const uint16_t teeDk = blend(teeC, BLACK, 90);
         const int sw = S(9);
@@ -7520,7 +7529,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             const int ex = cx2 + sg * S(11);
             t.fillRoundRect(ex - ew / 2, hh + S(13) - eh / 2, ew, eh, S(1), furMain);
             t.fillRoundRect(ex - ew / 2 + 1, hh + S(13) - eh / 2 + 1, ew - 2, eh - 2, S(1),
-                            blend(furMain, FUR_SHADE, 120));
+                            blend(furMain, SKIN_DARK, 90));
         }
     }
 
@@ -7531,7 +7540,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
         // A deeper shade of the SAME yellow (down in value, not toward the
         // orange-brown SKIN_DARK), so it reads as his own skin in shadow and
         // never as an orange insert.
-        const uint16_t cheek = blend(furMain, FUR_SHADE, 80);
+        const uint16_t cheek = blend(furMain, SKIN_DARK, 60);
         const int cw = S(4), ch2 = S(4);
         t.fillRoundRect(cx2 - S(8) - cw / 2, hh + S(15), cw, ch2, S(1), cheek);
         t.fillRoundRect(cx2 + S(8) - cw / 2, hh + S(15), cw, ch2, S(1), cheek);
