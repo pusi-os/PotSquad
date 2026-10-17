@@ -484,7 +484,7 @@ if (!Theme::stillBackdrop(t)) switch (Settings::background()) {
             else if (d->name[0]) snprintf(nm, sizeof nm, "%s", Privacy::name(d->name, pv, sizeof pv));
             else { char mac[24]; Privacy::mac(mac, sizeof mac, d->mac); const size_t ml = strlen(mac);
                    snprintf(nm, sizeof nm, "%s", ml > 8 ? mac + ml - 8 : mac); }
-            if (IgnoreList::contains(d->mac)) { char tmp[40]; snprintf(tmp, sizeof tmp, Theme::tr("(IGN) %s", "(ИГН) %s"), nm); snprintf(nm, sizeof nm, "%s", tmp); }
+            if (IgnoreList::contains(d->mac)) { char tmp[64]; snprintf(tmp, sizeof tmp, Theme::tr("(IGN) %s", "(ИГН) %s"), nm); snprintf(nm, sizeof nm, "%s", tmp); }
             const int nx = 6 + t.textWidth("EVIL TWIN") + 6, nmax = rsX - 6 - nx;
             while (nm[0] && Theme::rowWidth(t, nm) > nmax) nm[strlen(nm) - 1] = '\0';
             t.setTextColor(kept ? dim : (reg ? Theme::VAPOR_PINK : Theme::WHITE), Theme::BG);

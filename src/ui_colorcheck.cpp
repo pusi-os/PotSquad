@@ -114,9 +114,11 @@ void uiColorCheckTick(TFT_eSPI& t, uint32_t now) {
         y += wordRowH;
     }
 
-    char invLabel[16];
+    // 40, not 16/20: the Russian labels are two bytes a letter, and the old
+    // buffers truncated them mid-glyph -- the tail printed as '?'.
+    char invLabel[40];
     snprintf(invLabel, sizeof(invLabel), Theme::tr("INVERT: %s", "ИНВЕРСИЯ: %s"), Theme::onOff(Settings::inverted()));
-    char ordLabel[20];
+    char ordLabel[40];
     snprintf(ordLabel, sizeof(ordLabel), Theme::tr("ORDER: %s", "ПОРЯДОК: %s"), Settings::rgbSwapped() ? Theme::tr("SWAP", "ОБРАТ") : Theme::tr("NORM", "НОРМ"));
     Theme::drawButton(t, invX, invY, invW, invH, invLabel, false);
     Theme::drawButton(t, ordX, ordY, ordW, ordH, ordLabel, false);

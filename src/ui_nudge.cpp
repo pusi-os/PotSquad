@@ -59,7 +59,7 @@ void uiNudgeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
 
     Theme::bodyFontOn(t);
     int y = Theme::LIST_TOP + Theme::listHeadingH() + 10;
-    char line[48];
+    char line[80];  // RU copy is two bytes a letter
     snprintf(line, sizeof line, Theme::tr("%s asked the squad to update", "%s просит обновить сквад"), s_from);
     centred(t, y, Theme::WHITE, line);
     y += Theme::bodyY(12);

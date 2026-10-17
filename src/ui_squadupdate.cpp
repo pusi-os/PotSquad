@@ -121,7 +121,7 @@ void uiSquadUpdateTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng) {
     const Geom g = geom(t);
     Theme::bodyFontOn(t);
     int y = Theme::LIST_TOP + Theme::listHeadingH() + 4;
-    char buf[48];
+    char buf[96];  // RU copy is two bytes a letter
 
     if (!s_sent) {
         line(t, y, Theme::WHITE, Theme::tr("Tells every PotsSquad in range with",

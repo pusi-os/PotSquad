@@ -94,7 +94,7 @@ void scanlines(TFT_eSPI& t, int x, int y, int w, int h) {
 
 // ---- the header --------------------------------------------------------------
 void drawHeader(TFT_eSPI& t, uint32_t now) {
-    char line[40];
+    char line[64];  // RU copy is two bytes a letter
     const uint8_t nodes = Lora::nodeCount();
     snprintf(line, sizeof line, Theme::tr("LORA  %s  %u NODES", "LORA  %s  %u УЗЛОВ"),
              Settings::loraListen() == 3 ? Theme::tr("BOTH", "ОБА") : Settings::loraListen() == 2 ? "MESHCORE" : "MESHTASTIC", (unsigned)nodes);
@@ -697,7 +697,7 @@ void drawDish(TFT_eSPI& t, uint32_t now) {
     // legend used to end "NO POS", which meant "a rim dot sent no position"
     // and read as "your GPS has no position" (a tester, 2026-10-15).
     {
-        char g[24];
+        char g[40];
         uint16_t gc;
         if (haveFix)                 { snprintf(g, sizeof g, Theme::tr("GPS FIX %u SATS", "GPS: %u СПУТН"), (unsigned)fix.used); gc = Theme::GREEN; }
         else if (Gnss::good() > 0)   { snprintf(g, sizeof g, "%s", Theme::tr("GPS SEARCHING", "GPS: ПОИСК")); gc = Theme::AMBER; }

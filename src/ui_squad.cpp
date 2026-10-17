@@ -151,7 +151,7 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         if (Theme::isRu(hd)) { t.setTextSize(1); t.setCursor(8, 6); Theme::printRU16(t, hd); }
         else { t.setTextSize(2); t.setCursor(8, 6); t.print(hd); }
     }
-    char cnt[32];
+    char cnt[48];   // RU copy is two bytes a letter
     if (s_roster) {
         uint8_t here = 0;
         for (uint8_t i = 0; i < s_n; i++) if (s_here[i]) here++;
@@ -190,7 +190,7 @@ void uiSquadTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
         Theme::bodyFontOn(t);
         const int subH = t.fontHeight();
         t.setTextColor(Theme::CYAN, Theme::BG);
-        char sub[40];
+        char sub[64];
         if (s_roster)
             snprintf(sub, sizeof sub, Theme::tr("%s  MET %ux  %u/%u", "%s  ВСТРЕЧ %ux  %u/%u"), Potsy::outfitNameAt(m.peer.outfit),
                      (unsigned)s_met[s_sel], (unsigned)(s_sel + 1), (unsigned)s_n);

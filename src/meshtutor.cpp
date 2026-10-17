@@ -122,7 +122,7 @@ void drawCard(TFT_eSPI& t, bool atTop) {
     t.drawRect(cx, cy, cw, ch, Theme::VAPOR_PINK);
     t.drawRect(cx + 1, cy + 1, cw - 2, ch - 2, Theme::PURPLE);
 
-    char hd[24];
+    char hd[48];   // RU is two bytes a letter; 24 truncated "СООБЩЕНИЯ %u/%u"
     snprintf(hd, sizeof hd, Theme::tr("MESSAGES %u/%u", "СООБЩЕНИЯ %u/%u"), (unsigned)s_step, (unsigned)STEPS);
     t.setTextColor(Theme::VAPOR_PINK, Theme::BG);
     if (ru) { t.setCursor(cx + 6, cy + 5); Theme::printRU(t, hd); }

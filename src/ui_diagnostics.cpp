@@ -57,7 +57,7 @@ static int drawLine(TFT_eSPI& t, int y, uint16_t labelColor, const char* label, 
     t.setCursor(6, y);
     put(t, label);
 
-    char buf[48];
+    char buf[96];
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
