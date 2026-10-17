@@ -39,10 +39,17 @@ namespace Theme {
     // Deliberately NOT part of the swappable palette — he should look
     // like Potsy no matter which UI theme is active.
     constexpr uint16_t FUR_DARK     = 0x38C0;  // #3d1800 shadow only
-    constexpr uint16_t FUR_MAIN     = 0xFEA3;  // #fed41d Simpson skin fill
-    constexpr uint16_t FUR_LIGHT    = 0xFF2B;  // #ffe45e Simpson highlight
+    // ONE base skin yellow for the whole body and head -- the pale, creamy
+    // yellow (was the "highlight"; the darker #fed41d read as orange against
+    // it). FUR_MAIN and FUR_LIGHT are the same tone on purpose: a flat
+    // Simpson-yellow guy, not a two-tone one.
+    constexpr uint16_t FUR_MAIN     = 0xFF2B;  // #ffe45e base skin (body+head)
+    constexpr uint16_t FUR_LIGHT    = 0xFF2B;  // #ffe45e same -- highlights only
     constexpr uint16_t SKIN_TAN     = 0xFF2B;  // #ffe45e face patch (same yellow)
-    constexpr uint16_t SKIN_DARK    = 0xCB88;  // #c87040 ear inner
+    // The slightly darker, warmer tone for the accent spots only: ear inner,
+    // cheeks (and the SAD/GRR brows). Never the body itself.
+    constexpr uint16_t FUR_SHADE    = 0xFEA3;  // #fed41d warmer accent
+    constexpr uint16_t SKIN_DARK    = 0xCB88;  // #c87040 ear inner (legacy)
 
     // Windows 95/98 system chrome.
     //
