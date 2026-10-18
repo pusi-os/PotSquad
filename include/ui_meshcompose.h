@@ -20,6 +20,11 @@ void       uiMeshComposeInit(TFT_eSPI& t);
 void       uiMeshComposeTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool advance = true);
 ComposeHit uiMeshComposeTouch(int x, int y, uint32_t now);
 
+// The centre of every element on screen -- line tabs, line slots, FILL, HELP,
+// TYPE, BACK, SEND, and the whole emote board when it is up -- for the
+// no-touch cursor. It reads the rectangles the draw filled in; nothing acts.
+uint8_t uiMeshComposeStops(TFT_eSPI& t, int16_t* xs, int16_t* ys, uint8_t cap);
+
 // Back from the keyboard with a message: show it large, with EDIT and SEND.
 void        uiMeshComposeSetTyped(const char* text);
 // What the keyboard should start from ("" for a new message).

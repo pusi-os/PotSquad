@@ -53,7 +53,7 @@ int main() {
 
         // 14 is the shark suit, the last outfit: it once clamped to NONE.
         n = encode(mk(9, 14, 3, "STOMPY"), buf);
-        ck("a named payload is 20 bytes", n == LEN_NAMED);
+        ck("a named payload is LEN_NAMED bytes", n == LEN_NAMED);
         ck("it decodes", decode(buf, n, p));
         ck("nickname survives",  p.nick == 9);
         ck("outfit survives",    p.outfit == 14);
@@ -132,7 +132,7 @@ int main() {
         me.custom = true;
         strcpy(me.name, "NIGHTWALKER");
         n = encode(me, buf);
-        ck("a named phone payload is 24 bytes", n == LEN_NAMED_PHONE);
+        ck("a named phone payload is LEN_NAMED_PHONE bytes", n == LEN_NAMED_PHONE);
         ck("it decodes", decode(buf, n, p));
         ck("with the name", strcmp(p.name, "NIGHTWALKER") == 0 && p.custom && p.phone);
         ck("and the identity after the name", memcmp(p.id, me.id, PHONE_ID_LEN) == 0);
@@ -347,10 +347,11 @@ int main() {
     {
         Look l{};
         l.shirt = 0; l.shorts = 7; l.shoes = 3; l.state = 12;
+        l.glasses = true; l.lashes = false;
         memset(buf, 0xAA, sizeof(buf));
         size_t n = encodeLook(l, buf);
         ck("it is LOOK_PAYLOAD bytes", n == LOOK_PAYLOAD);
-        ck("its magic is 'SQX1'", buf[0] == 'S' && buf[1] == 'Q' && buf[2] == 'X' && buf[3] == '1');
+        ck("its magic is the one byte", buf[0] == LOOK_MAGIC);
 
         Look r{};
         ck("it decodes", decodeLook(buf, n, r));
@@ -358,13 +359,17 @@ int main() {
         ck("shorts survives",  r.shorts == 7);
         ck("shoes survives",   r.shoes  == 3);
         ck("state survives",   r.state  == 12);
+        ck("glasses on, lashes off survive", r.glasses && !r.lashes);
 
-        // Extremes: all-white clothing and the top of the 5-bit state field.
+        // Extremes: all-white clothing, the top of the 5-bit state field, and
+        // the other eye combination.
         l.shirt = 7; l.shorts = 7; l.shoes = 7; l.state = 31;
+        l.glasses = false; l.lashes = true;
         encodeLook(l, buf);
         ck("the extremes decode", decodeLook(buf, LOOK_PAYLOAD, r));
         ck("white on all three",  r.shirt == 7 && r.shorts == 7 && r.shoes == 7);
         ck("state 31 survives",   r.state == 31);
+        ck("glasses off, lashes on survive", !r.glasses && r.lashes);
     }
 
     suite("A look extension refuses what it must");
@@ -385,12 +390,8 @@ int main() {
         ck("a null pointer is refused", !decodeLook(nullptr, LOOK_PAYLOAD, r));
 
         uint8_t m[LOOK_PAYLOAD];
-        memcpy(m, e, LOOK_PAYLOAD); m[0] = 'X';
+        memcpy(m, e, LOOK_PAYLOAD); m[0] = 'Y';
         ck("a wrong magic is refused", !decodeLook(m, LOOK_PAYLOAD, r));
-
-        uint8_t v[LOOK_PAYLOAD];
-        memcpy(v, e, LOOK_PAYLOAD); v[4] = (uint8_t)(LOOK_VERSION + 1);
-        ck("a newer version is declined, not misread", !decodeLook(v, LOOK_PAYLOAD, r));
     }
 
     return report();

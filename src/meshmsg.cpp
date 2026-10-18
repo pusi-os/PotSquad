@@ -6,7 +6,7 @@
 
 namespace MeshMsg {
 
-const char SALT[] = "PotsSquad/msg/v1";
+const char SALT[] = "pusimesh/v2/key";
 
 // 43 characters, codes 0..42. See the header before changing a single one.
 const char TEXT_CHARSET[] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,?!'-";

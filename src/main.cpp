@@ -469,7 +469,9 @@ static void drawCrashCard(TFT_eSPI& t) {
 #define BL_PIN_ORIG 21
 #define BL_PIN_CAP  27
 #define BL_PIN_AWOK 32
-#if defined(SQW_SMALL)
+#if defined(XIAOZHI_CUBE)
+#define BL_PIN_S3   13   // the cube's backlight
+#elif defined(SQW_SMALL)
 #define BL_PIN_S3   38   // the StickS3's and the Cardputer ADV's
 #elif defined(FREENOVE_S3_35)
 #define BL_PIN_S3   41   // the Freenove 3.5"'s, through a BSS138 (HIGH is on)
@@ -501,7 +503,8 @@ static void drawCrashCard(TFT_eSPI& t) {
 constexpr bool PANEL_NEEDS_INVERSION = true;
 #elif defined(SQW_SMALL)
 // M5GFX sets invert for the StickS3's ST7789P3 and the Cardputer's ST7789V2.
-// Confirmed on the stick 2026-10-04.
+// Confirmed on the stick 2026-10-04. The cube's 1.54" ST7789 comes through
+// here too (it defines SQW_SMALL), and wants the same inversion on.
 constexpr bool PANEL_NEEDS_INVERSION = true;
 #elif defined(FREENOVE_S3_35)
 // Freenove's init for the 3.5" ST77922 turns inversion on (0x21), which is
@@ -752,6 +755,39 @@ static void applyColorOrder() {
     uint8_t bits = madctlRotationBits(screenRotation) | (wantBgr ? MADCTL_BGR : 0);
     tft.writecommand(MADCTL_CMD);
     tft.writedata(bits);
+}
+
+// Cycle the screen a quarter turn (delta +1 or -1) and re-lay everything for
+// the new shape. This is the ONE place the rotation sequence lives, so the
+// title-bar rotate button (touch boards) and the APPEARANCE row (button
+// boards, which have no on-screen button) do exactly the same thing.
+//
+// The frame buffer is never freed here: landscape and portrait have the same
+// pixel count, so resizeInPlace() only re-points the sprite's bookkeeping.
+// (The old delete+recreate churned the heap and failed on real hardware.)
+static void rotateScreenBy(int delta) {
+    screenRotation = (uint8_t)((screenRotation + delta) & 3);
+    Settings::saveRotation(screenRotation);
+    FramePush::asyncWait();
+    FramePush::busLock();
+    tft.setRotation(screenRotation);
+    FramePush::busUnlock();
+    FramePush::invalidate();   // the panel was re-initialised; send every row again
+    applyColorOrder();         // MX/MY/MV are rotation-dependent
+    if (frame.created()) {
+#if defined(CYD35)
+        frame.resizeInPlace(tft.width(), tft.height() / 2);
+#else
+        frame.resizeInPlace(tft.width(), tft.height());
+#endif
+    } else if (frameBufferOk) {
+        Serial.println("[rotate] frame buffer was never allocated -- falling back to unbuffered rendering");
+        frameBufferOk = false;
+#if !defined(CYD35)
+        canvas = &tft;
+#endif
+    }
+    transitionStart = millis();
 }
 
 // ---- Touch helpers ----
@@ -1027,6 +1063,21 @@ static void extPush() {
 }
 #endif
 
+// The red bubble's two answers, shared by the touch buttons and the no-touch
+// quick reply (VOL+ like, VOL- dislike). Seals the emote and, only if it goes
+// out, acts it locally -- otherwise the button looked dead with TRANSMIT off.
+static void quickReact(bool like, uint32_t now) {
+    const uint8_t e = like ? (uint8_t)MeshMsg::Emote::HIGH_FIVE
+                           : (uint8_t)MeshMsg::Emote::GRR;
+    if (MeshTalk::sendEmote(e, 0, now) == MeshTalk::Send::OK) {
+        uiClearEmote(e, 0, false);
+    } else {
+        Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"),
+                         Theme::tr("Turn TRANSMIT on in PusiMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"),
+                         Theme::AMBER);
+    }
+}
+
 #if defined(SQW_SMALL)
 // ---- the StickS3's two buttons, standing in for a finger -------------------
 // No touch panel, so the buttons drive the same tap handling every screen
@@ -1047,7 +1098,18 @@ static StickPt       s_stickHoldPt;
 static const int      STICK_KEY1 = 11, STICK_KEY2 = 12;
 // What a board's keys ask of the cursor this frame. `press` is a level --
 // held is held -- and the rest happen once.
-struct SmallKeys { bool press, next, prev, home; };
+struct SmallKeys {
+    bool press, next, prev, home;
+    // The press that STARTED a step, before any held-key repeat. The red
+    // bubble's quick reply uses these so holding VOL does not fire it over
+    // and over.
+    bool nextEdge, prevEdge;
+    // A step key held past STICK_HOLD_MS, fired once. The red message
+    // bubble answers these: a hold of VOL+ likes, of VOL- dislikes, so a
+    // short tap keeps walking the cursor and a hold is what answers the
+    // message -- the two never fight for the same press.
+    bool nextLong, prevLong;
+};
 #if defined(CARDPUTER_ADV)
 // The Cardputer ADV's keyboard: a TCA8418 at 0x34 on SDA 8 / SCL 9, scanning
 // a 7x8 matrix that M5 lays out as four rows of fourteen (their own remap,
@@ -1077,7 +1139,7 @@ static bool cardKeysBegin() {
     return ok;
 }
 static SmallKeys smallKeysRead() {
-    SmallKeys k = { false, false, false, false };
+    SmallKeys k = { false, false, false, false, false, false, false, false };
     if (!s_cardKeysOk) return k;
     for (int i = 0; i < 10; i++) {
         const int cnt = cardRead(0x03);
@@ -1097,13 +1159,55 @@ static SmallKeys smallKeysRead() {
     }
     cardReg(0x02, 0x0F);
     k.press = s_cardEnter;
+    k.nextEdge = k.next;
+    k.prevEdge = k.prev;
+    return k;
+}
+#elif defined(XIAOZHI_CUBE)
+// The cube: three keys. BOOT presses where the cursor is (held, it goes home,
+// the same gesture as the StickS3's KEY2); VOL+ and VOL- step the cursor
+// forward and back. Each step fires once per press, on the press edge.
+static const int CUBE_KEY_BOOT = 0, CUBE_KEY_UP = 40, CUBE_KEY_DN = 39;
+static bool     s_cubeBootWas = false, s_cubeBootLong = false;
+static bool     s_cubeUpWas = false, s_cubeDnWas = false;
+static uint32_t s_cubeBootAt = 0;
+static uint32_t s_cubeUpRepeat = 0, s_cubeDnRepeat = 0;
+// When each step key went down, and whether its hold has already been
+// reported. The red-bubble quick reply reads the hold (VOL+ like, VOL-
+// dislike); a tap still steps the cursor on the press edge.
+static uint32_t s_cubeUpAt = 0, s_cubeDnAt = 0;
+static bool     s_cubeUpLong = false, s_cubeDnLong = false;
+static SmallKeys smallKeysRead() {
+    SmallKeys k = { false, false, false, false, false, false, false, false };
+    const uint32_t now = millis();
+    const bool boot = digitalRead(CUBE_KEY_BOOT) == LOW;
+    if (boot && !s_cubeBootWas) { s_cubeBootAt = now; s_cubeBootLong = false; }
+    if (boot && !s_cubeBootLong && now - s_cubeBootAt > STICK_HOLD_MS) { s_cubeBootLong = true; k.home = true; }
+    s_cubeBootWas = boot;
+    k.press = boot;
+    const bool up = digitalRead(CUBE_KEY_UP) == LOW;
+    const bool dn = digitalRead(CUBE_KEY_DN) == LOW;
+    // One step on the press edge, then auto-repeat while held: lists are long
+    // on this screen and 20 taps to reach the bottom is not navigation.
+    if (up) {
+        if (!s_cubeUpWas) { k.next = true; k.nextEdge = true; s_cubeUpAt = now; s_cubeUpLong = false; s_cubeUpRepeat = now + 420; }
+        else if (!s_cubeUpLong && now - s_cubeUpAt > STICK_HOLD_MS) { k.nextLong = true; s_cubeUpLong = true; }
+        else if ((int32_t)(now - s_cubeUpRepeat) >= 0) { k.next = true; s_cubeUpRepeat = now + 110; }
+    }
+    if (dn) {
+        if (!s_cubeDnWas) { k.prev = true; k.prevEdge = true; s_cubeDnAt = now; s_cubeDnLong = false; s_cubeDnRepeat = now + 420; }
+        else if (!s_cubeDnLong && now - s_cubeDnAt > STICK_HOLD_MS) { k.prevLong = true; s_cubeDnLong = true; }
+        else if ((int32_t)(now - s_cubeDnRepeat) >= 0) { k.prev = true; s_cubeDnRepeat = now + 110; }
+    }
+    s_cubeUpWas = up;
+    s_cubeDnWas = dn;
     return k;
 }
 #else
 // The StickS3: KEY1 presses, KEY2 steps on a short press and goes home on a
 // held one. Nothing steps backwards; there are two buttons.
 static SmallKeys smallKeysRead() {
-    SmallKeys k = { false, false, false, false };
+    SmallKeys k = { false, false, false, false, false, false, false, false };
     const uint32_t now = millis();
     const bool k2 = digitalRead(STICK_KEY2) == LOW;
     if (k2 && !s_stickKey2Was) { s_stickKey2At = now; s_stickKey2Long = false; }
@@ -1111,6 +1215,7 @@ static SmallKeys smallKeysRead() {
     if (!k2 && s_stickKey2Was && !s_stickKey2Long && now - s_stickKey2At > 25) k.next = true;
     s_stickKey2Was = k2;
     k.press = digitalRead(STICK_KEY1) == LOW;
+    k.nextEdge = k.next;
     return k;
 }
 #endif
@@ -1120,7 +1225,10 @@ static uint32_t       s_stickShownAt = 0;       // the cursor shows for a while 
 static bool           s_stickHome = false;      // KEY2 held: loop() goes home
 static int8_t         s_stickDrag = 0;          // a scripted drag under way: +1 down the list, -1 up
 static uint8_t        s_stickDragStep = 0;
-static const uint8_t  STICK_STOPS_MAX = 24;
+// Every stop a screen can have. The APPEARANCE page alone is ~20 rows, and a
+// heading or two plus BACK adds more; the old 24 silently dropped the tail of
+// the list, so its last rows could never be reached with the buttons.
+static const uint8_t  STICK_STOPS_MAX = 48;
 
 // What is under a point on a list screen, as that screen's own hit test
 // sees it, or -1. The stops are found by sweeping this over the screen, so
@@ -1170,7 +1278,83 @@ static int stickListId(int x, int y) {
             const MeshMenuRow r = uiMeshMenuHitTest(*canvas, x, y, w, h);
             return r == MeshMenuRow::NONE ? -1 : (int)r;
         }
+        case AppState::CHAT: {
+            const int r = uiChatRowAt(x, y);
+            if (r >= 0) return 400 + r;
+            const int b = uiChatHit(x, y);
+            return b < 0 ? -1 : 4000 + b;      // CLOSE / FAVOURITES / WRITE
+        }
 #endif
+        // ---- the rest of the screens, through their own pure hit tests ----
+        // These are the ones that used to fall through to a coarse 3x4 grid,
+        // where most of what is on screen could not be reached at all.
+        case AppState::RAWSCAN: {
+            const int r = uiRawScanRowAt(*canvas, x, y, w, h);
+            if (r >= 0) return 100 + r;
+            const RawScanTap t = uiRawScanHitTest(x, y, w, h);
+            return t == RawScanTap::NONE ? -1 : 2000 + (int)t;
+        }
+        case AppState::IGNORE_LIST: {
+            const uint8_t r = uiIgnoreListHitRemove(*canvas, x, y, w, h);
+            return r == 0xFF ? -1 : 300 + r;
+        }
+        case AppState::STATUS_LIGHT: {
+            const LightRow r = uiLightHitTest(*canvas, x, y, w, h);
+            return r == LightRow::NONE ? -1 : 500 + (int)r;
+        }
+        case AppState::BINGO: {
+            const BingoTap r = uiBingoHitTest(*canvas, x, y, w, h);
+            return r == BingoTap::NONE ? -1 : 600 + (int)r;
+        }
+        case AppState::COLOR_CHECK: {
+            const ColorCheckTap r = uiColorCheckHitTest(x, y, w, h);
+            return r == ColorCheckTap::NONE ? -1 : 700 + (int)r;
+        }
+        case AppState::INVITE: {
+            const InviteHit r = uiInviteHit(*canvas, x, y);
+            return r == InviteHit::NONE ? -1 : 800 + (int)r;
+        }
+        case AppState::NUDGE: {
+            const NudgeHit r = uiNudgeHit(*canvas, x, y);
+            return r == NudgeHit::NONE ? -1 : 900 + (int)r;
+        }
+        case AppState::SQUAD_UPDATE: {
+            const SquadUpdateHit r = uiSquadUpdateHit(*canvas, x, y);
+            return r == SquadUpdateHit::NONE ? -1 : 1000 + (int)r;
+        }
+        case AppState::MESH_WARN: {
+            const MeshWarnHit r = uiMeshWarnHitTest(*canvas, x, y);
+            return r == MeshWarnHit::NONE ? -1 : 1100 + (int)r;
+        }
+        case AppState::BEACON_WARN: {
+            const BeaconWarnHit r = uiBeaconWarnHitTest(*canvas, x, y);
+            return r == BeaconWarnHit::NONE ? -1 : 1200 + (int)r;
+        }
+#if POTS_LORA
+        case AppState::LORA_HOME: {
+            const LoraHomeHit r = uiLoraHomeHit(*canvas, x, y);
+            return r == LoraHomeHit::NONE ? -1 : 1300 + (int)r;
+        }
+        case AppState::LORA_CHAT: {
+            const LoraChatHit r = uiLoraChatHit(*canvas, x, y);
+            return r == LoraChatHit::NONE ? -1 : 1400 + (int)r;
+        }
+#endif
+        case AppState::UPDATE: {
+            int net = 0;
+            const UpdateHit r = uiUpdateHitTest(*canvas, x, y, &net);
+            return r == UpdateHit::NONE ? -1 : 1500 + (int)r * 16 + (net & 0x0F);
+        }
+        case AppState::WIFI_NETS: {
+            int row = 0;
+            const WifiNetsHit r = uiWifiNetsHit(*canvas, x, y, &row);
+            return r == WifiNetsHit::NONE ? -1 : 1600 + (int)r * 16 + (row & 0x0F);
+        }
+        case AppState::WIFI_ADD: {
+            int row = 0;
+            const WifiAddHit r = uiWifiAddHit(*canvas, x, y, engine, &row);
+            return r == WifiAddHit::NONE ? -1 : 1700 + (int)r * 16 + (row & 0x0F);
+        }
         default: return -1;
     }
 }
@@ -1178,6 +1362,64 @@ static bool stickIsList() {
     return state == AppState::SETTINGS || state == AppState::POWER_SAVER ||
            state == AppState::SECURITY || state == AppState::DETECTION_FILTER ||
            state == AppState::MESH_MENU || state == AppState::LOG;
+}
+
+// Screens whose OWN hit test names every interactive thing: swept, but with no
+// made-up scroll/BACK stops on top (those belong only to the lists above).
+static bool stickIsHitSweep() {
+    switch (state) {
+        case AppState::RAWSCAN:
+        case AppState::IGNORE_LIST:
+        case AppState::CHAT:
+        case AppState::STATUS_LIGHT:
+        case AppState::BINGO:
+        case AppState::COLOR_CHECK:
+        case AppState::INVITE:
+        case AppState::NUDGE:
+        case AppState::SQUAD_UPDATE:
+        case AppState::MESH_WARN:
+        case AppState::BEACON_WARN:
+#if POTS_LORA
+        case AppState::LORA_HOME:
+        case AppState::LORA_CHAT:
+#endif
+        case AppState::UPDATE:
+        case AppState::WIFI_NETS:
+        case AppState::WIFI_ADD:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// One stop per distinct id the hit test names, at the centre of its bounding
+// box -- not the average of the sampled points, which a row with a gap (a
+// label on the left, a value on the right) pulls toward the middle of the
+// gap. Reading order, because the sweep is top-to-bottom.
+static uint8_t stickSweep(StickPt* out, uint8_t cap, uint8_t n, int stepX, int stepY) {
+    const int w = tft.width(), h = tft.height();
+    struct Acc { int id; int16_t x0, y0, x1, y1; } acc[STICK_STOPS_MAX];
+    uint8_t an = 0;
+    for (int y = 2; y < h; y += stepY)
+        for (int x = 3; x < w; x += stepX) {
+            const int id = stickListId(x, y);
+            if (id < 0) continue;
+            uint8_t a = 0;
+            while (a < an && acc[a].id != id) a++;
+            if (a == an) {
+                if (an == STICK_STOPS_MAX) continue;
+                acc[an++] = { id, (int16_t)x, (int16_t)y, (int16_t)x, (int16_t)y };
+            } else {
+                if (x < acc[a].x0) acc[a].x0 = (int16_t)x;
+                if (x > acc[a].x1) acc[a].x1 = (int16_t)x;
+                if (y < acc[a].y0) acc[a].y0 = (int16_t)y;
+                if (y > acc[a].y1) acc[a].y1 = (int16_t)y;
+            }
+        }
+    for (uint8_t a = 0; a < an && n < cap; a++)
+        out[n++] = { (int16_t)((acc[a].x0 + acc[a].x1) / 2),
+                     (int16_t)((acc[a].y0 + acc[a].y1) / 2), 0 };
+    return n;
 }
 
 static uint8_t stickStopsBuild(StickPt* out, uint8_t cap) {
@@ -1191,9 +1433,17 @@ static uint8_t stickStopsBuild(StickPt* out, uint8_t cap) {
     if (state == AppState::CLEAR) {
         add(w / 2, h * 2 / 5);          // Potsy, and whatever card is over him
         add(w / 2, h * 13 / 20);        // a card's own button
-        add(w / 2, h - 16);             // LOG
-        add(w * 5 / 6 - 4, h - 16);     // DESK
-        add(w / 6 + 2, h - 16);         // SCAN
+        // The bottom bar, from the SAME geometry the drawer and its hit test
+        // use. The three fixed centres that used to be here assumed a 3-slot
+        // bar; on a 240-wide panel buttonBarSlots() gives FOUR, so the middle
+        // stop landed in the gutter between SCAN and LOG and the buttons on
+        // either side of it were the only ones the cursor could reach.
+        {
+            const int slots = Theme::buttonBarSlots(w);
+            const Theme::ButtonBarGeom bar = Theme::computeButtonBar(w, h, slots);
+            for (int s = 0; s < slots; s++)
+                add(bar.x[s] + bar.w[s] / 2, bar.y + bar.h / 2);
+        }
         add(13, 11);                    // the menu
         {
             int16_t xs[8], ys[8];        // the counter tiles
@@ -1204,6 +1454,27 @@ static uint8_t stickStopsBuild(StickPt* out, uint8_t cap) {
         if (Pet::clippyCenter(px0, py0)) add(px0, py0);   // C1iPPY, for a poke
         return n;
     }
+    // Keyboards: every key is its own stop, using the geometry the screen
+    // itself draws with. Without this the cursor fell back to a coarse grid
+    // and no letter could ever be reached.
+#if POTS_MESH
+    if (state == AppState::PHONE || state == AppState::LOCKED ||
+        state == AppState::PIN_ENTRY) {
+        int16_t xs[64], ys[64];
+        const uint8_t k = uiPhoneStops(*canvas, xs, ys, 64);
+        for (uint8_t i = 0; i < k; i++) add(xs[i], ys[i]);
+        return n;
+    }
+    // The message screen's line picker (and its emote board): every tab, slot
+    // and button is a stop, from the rectangles the draw filled in. Without
+    // this the cursor fell to a coarse grid and no line could be chosen.
+    if (state == AppState::MESH_COMPOSE) {
+        int16_t xs[64], ys[64];
+        const uint8_t k = uiMeshComposeStops(*canvas, xs, ys, 64);
+        for (uint8_t i = 0; i < k; i++) add(xs[i], ys[i]);
+        return n;
+    }
+#endif
     if (state == AppState::SYS_PROPS) {
         int16_t xs[6], ys[6];
         const uint8_t k = uiSysPropsStops(*canvas, xs, ys, 6);
@@ -1218,22 +1489,27 @@ static uint8_t stickStopsBuild(StickPt* out, uint8_t cap) {
         add(w - 35, 14);                // IGNORE
         return n;
     }
+    // Screens whose own hit test names every element: use the fine sweep and
+    // nothing else (no invented scroll/BACK stops).
+    if (stickIsHitSweep()) {
+        n = stickSweep(out, cap, n, 6, 3);
+        // The two screens that scroll give the cursor its drags back, the
+        // same kind 1/2 stops LOG uses.
+        if (state == AppState::RAWSCAN || state == AppState::CHAT) {
+            const Theme::ButtonBarGeom bar = Theme::computeButtonBar(w, h);
+            add(w - 9, bar.y - 12, 1);
+            add(w - 9, Theme::LIST_TOP + 9, 2);
+        }
+        return n;
+    }
+
     if (stickIsList()) {
-        // Each thing the hit test names gets one stop, at the middle of
-        // everywhere it answered. In reading order, which for rows is down.
-        struct Acc { int id; int32_t sx, sy; uint16_t c; } acc[12];
-        uint8_t an = 0;
-        for (int y = 2; y < h; y += 4)
-            for (int x = 6; x < w; x += 12) {
-                const int id = stickListId(x, y);
-                if (id < 0) continue;
-                uint8_t a = 0;
-                while (a < an && acc[a].id != id) a++;
-                if (a == an) { if (an == 12) continue; acc[an++] = { id, 0, 0, 0 }; }
-                acc[a].sx += x; acc[a].sy += y; acc[a].c++;
-            }
+        // One stop per distinct id, at its bounding-box centre, swept finely
+        // enough to find a stepper's ~18px -/+ buttons and every list row.
+        n = stickSweep(out, cap, n, 6, 3);
         const bool logRows = state == AppState::LOG && !s_confirmPending;
-        for (uint8_t a = 0; a < an; a++) add(acc[a].sx / acc[a].c, acc[a].sy / acc[a].c, logRows ? 3 : 0);
+        if (logRows)
+            for (uint8_t i = 0; i < n; i++) out[i].kind = 3;   // a LOG row holds
         const bool panel = (state == AppState::SETTINGS && uiSettingsConfirmRow() != SettingsRow::NONE) ||
                            (state == AppState::LOG && s_confirmPending);
         if (logRows) {
@@ -1330,6 +1606,19 @@ static TouchPoint stickPoll() {
         Serial.println("[keys] home");
     }
     if (keys.next || keys.prev) {
+        // The red message bubble answers the two keys while it is up: held
+        // past STICK_HOLD_MS, VOL+ likes and VOL- dislikes. The cursor holds
+        // still meanwhile -- the bubble is transient, and letting a short tap
+        // walk the screen out from under it is what made the buttons feel
+        // dead. On a board with a touch panel the same two answers are taps
+        // on the buttons drawn in the bubble.
+        if (state == AppState::CLEAR && uiClearRedBubbleShowing()) {
+            if (keys.nextLong) quickReact(true, now);
+            if (keys.prevLong) quickReact(false, now);
+            lastTouch = now;
+            s_stickKey1Was = k1;
+            return tp;
+        }
         // The first press only shows where the cursor is; the next ones move it.
         if (now - s_stickShownAt < STICK_SHOW_MS)
             s_stickStop = (uint8_t)((s_stickStop + (keys.next ? 1 : n - 1)) % n);
@@ -1386,26 +1675,33 @@ static void stickDrawCursor(TFT_eSPI& t, uint32_t now) {
     StickPt pts[STICK_STOPS_MAX];
     const uint8_t n = stickStops(pts);
     if (s_stickStop >= n) return;
-    const int x = pts[s_stickStop].x, y = pts[s_stickStop].y, r = 9, a = 5;
+    const int x = pts[s_stickStop].x, y = pts[s_stickStop].y, r = 10, a = 6;
     if (pts[s_stickStop].kind == 1 || pts[s_stickStop].kind == 2) {
         const bool down = pts[s_stickStop].kind == 1;
-        t.fillRect(x - 8, y - 7, 17, 15, Theme::BG);
-        t.drawRect(x - 8, y - 7, 17, 15, Theme::AMBER);
-        for (int i = 0; i < 6; i++) {
-            const int half = down ? 5 - i : i;
-            t.drawFastHLine(x - half, y - 3 + i, 2 * half + 1, Theme::AMBER);
+        t.fillRect(x - 9, y - 8, 19, 17, Theme::BG);
+        t.drawRect(x - 10, y - 9, 21, 19, 0x0000);                 // halo
+        t.drawRect(x - 9, y - 8, 19, 17, Theme::VAPOR_YELLOW);     // two pixels thick
+        t.drawRect(x - 8, y - 7, 17, 15, Theme::VAPOR_YELLOW);
+        for (int i = 0; i < 7; i++) {
+            const int half = down ? 6 - i : i;
+            t.drawFastHLine(x - half, y - 3 + i, 2 * half + 1, Theme::VAPOR_YELLOW);
         }
         return;
     }
-    for (int k = 0; k < 2; k++) {
-        const int q = r - k;
-        const uint16_t c = k ? Theme::BG : Theme::AMBER;
-        t.drawFastHLine(x - q, y - q, a, c); t.drawFastVLine(x - q, y - q, a, c);
-        t.drawFastHLine(x + q - a + 1, y - q, a, c); t.drawFastVLine(x + q, y - q, a, c);
-        t.drawFastHLine(x - q, y + q, a, c); t.drawFastVLine(x - q, y + q - a + 1, a, c);
-        t.drawFastHLine(x + q - a + 1, y + q, a, c); t.drawFastVLine(x + q, y + q - a + 1, a, c);
-    }
-    t.fillRect(x - 1, y - 1, 3, 3, Theme::AMBER);
+    // A 2-pixel bright bracket over a 1-pixel black halo. One amber pixel was
+    // getting lost on the red message bubble and the bright detection tiles;
+    // the halo is what makes it read on light art as well as dark.
+    auto corner = [&](int q, int len, uint16_t c) {
+        t.drawFastHLine(x - q, y - q, len, c);               t.drawFastVLine(x - q, y - q, len, c);
+        t.drawFastHLine(x + q - len + 1, y - q, len, c);     t.drawFastVLine(x + q, y - q, len, c);
+        t.drawFastHLine(x - q, y + q, len, c);               t.drawFastVLine(x - q, y + q - len + 1, len, c);
+        t.drawFastHLine(x + q - len + 1, y + q, len, c);     t.drawFastVLine(x + q, y + q - len + 1, len, c);
+    };
+    corner(r + 1, a + 2, 0x0000);
+    corner(r,     a,     Theme::VAPOR_YELLOW);
+    corner(r - 1, a - 1, Theme::VAPOR_YELLOW);
+    t.fillRect(x - 2, y - 2, 5, 5, 0x0000);
+    t.fillRect(x - 1, y - 1, 3, 3, Theme::VAPOR_YELLOW);
 }
 #endif
 
@@ -4193,6 +4489,10 @@ void setup() {
 #if defined(STICKS3)
     pinMode(STICK_KEY1, INPUT_PULLUP);
     pinMode(STICK_KEY2, INPUT_PULLUP);
+#elif defined(XIAOZHI_CUBE)
+    pinMode(CUBE_KEY_BOOT, INPUT_PULLUP);
+    pinMode(CUBE_KEY_UP, INPUT_PULLUP);
+    pinMode(CUBE_KEY_DN, INPUT_PULLUP);
 #endif
     // Its colours were looked at on the bench, and the check's own buttons
     // sit below the bottom of a 135-row screen.
@@ -6271,53 +6571,7 @@ void loop() {
         if (g_consoleRotate) { g_consoleRotate = false; Serial.printf("[console] rotation -> %u\n", (unsigned)((screenRotation + 1) % 4)); }
         lastTouch = now;
         Potsy::trigger(Potsy::Event::ROTATED);
-        screenRotation = (screenRotation + 1) % 4;
-        Settings::saveRotation(screenRotation);
-        FramePush::asyncWait();
-        FramePush::busLock();
-        tft.setRotation(screenRotation);
-        FramePush::busUnlock();
-        FramePush::invalidate();   // the panel was re-initialised; send every row next
-        // The MX/MY/MV bits applyColorOrder() writes are rotation-
-        // dependent, so it has to be reissued alongside every
-        // setRotation() call, not just at boot.
-        applyColorOrder();
-        // Landscape and portrait need differently-*shaped* buffers, but
-        // not differently-*sized* ones -- a rectangular panel has the
-        // same total pixel count either way (320x240 and 240x320 are
-        // both 76800 px), so the buffer allocated once at boot already
-        // fits every orientation. resizeInPlace() (see ResizableSprite
-        // above) just re-points the sprite's own width/height/stride
-        // bookkeeping at the new shape; it never frees or reallocates.
-        //
-        // This replaces an earlier delete+recreate-every-rotate
-        // approach that looked safe (retried 3x with delays between
-        // attempts) but confirmed-failed on real hardware despite 123KB
-        // of TOTAL free heap -- the largest contiguous block was only
-        // 73.7KB against a 76.8KB need, pure fragmentation from
-        // WiFi/BLE churn, not a shortage retries could out-wait (delay()
-        // doesn't make the ESP32 heap allocator compact anything). Since
-        // resizeInPlace() never frees the buffer, that failure mode is
-        // now structurally impossible after the first successful boot
-        // allocation -- there's no more free/realloc cycle left to lose
-        // the fragmentation gamble against.
-        if (frame.created()) {
-#if defined(CYD35)
-            frame.resizeInPlace(tft.width(), tft.height() / 2);
-#else
-            frame.resizeInPlace(tft.width(), tft.height());
-#endif
-        } else if (frameBufferOk) {
-            // Never got its one-time boot-time allocation in the first
-            // place (see setup()) -- same permanent fallback a failed
-            // rotate used to trigger, since there's no buffer to resize.
-            Serial.println("[rotate] frame buffer was never allocated -- falling back to unbuffered rendering");
-            frameBufferOk = false;
-#if !defined(CYD35)
-            canvas = &tft;
-#endif
-        }
-        transitionStart = now;
+        rotateScreenBy(1);
     }
 #endif  // !AWOK
 
@@ -6878,23 +7132,8 @@ void loop() {
                 lastTouch = now;
                 sqActive  = false;
                 const int r = uiClearRedBubbleReact(tp.x, tp.y);
-                if (r == 1 || r == 2) {
-                    // The same shape the compose screen uses: seal the emote,
-                    // and only if it actually goes out does our own Potsy act
-                    // it -- otherwise the button looked dead on a board with
-                    // TRANSMIT off or no phrase.
-                    const uint8_t e = r == 1 ? (uint8_t)MeshMsg::Emote::HIGH_FIVE
-                                             : (uint8_t)MeshMsg::Emote::GRR;
-                    if (MeshTalk::sendEmote(e, 0, now) == MeshTalk::Send::OK) {
-                        uiClearEmote(e, 0, false);
-                    } else {
-                        Theme::showToast(Theme::tr("CAN'T SEND", "НЕ МОГУ ОТПРАВИТЬ"),
-                                         Theme::tr("Turn TRANSMIT on in PusiMesh", "Включи ПЕРЕДАЧУ в ПотсМеш"),
-                                         Theme::AMBER);
-                    }
-                } else {
-                    MeshTalk::markRead();
-                }
+                if (r == 1 || r == 2) quickReact(r == 1, now);
+                else                  MeshTalk::markRead();
             } else if (touchJustDown && (now - lastTouch) > TOUCH_DEBOUNCE_MS &&
                        uiClearBubbleHit(tp.x, tp.y)) {
                 // The message bubble. Ahead of the background and the edge
@@ -7829,7 +8068,18 @@ void loop() {
                             Settings::toggleRgbSwap();
                             applyColorOrder();
                             break;
-                        case SettingsRow::ROTATION_LOCK: Settings::toggleRotationLock(); break;
+                        case SettingsRow::ROTATION_LOCK:
+#if defined(SQW_SMALL)
+                            // Button boards have no on-screen rotate button, so
+                            // this row turns the screen instead -- a quarter turn
+                            // per press, the same sequence the touch boards'
+                            // title-bar button runs.
+                            Potsy::trigger(Potsy::Event::ROTATED);
+                            rotateScreenBy(1);
+#else
+                            Settings::toggleRotationLock();
+#endif
+                            break;
                         case SettingsRow::BRIGHTNESS: {
                             // Only the row's - and + buttons move it; a tap on
                             // the label or the number does nothing.
@@ -9146,6 +9396,8 @@ void loop() {
             info.boardName = "StickS3 LAB";
 #elif defined(CARDPUTER_ADV)
             info.boardName = "Cardputer ADV LAB";
+#elif defined(XIAOZHI_CUBE)
+            info.boardName = "xiaozhi-cube-154 LAB";
 #elif defined(TDECK_PLUS)
             info.boardName = "tdeck-plus LAB";
 #elif defined(FREENOVE_S3_35)

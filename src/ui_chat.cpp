@@ -364,4 +364,12 @@ int uiChatRowAt(int x, int y) {
     return -1;
 }
 
+int uiChatHit(int x, int y) {
+    if (in(s_close, x, y)) return 1;
+    if (in(s_favs, x, y))  return 2;
+    if (in(s_write, x, y)) return 3;
+    if (Theme::pinnedBackHit(x, y, s_scrW, s_scrH)) return 1;
+    return -1;
+}
+
 #endif // POTS_MESH

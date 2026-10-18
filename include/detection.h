@@ -86,6 +86,17 @@ namespace Mesh {
     // The visitor, or nullptr. Goes stale on its own if the peer walks away.
     const PusiMesh::Peer* peer();
     const uint8_t*          peerMac();
+    // Our stable PusiMesh v2 identity (spec §2), generated once and kept in
+    // NVS. Empty until the radio has come up and read or made it; the frame
+    // runtime seals under this rather than under the address, so it survives
+    // the address changing.
+    const uint8_t*          nodeId();
+    // Our presence body, without the company ID. Short: identity, appearance
+    // and clothes, what a BLE advert has room for. Long (buildSelf): the same
+    // plus a custom name, for transports with the room (ESP-NOW). NameAd: the
+    // PEX name advert body, for a BLE slot of its own (0 when unnamed).
+    size_t                  buildSelfShort(uint8_t* out);
+    size_t                  buildSelfNameAd(uint8_t* out);
     // How many PotsSquads have been heard in the last twenty seconds (PEER_STALE_MS) --
     // the visitor and everybody else. For the small "+2" beside him.
     uint8_t                 squadCount(uint32_t now);

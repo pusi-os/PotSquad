@@ -37,6 +37,10 @@ void        rollPhrase(uint16_t out[MeshMsg::PHRASE_WORDS]);
 // Switched on, a phrase set, and the crypto self-test passed at boot.
 bool ready();
 
+// The store a message body needs: up to 240 characters, each up to two bytes of
+// UTF-8. It is the v2 budget (spec §5); v1 held 48 single-byte Latin.
+static constexpr size_t MESH_TEXT_BYTES = 480;
+
 enum class Send : uint8_t { OK, NOT_READY, TRANSMIT_OFF, FAILED };
 Send     send(uint8_t canned, uint32_t now);
 // Up to MeshMsg::TEXT_MAX characters from MeshMsg::TEXT_CHARSET. FAILED for
@@ -88,7 +92,9 @@ struct Message {
     bool     text;          // typed, in `body`; otherwise a canned line
     bool     unknownLine;   // authentic, from a newer build with more lines
     uint8_t  canned;
-    char     body[MeshMsg::TEXT_MAX + 1];
+    // The v2 store: up to 240 characters, each up to two bytes of UTF-8, so a
+    // full Cyrillic message fits where v1's 48 single-byte Latin could not.
+    char     body[MESH_TEXT_BYTES + 1];
     char     from[13];
     uint8_t  mac[6];
     uint32_t at;            // millis() when it arrived

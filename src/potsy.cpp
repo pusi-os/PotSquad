@@ -2702,6 +2702,22 @@ void setClothPreview(int8_t shirt, int8_t shorts, int8_t shoes) {
     s_clothShoes  = (shoes  >= 0 && shoes  < (int8_t)CLOTH_N) ? shoes  : -1;
 }
 
+static int8_t s_glassesPreview = -1, s_lashesPreview = -1;
+void setGlassesPreview(int8_t on) { s_glassesPreview = on; }
+void setLashesPreview(int8_t on)  { s_lashesPreview = on; }
+
+// What the draw path actually wears: a visitor's on-air choice when one is
+// set, our own otherwise. The Settings rows keep reading glassesOn()/lashesOn()
+// so the switches still show OUR setting, not the guest's.
+static bool glassesShown() {
+    if (s_glassesPreview >= 0) return s_glassesPreview != 0;
+    return glassesOn();
+}
+static bool lashesShown() {
+    if (s_lashesPreview >= 0) return s_lashesPreview != 0;
+    return lashesOn();
+}
+
 static const char* s_nameTag = nullptr;
 void setNameTag(const char* name) {
     s_nameTag = (name && name[0]) ? name : nullptr;
@@ -7738,7 +7754,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
             // falling code are the costume -- so the GLASSES switch does
             // not touch them. Only the plain-issue shades come off.
             t3Shades(t, cx2, hh + sd, blink, scale);
-        } else if (!glassesOn()) {
+        } else if (!glassesShown()) {
             // Simpson base face: bare eyes under the (removed) shades. The
             // shades above are the separate sprite layer; with them off the
             // same blink/wink cycle drives real eyes instead of lenses.
@@ -7767,7 +7783,7 @@ static void drawBody(TFT_eSPI& t, int cx, int hy, int headTopY, uint32_t now, Mo
                     // A few lashes off the outer top corner, each a touch
                     // shorter than the last, angled outward. Toppled off for
                     // anyone who prefers the plain Simpson eye (see LASES).
-                    if (lashesOn()) {
+                    if (lashesShown()) {
                         // Two short lashes off the outer top corner, angled
                         // outward -- a hint, not a comb. The plain Simpson eye
                         // is a switch away (APPEARANCE > LASHES).

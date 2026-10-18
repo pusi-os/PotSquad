@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.normpath(os.path.join(HERE, "..", "include", "meshmsg_vectors.h"))
 
-SALT = b"PotsSquad/msg/v1"
+SALT = b"pusimesh/v2/key"
 PHRASE = "GIBSON MOTHMAN PHREAK NESSIE ZEROCOOL"
 ITERS = 2            # the device uses thousands; the self-test proves the wiring
 MAC = bytes([0x24, 0x0A, 0xC4, 0x12, 0x34, 0x56])

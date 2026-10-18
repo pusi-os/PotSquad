@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "detection.h"     // Mesh::buildSelf / Mesh::onManufacturerData, PusiMesh
+#include "pusimesh_v2.h"
 #include "settings.h"
 #include "meshtalk.h"
 #include "meshmsg.h"
@@ -22,7 +23,7 @@ static bool     s_active    = false;
 static uint32_t s_presAt    = 0;
 static uint32_t s_sealedGen = 0;
 static uint8_t  s_ownMac[6] = { 0 };
-static uint8_t  s_lastPres[PusiMesh::LEN_MAX];
+static uint8_t  s_lastPres[PusiMesh2::BODY_NAMED];
 static size_t   s_lastPresLen = 0;
 static uint32_t s_rx = 0, s_tx = 0, s_drop = 0, s_ackFail = 0;
 
@@ -178,13 +179,13 @@ void tick(uint32_t now) {
     // appearance changed so the heap is not churned one rebuild at a time.
     if (!s_presAt || (now - s_presAt) >= PRESENCE_MS) {
         s_presAt = now;
-        uint8_t self[PusiMesh::LEN_MAX];
+        uint8_t self[PusiMesh2::BODY_NAMED];
         const size_t n = Mesh::buildSelf(self);
         if (n != s_lastPresLen || memcmp(self, s_lastPres, n) != 0) {
             memcpy(s_lastPres, self, n);
             s_lastPresLen = n;
         }
-        uint8_t pl[2 + PusiMesh::LEN_MAX];
+        uint8_t pl[2 + PusiMesh2::BODY_NAMED];
         pl[0] = (uint8_t)(PusiMesh::COMPANY_ID & 0xFF);
         pl[1] = (uint8_t)(PusiMesh::COMPANY_ID >> 8);
         memcpy(pl + 2, s_lastPres, s_lastPresLen);

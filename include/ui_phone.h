@@ -31,6 +31,12 @@ void uiPhoneTouch(int x, int y, uint32_t now, PhoneTouch phase);
 // are taken in either case.
 void uiPhoneKey(char c);
 
+// The centre of every key and switch on the payphone, in reading order, for
+// the no-touch cursor. Works for both boards (the digit keypad and QWERTY)
+// because the geometry lives in this file and the cursor must agree with it.
+// Returns the number written, up to `cap`.
+uint8_t uiPhoneStops(TFT_eSPI& t, int16_t* xs, int16_t* ys, uint8_t cap);
+
 bool uiPhoneDone();
 bool uiPhoneMessageMode();
 // What was typed, if a message ended on OK; nullptr if it ended on BACK.

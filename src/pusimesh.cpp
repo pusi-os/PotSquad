@@ -28,19 +28,39 @@ static inline bool printable(char c) {
     return (uint8_t)c >= 0x20 && (uint8_t)c <= 0x7E;
 }
 
+uint16_t packAppearance(uint8_t nick, uint8_t outfit, uint8_t shade, bool custom, bool aura) {
+    uint16_t word = 0;
+    word |= (uint16_t)((nick   & maskOf(NICK_BITS))   << NICK_SHIFT);
+    word |= (uint16_t)((outfit & maskOf(OUTFIT_BITS)) << OUTFIT_SHIFT);
+    if (outfit & (1u << OUTFIT_BITS)) word |= OUTFIT_HI_BIT;
+    word |= (uint16_t)((shade  & maskOf(SHADE_BITS))  << SHADE_SHIFT);
+    if (custom) word |= CUSTOM_BIT;
+    if (aura)   word |= AURA_BIT;
+    return word;
+}
+
+void unpackAppearance(uint16_t word, uint8_t& nick, uint8_t& outfit, uint8_t& shade,
+                      bool& custom, bool& aura) {
+    nick   = (uint8_t)((word >> NICK_SHIFT)   & maskOf(NICK_BITS));
+    outfit = (uint8_t)((word >> OUTFIT_SHIFT) & maskOf(OUTFIT_BITS));
+    if (word & OUTFIT_HI_BIT) outfit |= (uint8_t)(1u << OUTFIT_BITS);
+    shade  = (uint8_t)((word >> SHADE_SHIFT)  & maskOf(SHADE_BITS));
+    custom = (word & CUSTOM_BIT) != 0;
+    aura   = (word & AURA_BIT)   != 0;
+    // Clamp last, once the word is trusted. Modulo as decode() does: an index
+    // this build lacks is a newer peer, and a wrong hat beats refusing them.
+    if (nick   >= NICK_N)   nick   %= NICK_N;
+    if (outfit >= OUTFIT_N) outfit %= OUTFIT_N;
+    if (shade  >= SHADE_N)  shade  %= SHADE_N;
+}
+
 size_t encode(const Peer& p, uint8_t* out) {
     // Decide first whether this is really a custom name. An empty one is
     // not, and encoding it as custom would put a payload on the air that
     // every receiver then has to have a rule for.
     bool custom = p.custom && p.name[0] != '\0';
 
-    uint16_t word = 0;
-    word |= (uint16_t)((p.nick   & maskOf(NICK_BITS))   << NICK_SHIFT);
-    word |= (uint16_t)((p.outfit & maskOf(OUTFIT_BITS)) << OUTFIT_SHIFT);
-    if (p.outfit & (1u << OUTFIT_BITS)) word |= OUTFIT_HI_BIT;
-    word |= (uint16_t)((p.shade  & maskOf(SHADE_BITS))  << SHADE_SHIFT);
-    if (custom) word |= CUSTOM_BIT;
-    if (p.aura) word |= AURA_BIT;
+    const uint16_t word = packAppearance(p.nick, p.outfit, p.shade, custom, p.aura);
 
     memcpy(out, MAGIC, sizeof(MAGIC));
     out[4] = VERSION;
@@ -72,27 +92,33 @@ void phoneMac(const uint8_t id[PHONE_ID_LEN], uint8_t out[6]) {
 }
 
 size_t encodeLook(const Look& l, uint8_t* out) {
-    memcpy(out, LOOK_MAGIC, sizeof(LOOK_MAGIC));
-    out[4] = LOOK_VERSION;
-    out[5] = (uint8_t)((l.shirt  & maskOf(3)) | ((l.shorts & maskOf(3)) << 3));
-    out[6] = (uint8_t)((l.shoes  & maskOf(3)) | ((l.state  & maskOf(5)) << 3));
+    out[0] = LOOK_MAGIC;
+    const uint16_t v = (uint16_t)((l.shirt  & maskOf(3))        |
+                                  ((l.shorts & maskOf(3)) << 3)  |
+                                  ((l.shoes  & maskOf(3)) << 6)  |
+                                  ((l.state  & maskOf(5)) << 9)  |
+                                  ((l.glasses ? 1u : 0u)  << 14) |
+                                  ((l.lashes  ? 1u : 0u)  << 15));
+    out[1] = (uint8_t)(v & 0xFF);
+    out[2] = (uint8_t)(v >> 8);
     return LOOK_PAYLOAD;
 }
 
 bool decodeLook(const uint8_t* in, size_t len, Look& out) {
     if (!in) return false;
     if (len != LOOK_PAYLOAD) return false;
-    if (memcmp(in, LOOK_MAGIC, sizeof(LOOK_MAGIC)) != 0) return false;
-    // A version this build does not read is declined outright rather than
-    // guessed at, the same rule as the presence payload: a newer extension
-    // simply contributes no colours here.
-    if (in[4] != LOOK_VERSION) return false;
+    // One magic byte, which doubles as the version: an older extension used a
+    // four-byte magic and simply is not this one, so it decodes as nothing.
+    if (in[0] != LOOK_MAGIC) return false;
 
+    const uint16_t v = (uint16_t)(in[1] | ((uint16_t)in[2] << 8));
     Look l;
-    l.shirt  = (uint8_t)(in[5] & maskOf(3));
-    l.shorts = (uint8_t)((in[5] >> 3) & maskOf(3));
-    l.shoes  = (uint8_t)(in[6] & maskOf(3));
-    l.state  = (uint8_t)((in[6] >> 3) & maskOf(5));
+    l.shirt   = (uint8_t)(v & maskOf(3));
+    l.shorts  = (uint8_t)((v >> 3) & maskOf(3));
+    l.shoes   = (uint8_t)((v >> 6) & maskOf(3));
+    l.state   = (uint8_t)((v >> 9) & maskOf(5));
+    l.glasses = ((v >> 14) & 1u) != 0;
+    l.lashes  = ((v >> 15) & 1u) != 0;
     if (l.shirt  >= LOOK_CLOTH_N) l.shirt  %= LOOK_CLOTH_N;
     if (l.shorts >= LOOK_CLOTH_N) l.shorts %= LOOK_CLOTH_N;
     if (l.shoes  >= LOOK_CLOTH_N) l.shoes  %= LOOK_CLOTH_N;
@@ -125,12 +151,7 @@ bool decode(const uint8_t* in, size_t len, Peer& out) {
     if (len != want) return false;
 
     Peer p;
-    p.nick   = (uint8_t)((word >> NICK_SHIFT)   & maskOf(NICK_BITS));
-    p.outfit = (uint8_t)((word >> OUTFIT_SHIFT) & maskOf(OUTFIT_BITS));
-    if (word & OUTFIT_HI_BIT) p.outfit |= (uint8_t)(1u << OUTFIT_BITS);
-    p.shade  = (uint8_t)((word >> SHADE_SHIFT)  & maskOf(SHADE_BITS));
-    p.custom = custom;
-    p.aura   = (word & AURA_BIT) != 0;
+    unpackAppearance(word, p.nick, p.outfit, p.shade, p.custom, p.aura);
     p.phone  = phone;
     memset(p.id, 0, sizeof p.id);
     if (phone) memcpy(p.id, in + len - PHONE_ID_LEN, PHONE_ID_LEN);
@@ -156,13 +177,6 @@ bool decode(const uint8_t* in, size_t len, Peer& out) {
         memcpy(p.name, n, used);
         p.name[used] = '\0';
     }
-
-    // Clamp last, once the payload is known good. Modulo rather than
-    // rejection: an index this build does not have is a peer running a
-    // newer firmware, and a wrong hat beats refusing to draw them.
-    if (p.nick   >= NICK_N)   p.nick   %= NICK_N;
-    if (p.outfit >= OUTFIT_N) p.outfit %= OUTFIT_N;
-    if (p.shade  >= SHADE_N)  p.shade  %= SHADE_N;
 
     out = p;
     return true;

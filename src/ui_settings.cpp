@@ -1247,7 +1247,18 @@ static void rowContent(SettingsRow r, const DetectionEngine& eng, char* valBuf, 
             label = Theme::tr("COLOR ORDER", "ПОРЯДОК ЦВЕТОВ"); value = Settings::rgbSwapped() ? Theme::tr("SWAPPED", "ОБРАТНЫЙ") : Theme::tr("NORMAL", "ОБЫЧНЫЙ");
             break;
         case SettingsRow::ROTATION_LOCK:
+#if defined(SQW_SMALL)
+            // No touch, and so no title-bar rotate button: on these boards the
+            // row IS the rotate -- each press turns the screen a quarter turn,
+            // and the value shows where it ended up.
+            {
+                static const char* const ROT_DEG[4] = { "0", "90", "180", "270" };
+                label = Theme::tr("ROTATE SCREEN", "ПОВОРОТ ЭКРАНА");
+                value = ROT_DEG[Settings::rotation() & 3];
+            }
+#else
             label = Theme::tr("ROTATION LOCK", "БЛОК ПОВОРОТА"); value = Theme::onOff(Settings::rotationLocked());
+#endif
             break;
         case SettingsRow::BORING_MODE:
             label = Theme::tr("BORING MODE", "СКУЧНЫЙ РЕЖИМ"); value = Theme::onOff(Settings::boringMode());

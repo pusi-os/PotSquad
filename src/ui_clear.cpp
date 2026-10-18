@@ -2343,10 +2343,15 @@ void uiClearDrawCrowd(TFT_eSPI& t, uint32_t now, const Mesh::SquadMember* crowd,
         // fills it -- sends none, and he then wears ours, which is the same
         // degradation the extension is designed for.
         PusiMesh::Look lk;
-        if (Mesh::lookFor(crowd[i].mac, lk))
+        if (Mesh::lookFor(crowd[i].mac, lk)) {
             Potsy::setClothPreview((int8_t)lk.shirt, (int8_t)lk.shorts, (int8_t)lk.shoes);
-        else
+            Potsy::setGlassesPreview(lk.glasses ? 1 : 0);
+            Potsy::setLashesPreview(lk.lashes ? 1 : 0);
+        } else {
             Potsy::setClothPreview(-1, -1, -1);
+            Potsy::setGlassesPreview(-1);
+            Potsy::setLashesPreview(-1);
+        }
         // His name, on a sticker on his chest, so it is his and moves with
         // him. Four or fewer and everybody wears one; past that only the
         // one who was tapped, for a few seconds.
@@ -2376,6 +2381,8 @@ void uiClearDrawCrowd(TFT_eSPI& t, uint32_t now, const Mesh::SquadMember* crowd,
         Potsy::setShadesPreview(-1);
         Potsy::setOutfitPreview(-1);
         Potsy::setClothPreview(-1, -1, -1);
+        Potsy::setGlassesPreview(-1);
+        Potsy::setLashesPreview(-1);
         if (s_crowdN < 8) {
             int half = (int)(30.0f * s);
             if (half < 14) half = 14;      // a fingertip, however small he is
@@ -2514,10 +2521,21 @@ static void drawMessageUi(TFT_eSPI& t, uint32_t now, int titleBottom, int potsyB
     const MeshTalk::Message& m = MeshTalk::inbox();
     const int w = t.width();
     // Where the visitor is, or where he would stand if there were one.
-    const int gx   = s_msgGuestOn ? s_msgGx : w / 2 + w / 4;
-    const int head = s_msgGuestOn ? s_msgHeadTop
-                                  : titleBottom + (potsyBottom - titleBottom) / 3;
+    int gx   = s_msgGuestOn ? s_msgGx : w / 2 + w / 4;
+    int head = s_msgGuestOn ? s_msgHeadTop
+                            : titleBottom + (potsyBottom - titleBottom) / 3;
     const bool showing = tut ? tutorReply() : messageShowing(now);
+    // Point the bubble at the SENDER's cameo, not whichever guest happens to
+    // be standing there. With a crowd up, a message from the third row used
+    // to hang over the visitor's head, so the words looked like his.
+    if (showing && !tut) {
+        for (uint8_t i = 0; i < s_crowdN; i++)
+            if (memcmp(s_crowdMac[i], m.mac, 6) == 0) {
+                gx = s_crowdX[i];
+                head = s_crowdTop[i];
+                break;
+            }
+    }
     if (showing) {
         if (tut) drawRedBubble(t, gx, head, MeshTutor::DEMO_NAME, MeshTutor::DEMO_REPLY, false);
         else     drawRedBubble(t, gx, head, m.from, MeshTalk::lineText(m), true);
@@ -2556,6 +2574,10 @@ bool uiClearBubbleHit(int x, int y) {
 bool uiClearRedBubbleHit(int x, int y) {
     return s_rbOn && !Settings::boringMode() &&
            x >= s_rbX && x < s_rbX + s_rbW && y >= s_rbY && y < s_rbY + s_rbH;
+}
+
+bool uiClearRedBubbleShowing() {
+    return s_rbOn && !Settings::boringMode();
 }
 
 int uiClearRedBubbleReact(int x, int y) {
@@ -3293,10 +3315,15 @@ static void drawVisit(TFT_eSPI& t, uint32_t now, const PusiMesh::Peer* guest,
     // as the crowd's drawOne: no extension, our colours stay.
     {
         PusiMesh::Look lk;
-        if (Mesh::lookFor(Mesh::peerMac(), lk))
+        if (Mesh::lookFor(Mesh::peerMac(), lk)) {
             Potsy::setClothPreview((int8_t)lk.shirt, (int8_t)lk.shorts, (int8_t)lk.shoes);
-        else
+            Potsy::setGlassesPreview(lk.glasses ? 1 : 0);
+            Potsy::setLashesPreview(lk.lashes ? 1 : 0);
+        } else {
             Potsy::setClothPreview(-1, -1, -1);
+            Potsy::setGlassesPreview(-1);
+            Potsy::setLashesPreview(-1);
+        }
     }
     // The scale tick() actually used, not SMALL_PCT again: tick
     // derives its scale from the height it was given, so the two
@@ -3357,6 +3384,8 @@ static void drawVisit(TFT_eSPI& t, uint32_t now, const PusiMesh::Peer* guest,
     Potsy::setShadesPreview(-1);
     Potsy::setOutfitPreview(-1);
     Potsy::setClothPreview(-1, -1, -1);
+    Potsy::setGlassesPreview(-1);
+    Potsy::setLashesPreview(-1);
 
     // The slap. Where the two hands meet -- S(30) in from each of them
     // -- at the height the HIGHFIVE arm ends, for a flash either side

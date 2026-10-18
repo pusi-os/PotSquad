@@ -410,6 +410,13 @@ namespace Potsy {
     // extension keeps our colour for the ones it did not name. -1 clears.
     void setClothPreview(int8_t shirt, int8_t shorts, int8_t shoes);
 
+    // And the two eye choices: whether the guest arrives wearing his own
+    // removable shades and his own eyelashes, rather than borrowing the
+    // host's. Same set-it/draw/clear-it contract as the previews above;
+    // -1 clears, so our own Potsy goes back to his own switches.
+    void setGlassesPreview(int8_t on);
+    void setLashesPreview(int8_t on);
+
     // A name sticker on the next body drawn, centred on the torso, moving
     // with him. Set it, draw, clear it with nullptr -- the same contract as
     // the two previews above. Nobody but a cameo wears one; our own

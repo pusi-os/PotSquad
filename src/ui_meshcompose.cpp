@@ -839,4 +839,32 @@ ComposeHit uiMeshComposeTouch(int x, int y, uint32_t now) {
     return ComposeHit::NONE;
 }
 
+uint8_t uiMeshComposeStops(TFT_eSPI& t, int16_t* xs, int16_t* ys, uint8_t cap) {
+    (void)t;
+    uint8_t n = 0;
+    auto add = [&](const Rect& r) {
+        if (r.w && r.h && n < cap) { xs[n] = (int16_t)(r.x + r.w / 2); ys[n] = (int16_t)(r.y + r.h / 2); n++; }
+    };
+    if (MeshTutor::active()) {
+        add(s_send); add(s_back);
+        for (uint8_t i = 0; i < s_lineN; i++) add(s_lineRect[i]);
+        return n;
+    }
+    if (s_emoteOn) {
+        for (uint8_t i = 0; i < EmoteScript::TABS; i++) add(s_tabRect[i]);
+        add(s_random);
+        for (uint8_t i = 0; i < EmoteScript::PER_TAB; i++) add(s_emoteRect[i]);
+        add(s_back);
+        return n;
+    }
+    // The line board, plus whatever overlay is up (EDIT/SEND on a typed or
+    // chosen line). A rectangle the current mode did not draw is zero and is
+    // skipped, so the cursor never lands on an invisible control.
+    add(s_emoteBtn); add(s_help); add(s_back); add(s_type); add(s_send);
+    for (uint8_t i = 0; i < MeshMsg::CANNED_TABS; i++) add(s_lineTabRect[i]);
+    add(s_fill);
+    for (uint8_t i = 0; i < s_lineN; i++) add(s_lineRect[i]);
+    return n;
+}
+
 #endif // POTS_MESH

@@ -33,6 +33,8 @@ void bootStage(uint8_t s);   // main.cpp: the power diary's steps through setup(
 #endif
 #if POTS_MESH
 #include "pusimesh.h"
+#include "pusimesh_v2.h"
+#include "pusimesh_identity.h"
 #include "pusimesh_espnow.h"
 #include "potsy.h"
 #include "settings.h"
@@ -1121,19 +1123,14 @@ static void txFailure(uint8_t code, const char* stage) {
 // over twice.
 static uint8_t s_lastAdv[PusiMesh::LEN_MAX];
 static size_t  s_lastAdvLen = 0;
-static bool    s_lookOmittedLogged = false;
-
-// Our look extension: the colours of the base outfit, which the presence
-// payload has no room to carry. Read fresh each advert, like buildSelf(), so
-// a colour picked on the APPEARANCE page reaches the peer without a reboot.
-static size_t buildSelfLook(uint8_t* out) {
-    PusiMesh::Look l{};
-    l.shirt  = Potsy::shirtIndex();
-    l.shorts = Potsy::shortsIndex();
-    l.shoes  = Potsy::shoesIndex();
-    l.state  = Potsy::moodIndex();
-    return PusiMesh::encodeLook(l, out);
-}
+// How the two BLE slots take turns. A presence advert (27 bytes with the
+// company ID and an AD header) fits 31 on its own; a custom name (29) fits on
+// its own; together they do not, so the primary AD carries presence for one
+// window and the PEX name advert for the next. Two windows are a few seconds,
+// well inside the 20 s a scanner keeps a guest, so the identity lands first
+// and the name catches up on the next turn.
+static const uint32_t ADV_ALT_MS = 8000;
+static uint8_t        s_advSlot  = 0;   // what the primary AD carried last
 
 static void setAdvertising(bool on, uint32_t now) {
     NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
@@ -1144,8 +1141,15 @@ static void setAdvertising(bool on, uint32_t now) {
         return;
     }
 
-    uint8_t buf[PusiMesh::LEN_MAX];
-    const size_t n = buildSelf(buf);
+    // Our presence, in the short form the advert has room for: identity,
+    // appearance and clothes. The custom name, when there is one, rides the
+    // other slot (buildSelfNameAd) -- the two together are 27 + 29 bytes and
+    // cannot share one 31-byte advert.
+    uint8_t pres[PusiMesh2::BODY_UNNAMED];
+    const size_t presN = buildSelfShort(pres);
+    uint8_t nmad[PusiMesh2::BODY_NAMED];
+    const size_t nmN = buildSelfNameAd(nmad);
+    const uint8_t wantSlot = (nmN && ((now / ADV_ALT_MS) & 1u)) ? 1 : 0;
 
     // Only touch the stack when the advert actually differs.
     //
@@ -1160,21 +1164,24 @@ static void setAdvertising(bool on, uint32_t now) {
     // propagate without a reboot. Comparing gets that for one memcmp and
     // no allocation at all on the pass where nothing changed, which is
     // every pass but the rare one.
-    // A frame, presence slot or end-of-message changes the primary payload.
+    // A frame, a slot turn, or an end-of-message changes the primary payload.
     size_t   outLen = 0;
     uint32_t outGen = 0;
     const uint8_t* out = MeshTalk::outgoing(now, outLen, outGen);
-    const bool same = !MeshAppearancePolicy::changed(buf, n, s_lastAdv, s_lastAdvLen) &&
-                      outGen == s_srGen;
+    const bool same = !MeshAppearancePolicy::changed(pres, presN, s_lastAdv, s_lastAdvLen) &&
+                      outGen == s_srGen && wantSlot == s_advSlot;
     if (same && s_advOn) return;
 
-    // Never put both identity and message in one 31-byte legacy ADV.
-    // The existing frame (max 27 B) plus manufacturer ID (2 B) and
-    // AD header (2 B) fits a PRIMARY non-scannable advertisement.
-    const uint8_t* payload = out ? out : buf;
-    const size_t payloadLen = out ? outLen : n;
-    if ((out && !MeshPrimaryTransport::fitsPrimary(outLen)) ||
-        (!out && (n < PusiMesh::LEN_INDEXED || n > PusiMesh::LEN_MAX))) {
+    // Never put both identity and message in one 31-byte legacy ADV. The
+    // existing frame (max 27 B), the short presence (25 B with the company
+    // ID) and the PEX name advert (29 B) each fit a PRIMARY non-scannable
+    // advertisement alone; a frame outranks the presence while it is queued.
+    const uint8_t* payload;
+    size_t         payloadLen;
+    if (out)                       { payload = out;   payloadLen = outLen; }
+    else if (wantSlot == 1)        { payload = nmad;  payloadLen = nmN; }
+    else                           { payload = pres;  payloadLen = presN; }
+    if ((out && !MeshPrimaryTransport::fitsPrimary(outLen)) || payloadLen == 0) {
         txFailure(6, "primary-size");
         return;
     }
@@ -1190,24 +1197,6 @@ static void setAdvertising(bool on, uint32_t now) {
         return;
     }
 
-    // The clothes' colours ride a SECOND manufacturer-specific AD in the same
-    // advertisement, told apart by its own magic (pusimesh.h). Best-effort:
-    // a presence carrying a typed name is 24 bytes and leaves no room, and
-    // then the colours -- never the identity -- are what gives way. Because
-    // addData() failing here is a normal outcome, it is not a transmitter
-    // failure and must not count as one.
-    if (!out) {
-        uint8_t extAd[4 + PusiMesh::LOOK_PAYLOAD];
-        extAd[0] = (uint8_t)(PusiMesh::LOOK_PAYLOAD + 3);   // AD length: type + company + payload
-        extAd[1] = 0xFF;                                     // manufacturer-specific data
-        extAd[2] = (uint8_t)(PusiMesh::COMPANY_ID & 0xFF);
-        extAd[3] = (uint8_t)(PusiMesh::COMPANY_ID >> 8);
-        const size_t en = buildSelfLook(extAd + 4);
-        if (!d.addData(extAd, 4 + en) && !s_lookOmittedLogged) {
-            s_lookOmittedLogged = true;
-            Serial.println("[mesh-tx] look extension did not fit 31 bytes; colours omitted this look");
-        }
-    }
     // If the library fails any stage, keep state uncommitted and retry.
     if (adv->isAdvertising() && !adv->stop()) {
         txFailure(1, "stop");
@@ -1256,8 +1245,9 @@ static void setAdvertising(bool on, uint32_t now) {
                       (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     }
     s_txWasSending = MeshTalk::sending(now);
-    memcpy(s_lastAdv, buf, n);
-    s_lastAdvLen = n;
+    memcpy(s_lastAdv, pres, presN);
+    s_lastAdvLen = presN;
+    s_advSlot = wantSlot;
     s_advOn = true;
     s_srGen = outGen;
 }
@@ -1278,6 +1268,9 @@ void radioTick(uint32_t now) {
         MeshTalk::setOwnMac(a.getBase()->val);
         s_macSet = true;
     }
+    // The frame nonce is the nodeId, not this address (spec §2), so hand the
+    // runtime our identity once it exists. NodeId() makes it on first use.
+    Mesh::nodeId();
 
     const bool want = Settings::meshTransmit();
     size_t   ol = 0;
@@ -1296,13 +1289,15 @@ void radioTick(uint32_t now) {
     // periodic check and transmit-consent gate as well.
     bool appearanceChanged = false;
     if (want && live && s_advOn) {
-        uint8_t current[PusiMesh::LEN_MAX];
-        const size_t n = buildSelf(current);
+        uint8_t current[PusiMesh2::BODY_UNNAMED];
+        const size_t n = buildSelfShort(current);
         appearanceChanged = MeshAppearancePolicy::changed(
             current, n, s_lastAdv, s_lastAdvLen);
     }
+    // The 8 s housekeeping is what turns the presence/name slot over, so the
+    // idle rebuild interval is the slot window, not the old 10 s.
     const bool needUpdate = !s_advOn || !live || appearanceChanged ||
-                            (now - s_advAt) > 10000 || og != s_srGen;
+                            (now - s_advAt) > ADV_ALT_MS || og != s_srGen;
     // A message can be fully queued while the controller refuses the start;
     // retry with a short backoff, including a single-part message whose
     // outgoing generation would otherwise remain unchanged for 30 seconds.

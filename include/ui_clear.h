@@ -58,6 +58,9 @@ bool uiClearBubbleHit(int x, int y);
 // have to repeat the geometry. Both read rectangles the draw filled in.
 bool uiClearRedBubbleHit(int x, int y);
 int  uiClearRedBubbleReact(int x, int y);
+// Whether that red bubble is on screen at all, for the no-touch quick-reply:
+// VOL+ answers like, VOL- answers dislike while it is up.
+bool uiClearRedBubbleShowing();
 // The "+N" squad badge beside a visitor, which opens the SQUAD screen.
 bool uiClearSquadHit(int x, int y);
 

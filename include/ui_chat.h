@@ -29,6 +29,9 @@ ChatHit  uiChatTouch(int x, int y, uint32_t now);
 // calls uiChatOpenMenu when it holds past the threshold, and uiChatReadRow
 // when it is released before. A press on a button or in the gap answers -1.
 int  uiChatRowAt(int x, int y);
+// Pure button hit (no action): 1 CLOSE, 2 FAVOURITES, 3 WRITE, -1 none. The
+// no-touch cursor sweeps with this; uiChatTouch() is the one that acts.
+int  uiChatHit(int x, int y);
 void uiChatOpenMenu(int row);
 void uiChatReadRow(int row);
 // A drag: positive scrolls back towards older messages.

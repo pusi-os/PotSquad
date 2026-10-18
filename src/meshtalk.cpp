@@ -11,6 +11,8 @@
 #include "clock.h"
 #include "ota_core.h"
 #include "detection.h"      // Mesh::peerLook, for the roster
+#include "pusimesh_v2.h"
+#include "meshframe_v2.h"
 #include <Arduino.h>
 #include <Preferences.h>
 #include <esp_system.h>
@@ -26,11 +28,67 @@ char     s_phrase[MeshMsg::PHRASE_TEXT_MAX] = { 0 };
 uint32_t s_deriveMs   = 0;
 
 uint8_t  s_ownMac[6] = { 0 };
+// The identity every frame seals under (nodeId[0:6], spec §2). The address
+// above is only the invite target and the UI's idea of "our address"; a
+// message nonce built from it would break the moment a phone's address
+// rotates, which is exactly what v2 fixes.
+uint8_t  s_ownId[6]  = { 0 };
 bool     s_macSet    = false;
 
 MeshMsg::Counter  s_ctr;
 MeshMsg::Replay   s_replay;
 MeshMsg::Assembly s_asm;
+// v2 text reassembly: up to 15 parts, each already unpacked to UTF-8. Kept
+// apart from the v1 MeshMsg::Assembly (three Latin parts) so the legacy path
+// is untouched. Parts share consecutive counters, so base = counter - part.
+struct V2Asm {
+    static constexpr uint8_t N = 2;
+    struct E {
+        uint8_t  mac[6];
+        uint32_t base;
+        uint8_t  total, have;
+        char     seg[PusiMesh2::TEXT_PARTS_MAX][PusiMesh2::TEXT_PART_UTF8 + 1];
+        uint32_t used;
+        bool     live;
+    };
+    E        e[N] = {};
+    uint32_t stamp = 0;
+    bool add(const uint8_t mac[6], uint32_t counter, uint8_t part, uint8_t total,
+             const char* chars, char* out, size_t outCap, uint32_t& base) {
+        if (total == 0 || total > PusiMesh2::TEXT_PARTS_MAX || part >= total || counter < part) return false;
+        base = counter - part;
+        stamp++;
+        int slot = -1;
+        for (uint8_t i = 0; i < N; i++)
+            if (e[i].live && memcmp(e[i].mac, mac, 6) == 0) { slot = i; break; }
+        if (slot < 0) {
+            slot = 0;
+            for (uint8_t i = 0; i < N; i++) {
+                if (!e[i].live) { slot = i; break; }
+                if (e[i].used < e[slot].used) slot = i;
+            }
+            e[slot].live = false;
+        }
+        E& s = e[slot];
+        if (!s.live || s.base != base || s.total != total) {
+            memcpy(s.mac, mac, 6);
+            s.base = base; s.total = total; s.have = 0; s.live = true;
+        }
+        s.used = stamp;
+        size_t i = 0;
+        for (; i < PusiMesh2::TEXT_PART_UTF8 && chars[i]; i++) s.seg[part][i] = chars[i];
+        s.seg[part][i] = '\0';
+        s.have |= (uint8_t)(1u << part);
+        if (s.have != (uint8_t)((1u << total) - 1)) return false;
+        size_t n = 0;
+        for (uint8_t p = 0; p < total; p++)
+            for (size_t j = 0; s.seg[p][j] && n + 1 < outCap; j++) out[n++] = s.seg[p][j];
+        out[n] = '\0';
+        s.live = false;
+        return true;
+    }
+};
+static V2Asm s_asm2;
 
 // What is being broadcast right now, and until when. Thirty seconds is about
 // twenty adverts: long enough that a pocket or a wall does not cost the
@@ -378,7 +436,129 @@ void deliverInvite(const Slot& s, uint32_t now, uint32_t ctr, uint8_t kind) {
     }
 }
 
+// The v2 sealed frames (spec §4). The sender's identity is s.nmac -- nodeId[0:6],
+// resolved by Mesh from presence -- so the nonce is stable where an address is
+// not. Unknown kinds and EXT subkinds are dropped silently, as the container
+// allows: a newer sender's frame never breaks an older reader.
+void deliverV2(const Slot& s, uint32_t now) {
+    uint32_t ctr = 0; uint8_t kind = 0;
+    if (!PusiMesh2::parseHeader(s.data, s.len, ctr, kind)) return;
+    if (!s_replay.fresh(s.nmac, ctr)) { ++s_rxReplay; return; }
+    if (!ready()) return;
+
+    uint8_t nid[PusiMesh2::NODE_ID_LEN] = { 0 };
+    memcpy(nid, s.nmac, 6);               // nonceFor reads only the first six
+    uint8_t  pt[PusiMesh2::PT_MAX]; size_t ptLen = 0;
+    uint32_t octr = 0; uint8_t okind = 0;
+    auto opened = [&]() {
+        return PusiMesh2::open(MeshCrypto::impl(), nid, s.data, s.len, octr, okind,
+                               pt, sizeof pt, ptLen) == PusiMesh2::Open::OK;
+    };
+
+    if (kind == PusiMesh2::K_READ) {
+        if (!opened() || ptLen != 7) return;
+        const uint32_t mc = (uint32_t)pt[0] | ((uint32_t)pt[1] << 8) | ((uint32_t)pt[2] << 16);
+        s_replay.record(s.nmac, ctr); saveReplay();
+        squadNote(s.mac, now);
+        if (mc == s_sentCtr) {
+            s_readHave = true;
+            snprintf(s_readBy, sizeof s_readBy, "%s", s.name[0] ? s.name : Theme::tr("SOMEONE", "КТО-ТО"));
+            Serial.printf("[meshtalk] %s read #%lu\n", s_readBy, (unsigned long)mc);
+        }
+        return;
+    }
+
+    if (kind == PusiMesh2::K_HELLO) {
+        if (!opened() || ptLen != 8) return;
+        const uint8_t  ver[3] = { pt[0], pt[1], pt[2] };
+        const uint32_t theirEpoch = (uint32_t)pt[3] | ((uint32_t)pt[4] << 8) |
+                                    ((uint32_t)pt[5] << 16) | ((uint32_t)pt[6] << 24);
+        const uint8_t  theirZone = pt[7];
+        s_replay.record(s.nmac, ctr); saveReplay();
+        squadNote(s.mac, now);
+#ifdef BENCH_TOOLS
+        Serial.printf("[meshtalk] hello from %s: v%u.%u.%u epoch %lu zone %u\n", s.name[0] ? s.name : "a member",
+                      ver[0], ver[1], ver[2], (unsigned long)theirEpoch, theirZone);
+#endif
+        if (theirEpoch && !Clock::trusted() && Clock::setEpoch(theirEpoch))
+            Serial.printf("[clock] set from %s's hello\n", s.name[0] ? s.name : "a member");
+        if (theirZone && !Settings::timeZoneChosen()) {
+            Settings::setTimeZone((uint8_t)(theirZone - 1));
+            Serial.printf("[zone] %s, from %s's hello\n", Settings::timeZoneName(), s.name[0] ? s.name : "a member");
+        }
+        uint8_t mine[3];
+        if ((ver[0] | ver[1] | ver[2]) &&
+            MeshMsg::parseVersion(OtaCore::runningVersion(), mine) && MeshMsg::versionNewer(ver, mine)) {
+            char vs[16];
+            snprintf(vs, sizeof vs, "%u.%u.%u", ver[0], ver[1], ver[2]);
+            OtaCore::noteAvailable(vs, s.name[0] ? s.name : "");
+        }
+        return;
+    }
+
+    if (kind == PusiMesh2::K_CANNED) {
+        if (!opened() || ptLen != 1) return;
+        s_replay.record(s.nmac, ctr); saveReplay();
+        squadNote(s.mac, now);
+        s_inbox.text        = false;
+        s_inbox.unknownLine = pt[0] >= MeshMsg::CANNED_N;
+        s_inbox.canned      = pt[0];
+        s_inbox.ctr         = ctr;
+        arrived(s, now);
+        return;
+    }
+
+    if (PusiMesh2::kindIsText(kind)) {
+        uint8_t part = 0, total = 0;
+        char chars[PusiMesh2::TEXT_PART_UTF8 + 1];
+        if (PusiMesh2::openTextPart(MeshCrypto::impl(), nid, s.data, s.len, octr,
+                                    part, total, chars) != PusiMesh2::Open::OK) return;
+        char body[MESH_TEXT_BYTES + 1];
+        uint32_t base = 0;
+        if (!s_asm2.add(s.nmac, ctr, part, total, chars, body, sizeof body, base)) return;
+        s_replay.record(s.nmac, base + total - 1); saveReplay();
+        squadNote(s.mac, now);
+        s_inbox.text        = true;
+        s_inbox.unknownLine = false;
+        s_inbox.ctr         = base;
+        memcpy(s_inbox.body, body, sizeof s_inbox.body);
+        s_inbox.body[sizeof s_inbox.body - 1] = '\0';
+        arrived(s, now);
+        return;
+    }
+
+    if (kind == PusiMesh2::K_EMOTE) {
+        if (!opened() || ptLen != 2) return;
+        s_replay.record(s.nmac, ctr); saveReplay();
+        squadNote(s.mac, now);
+        s_emote.emote = pt[0];
+        s_emote.setup = pt[1];
+        memcpy(s_emote.mac, s.mac, 6);
+        s_emote.at    = now;
+        s_emoteHave   = true;
+        Serial.printf("[meshtalk] emote %u (setup %u) from %s\n", (unsigned)pt[0],
+                      (unsigned)pt[1], s.name[0] ? s.name : "SOMEONE");
+        return;
+    }
+
+    if (kind == PusiMesh2::K_EXT) {
+        uint8_t sub = 0; uint8_t payload[PusiMesh2::PT_MAX]; size_t pl = 0;
+        if (PusiMesh2::openExt(MeshCrypto::impl(), nid, s.data, s.len, octr, sub,
+                               payload, sizeof payload, pl) != PusiMesh2::Open::OK) return;
+        s_replay.record(s.nmac, ctr); saveReplay();
+        squadNote(s.mac, now);
+        // Recognised subkinds are handled as they land (Ф3+); an unknown one is
+        // dropped silently, which is the whole point of the container.
+        (void)sub; (void)pl; (void)payload;
+        return;
+    }
+    // Any other kind: silently dropped.
+}
+
 void deliver(const Slot& s, uint32_t now) {
+    // v2 frames first: a 'PU' magic never collides with the v1 'ST'. The legacy
+    // path stays for the pairing/wifi/update frames firmware still speaks.
+    if (PusiMesh2::isFrame(s.data, s.len)) { deliverV2(s, now); return; }
     uint32_t ctr = 0;
     uint8_t kind = 0;
     if (!MeshMsg::parseHeader(s.data, s.len, ctr, kind)) return;
@@ -642,7 +822,21 @@ void begin() {
     s_prefs.getString("phrase", s_phrase, sizeof s_phrase);
     s_phrase[sizeof s_phrase - 1] = '\0';
     uint8_t key[MeshMsg::KEY_LEN];
-    const size_t kl = s_prefs.getBytes("key", key, sizeof key);
+    size_t kl = s_prefs.getBytes("key2", key, sizeof key);
+    // The salt moved to the v2 one, so a key stored under the old salt is
+    // not this build's. When there is a phrase but no v2 key, stretch once
+    // here (a couple of seconds, once) rather than make somebody retype it.
+    if (kl != sizeof key && s_phrase[0] && s_selfTestOk) {
+        const uint32_t t0 = millis();
+        if (MeshCrypto::impl().derive(s_phrase, strlen(s_phrase),
+                                      (const uint8_t*)MeshMsg::SALT, strlen(MeshMsg::SALT),
+                                      MeshMsg::ITERS, key)) {
+            s_prefs.putBytes("key2", key, sizeof key);
+            kl = sizeof key;
+            s_deriveMs = millis() - t0;
+            Serial.printf("[meshtalk] re-stretched key for v2 salt in %lu ms\n", (unsigned long)s_deriveMs);
+        }
+    }
     // The stored key, not a re-derived one: stretching takes seconds and boot
     // has better things to do with them.
     s_havePhrase = s_selfTestOk && s_phrase[0] && kl == sizeof key &&
@@ -685,7 +879,7 @@ bool setPhrase(const char* text) {
     // goes with it. The same phrase typed again keeps it.
     if (strcmp(s_phrase, text) != 0) { s_rosterN = 0; s_prefs.remove("roster"); }
     s_prefs.putString("phrase", text);
-    s_prefs.putBytes("key", key, sizeof key);
+    s_prefs.putBytes("key2", key, sizeof key);
     memcpy(s_phrase, text, n + 1);
     s_havePhrase = true;
     // A different group: counters and half-heard messages under the old key
@@ -699,6 +893,7 @@ bool setPhrase(const char* text) {
 void clearPhrase() {
     s_prefs.remove("phrase");
     s_prefs.remove("key");
+    s_prefs.remove("key2");
     s_prefs.remove("replay");
     s_prefs.remove("roster");
     s_rosterN = 0;
@@ -722,8 +917,9 @@ Send send(uint8_t canned, uint32_t now) {
     uint32_t c = 0;
     if (!takeCounters(1, c)) return Send::FAILED;
     s_sentCtr = c;
-    const size_t n = MeshMsg::sealCanned(MeshCrypto::impl(), s_ownMac, c, canned,
-                                         s_out[0], sizeof s_out[0]);
+    const uint8_t pt[1] = { canned };
+    const size_t n = PusiMesh2::seal(MeshCrypto::impl(), Mesh::nodeId(), c,
+                                     PusiMesh2::K_CANNED, pt, sizeof pt, s_out[0], sizeof s_out[0]);
     if (n == 0) return Send::FAILED;
     s_outLen[0] = (uint8_t)n;
     onAir(1, now);
@@ -731,17 +927,29 @@ Send send(uint8_t canned, uint32_t now) {
     return Send::OK;
 }
 
+// Which 6-bit alphabet a message needs: Cyrillic when any character is above
+// ASCII. The Cyrillic table carries digits and punctuation but not Latin
+// letters, so mixed text is refused by textParts() rather than mis-encoded.
+static PusiMesh2::Alpha textAlpha(const char* s) {
+    for (size_t i = 0; s[i]; ) {
+        const uint32_t cp = PusiMesh2::utf8Decode(s, i);
+        if (cp == 0xFFFFFFFFu || cp > 0x7F) return PusiMesh2::Alpha::CYRILLIC;
+    }
+    return PusiMesh2::Alpha::LATIN;
+}
+
 Send sendText(const char* text, uint32_t now) {
     const Send ok = checks();
     if (ok != Send::OK) return ok;
-    const uint8_t total = MeshMsg::textParts(text);
+    const PusiMesh2::Alpha a = textAlpha(text);
+    const uint8_t total = PusiMesh2::textParts(a, text);
     if (total == 0) return Send::FAILED;
     uint32_t base = 0;
     if (!takeCounters(total, base)) return Send::FAILED;
     s_sentCtr = base;
     for (uint8_t p = 0; p < total; p++) {
-        const size_t n = MeshMsg::sealTextPart(MeshCrypto::impl(), s_ownMac, base + p, text,
-                                               p, total, s_out[p], sizeof s_out[p]);
+        const size_t n = PusiMesh2::sealTextPart(MeshCrypto::impl(), Mesh::nodeId(), base + p,
+                                                 a, text, p, total, s_out[p], sizeof s_out[p]);
         if (n == 0) { s_outN = 0; return Send::FAILED; }
         s_outLen[p] = (uint8_t)n;
     }
@@ -756,8 +964,9 @@ Send sendEmote(uint8_t emote, uint8_t setup, uint32_t now) {
     if (ok != Send::OK) return ok;
     uint32_t c = 0;
     if (!takeCounters(1, c)) return Send::FAILED;
-    const size_t n = MeshMsg::sealEmote(MeshCrypto::impl(), s_ownMac, c, emote, setup,
-                                        s_out[0], sizeof s_out[0]);
+    const uint8_t pt[2] = { emote, setup };
+    const size_t n = PusiMesh2::seal(MeshCrypto::impl(), Mesh::nodeId(), c,
+                                     PusiMesh2::K_EMOTE, pt, sizeof pt, s_out[0], sizeof s_out[0]);
     if (n == 0) return Send::FAILED;
     s_outLen[0] = (uint8_t)n;
     onAir(1, now, EMOTE_MS, true);
@@ -778,11 +987,11 @@ Send sendNudge(const uint8_t ver[3], const char* ssid, const char* pass, uint32_
     const uint8_t parts = MeshMsg::wifiParts(blobLen);
     uint32_t base = 0;
     if (!takeCounters((uint8_t)(1 + parts), base)) return Send::FAILED;
-    size_t n = MeshMsg::sealNudge(MeshCrypto::impl(), s_ownMac, base, ver, parts, s_out[0], sizeof s_out[0]);
+    size_t n = MeshMsg::sealNudge(MeshCrypto::impl(), s_ownId, base, ver, parts, s_out[0], sizeof s_out[0]);
     if (n == 0) return Send::FAILED;
     s_outLen[0] = (uint8_t)n;
     for (uint8_t p = 0; p < parts; p++) {
-        n = MeshMsg::sealWifiPart(MeshCrypto::impl(), s_ownMac, base + 1 + p, blob, blobLen,
+        n = MeshMsg::sealWifiPart(MeshCrypto::impl(), s_ownId, base + 1 + p, blob, blobLen,
                                   p, parts, s_out[1 + p], sizeof s_out[1 + p]);
         if (n == 0) { s_outN = 0; memset(blob, 0, sizeof blob); return Send::FAILED; }
         s_outLen[1 + p] = (uint8_t)n;
@@ -861,7 +1070,7 @@ void inviteWipe() {
 // no phrase (the invitee, usually) is left unkeyed, as it was.
 void inviteKeyRestore() {
     uint8_t key[MeshMsg::KEY_LEN];
-    if (s_havePhrase && s_prefs.getBytes("key", key, sizeof key) == sizeof key) MeshCrypto::impl().setKey(key);
+    if (s_havePhrase && s_prefs.getBytes("key2", key, sizeof key) == sizeof key) MeshCrypto::impl().setKey(key);
     memset(key, 0, sizeof key);
 }
 void inviteFail(const char* why, uint32_t now) {
@@ -881,7 +1090,7 @@ Send invitePut(uint8_t kind, const uint8_t blob[MeshMsg::INVITE_BLOB], uint32_t 
     for (uint8_t p = 0; p < MeshMsg::INVITE_PARTS && ok; p++) {
         const size_t n = (kind == MeshMsg::KIND_INVITE_PUB)
             ? MeshMsg::sealInvitePub(MeshCrypto::sha256, base + p, blob, p, s_out[p], sizeof s_out[p])
-            : MeshMsg::sealInviteKey(MeshCrypto::impl(), s_ownMac, base + p, blob, p, s_out[p], sizeof s_out[p]);
+            : MeshMsg::sealInviteKey(MeshCrypto::impl(), s_ownId, base + p, blob, p, s_out[p], sizeof s_out[p]);
         s_outLen[p] = (uint8_t)n;
         ok = n != 0;
     }
@@ -982,7 +1191,7 @@ static Send sendUpdated(uint32_t now) {
     MeshMsg::parseVersion(OtaCore::runningVersion(), ver);
     uint32_t c = 0;
     if (!takeCounters(1, c)) return Send::FAILED;
-    const size_t n = MeshMsg::sealUpdated(MeshCrypto::impl(), s_ownMac, c, ver, s_out[0], sizeof s_out[0]);
+    const size_t n = MeshMsg::sealUpdated(MeshCrypto::impl(), s_ownId, c, ver, s_out[0], sizeof s_out[0]);
     if (n == 0) return Send::FAILED;
     s_outLen[0] = (uint8_t)n;
     onAir(1, now);
@@ -1078,6 +1287,7 @@ bool takeEmote(EmoteIn& out) {
 
 void setOwnMac(const uint8_t mac[6]) {
     memcpy(s_ownMac, mac, 6);
+    memcpy(s_ownId, Mesh::nodeId(), 6);
     s_macSet = true;
 }
 
@@ -1128,7 +1338,15 @@ void tick(uint32_t now) {
         s_readDue = false;
         uint32_t c = 0;
         if (takeCounters(1, c)) {
-            const size_t n = MeshMsg::sealRead(MeshCrypto::impl(), s_ownMac, c, s_readCtr, s_out[0], sizeof s_out[0]);
+            // READ: [base u24 LE][tag 4], the tag being the reader's
+            // nodeId[0:4] (spec §4.1) -- who read it, not just that somebody did.
+            const uint8_t* me = Mesh::nodeId();
+            const uint8_t rpt[7] = {
+                (uint8_t)s_readCtr, (uint8_t)(s_readCtr >> 8), (uint8_t)(s_readCtr >> 16),
+                me[0], me[1], me[2], me[3]
+            };
+            const size_t n = PusiMesh2::seal(MeshCrypto::impl(), me, c,
+                                             PusiMesh2::K_READ, rpt, sizeof rpt, s_out[0], sizeof s_out[0]);
             if (n) { s_outLen[0] = (uint8_t)n; onAir(1, now, EMOTE_MS, true); }
         }
     }
@@ -1140,7 +1358,7 @@ void tick(uint32_t now) {
         s_huOut.due = false;
         uint32_t c = 0;
         if (takeCounters(1, c)) {
-            const size_t n = MeshMsg::sealHeadsUp(MeshCrypto::impl(), s_ownMac, c, s_huOut.type, s_huOut.rssi,
+            const size_t n = MeshMsg::sealHeadsUp(MeshCrypto::impl(), s_ownId, c, s_huOut.type, s_huOut.rssi,
                                                   s_huOut.tail, s_out[0], sizeof s_out[0]);
             if (n) {
                 s_outLen[0] = (uint8_t)n;
@@ -1162,9 +1380,16 @@ void tick(uint32_t now) {
             uint8_t ver[3] = { 0, 0, 0 };
             MeshMsg::parseVersion(OtaCore::runningVersion(), ver);
             const uint8_t zone = Settings::timeZoneChosen() ? (uint8_t)(Settings::timeZone() + 1) : 0;
-            // Only a real time goes on the air; a guess would spread.
-            const size_t n = MeshMsg::sealHello(MeshCrypto::impl(), s_ownMac, c, ver, Clock::trusted() ? Clock::nowEpoch() : 0, zone,
-                                                s_out[0], sizeof s_out[0]);
+            // HELLO: [maj][min][pat][epoch u32 LE][zone+1]. Only a real time
+            // goes on the air; a guess would spread.
+            const uint32_t ep = Clock::trusted() ? Clock::nowEpoch() : 0;
+            const uint8_t hpt[8] = {
+                ver[0], ver[1], ver[2],
+                (uint8_t)ep, (uint8_t)(ep >> 8), (uint8_t)(ep >> 16), (uint8_t)(ep >> 24),
+                zone
+            };
+            const size_t n = PusiMesh2::seal(MeshCrypto::impl(), Mesh::nodeId(), c,
+                                             PusiMesh2::K_HELLO, hpt, sizeof hpt, s_out[0], sizeof s_out[0]);
             if (n) { s_outLen[0] = (uint8_t)n; onAir(1, now, HELLO_MS); }
         }
     }

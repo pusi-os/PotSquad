@@ -861,4 +861,35 @@ void uiPhoneTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adv
 
 }
 
+uint8_t uiPhoneStops(TFT_eSPI& t, int16_t* xs, int16_t* ys, uint8_t cap) {
+    uint8_t n = 0;
+    auto add = [&](int x, int y) {
+        if (n < cap) { xs[n] = (int16_t)x; ys[n] = (int16_t)y; n++; }
+    };
+    const int w = t.width(), h = t.height();
+    const bool qw = Settings::phoneQwerty();
+
+    if (qw) {
+        // s_keys is laid out every frame by the draw; the cursor runs after
+        // the frame, so it reads the board that is actually on screen.
+        for (uint8_t i = 0; i < s_keyN; i++)
+            add(s_keys[i].x + s_keys[i].w / 2, s_keys[i].y + s_keys[i].h / 2);
+    } else {
+        for (int i = 0; i < 12; i++) {
+            const int kx = keysX() + (i % 3) * (KW + KGAP);
+            const int ky = KY + (i / 3) * (KH + KGAP);
+            add(kx + KW / 2, ky + KH / 2);
+        }
+    }
+
+    add(BX + BW_() / 2, backY(h) + BH / 2);          // BACK
+    toggleRect(w, h, qw);
+    add(s_toggleX + BW_() / 2, s_toggleY + BH / 2);  // KEYPAD / QWERTY
+    if (qw) {
+        langRect(w, h);
+        add(s_langX + BW_() / 2, s_langY + BH / 2);  // EN / РУ
+    }
+    return n;
+}
+
 #endif // POTS_MESH

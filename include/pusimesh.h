@@ -44,7 +44,9 @@ static const uint8_t VERSION = 1;
 // Name field. Twelve bytes, ASCII, NUL-padded when shorter. The cap is a
 // rendering budget rather than a storage one: the name has to fit a
 // nameplate above a Potsy drawn at SMALL, which is a tighter measure than
-// the settings row it lives in on its own device.
+// the settings row it lives in on its own device. It is also what still
+// leaves room for the look extension beside it (24 + 7 = 31, the whole
+// legacy advert), which a longer name would push out.
 static const size_t NAME_LEN = 12;
 
 // The lengths a valid payload can have. Nothing in between is legal --
@@ -121,6 +123,15 @@ struct Peer {
     uint8_t id[PHONE_ID_LEN];
 };
 
+// The appearance word, packed and unpacked. v1's payload and the v2 presence
+// body both carry it, so the packing lives here where both can reach it and a
+// guest reads the same on either wire. Unpacking clamps, as decode() does: an
+// index this build lacks is version skew, not an attack, and the wrong hat
+// beats refusing the peer.
+uint16_t packAppearance(uint8_t nick, uint8_t outfit, uint8_t shade, bool custom, bool aura);
+void     unpackAppearance(uint16_t word, uint8_t& nick, uint8_t& outfit, uint8_t& shade,
+                          bool& custom, bool& aura);
+
 // ---------------------------------------------------------------------
 // The look extension.
 //
@@ -135,26 +146,31 @@ struct Peer {
 // Both structures carry company 0xFFFF; this one is told apart by MAGIC.
 //
 // Layout after the 2 company bytes:
-//   0..3  magic 'S','Q','X','1'
-//   4     extension version (=1)
-//   5     shirt(3) | shorts(3) << 3
-//   6     shoes(3) | state(5) << 3
+//   0     magic 'X'
+//   1..2  packed: shirt(3) | shorts(3) << 3 | shoes(3) << 6 | mood(5) << 9
+//                 | glasses(1) << 14 | lashes(1) << 15
 //
-// It is best-effort on the wire: 31 bytes hold an unnamed presence (12) plus
-// this (11) with room to spare, but a presence carrying a typed name (24)
-// leaves too little, and a sender then simply omits the colours rather than
-// the identity. See the plan doc.
-static const uint8_t LOOK_MAGIC[4] = { 0x53, 0x51, 0x58, 0x31 };  // 'S','Q','X','1'
-static const uint8_t LOOK_VERSION  = 1;
-static const size_t  LOOK_BODY     = 2;                     // packed colour/state bytes
-static const size_t  LOOK_PAYLOAD  = sizeof(LOOK_MAGIC) + 1 + LOOK_BODY;   // 7
-static const uint8_t LOOK_CLOTH_N  = 8;                     // CLOTH_COLORS entries
+// It is best-effort on the wire, but it now FITS beside a named presence: 18
+// bytes of presence plus this 3, with the two AD headers and both company IDs,
+// is 29 of the 31 a legacy advert holds. It was an 8-byte extension with a
+// four-byte magic, which needed 32 once the name was 12 bytes -- and the
+// colours, never the identity, were what gave way. A shorter magic and a
+// two-byte body buy the space back; the magic byte doubles as the version.
+static const uint8_t LOOK_MAGIC   = 'X';
+static const size_t  LOOK_BODY    = 2;                     // packed colour/state/eyes
+static const size_t  LOOK_PAYLOAD = 1 + LOOK_BODY;         // 3
+static const uint8_t LOOK_CLOTH_N = 8;                     // CLOTH_COLORS entries
 
 struct Look {
     uint8_t shirt;   // index into the shared CLOTH_COLORS palette, 0..7
     uint8_t shorts;  // ...and the same for the other two garments
     uint8_t shoes;
     uint8_t state;   // the sender's mood (Potsy::Mood), 0..31; 0 is idle
+    // The removable shades layer and the eyelashes are the two appearance
+    // choices a presence payload has no room for, and without them a guest
+    // wore the HOST's -- which reads as a reflection, not a guest.
+    bool    glasses; // the shades layer is on
+    bool    lashes;  // eyelashes on the bare eyes
 };
 
 // Writes LOOK_PAYLOAD bytes. `out` must have room for at least that many.
