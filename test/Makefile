@@ -23,7 +23,7 @@ CXX      ?= g++
 CXXFLAGS := -std=c++17 -O1 -g -Wall -Wextra -Wno-unused-parameter \
             -I$(SIM) -I$(INC)
 
-TESTS := remote_id_test ibeacon_test signatures_test emitter_roundtrip_test ignore_list_test hacker_test pwnagotchi_test shim_fidelity_test pusimesh_test qwerty_test meshmsg_test device_info_test security_test emote_script_test blackbox_test bingo_test hunt_test bgretire_test autoquiet_test framepush_test touchfit_test logindex_test dex_test regulars_test spam_test gnss_test sd_row_test wigle_test wardrive_test wardrive_seen_test lora_survey_test lora_msgs_test lora_json_test lora_feed_test lora_airtime_test lora_ident_test lora_enrich_test lora_channels_test lora_nodes_test lora_crypto_test lora_meshtastic_test lora_meshcore_test lora_lorawan_test lora_ham_test mesh_airtime_test mesh_tx_policy_test mesh_appearance_test mesh_primary_transport_test mesh_visit_appearance_test
+TESTS := remote_id_test ibeacon_test signatures_test emitter_roundtrip_test ignore_list_test hacker_test pwnagotchi_test shim_fidelity_test pusimesh_test pusimesh_v2_test pusimesh_identity_test meshvoice_v2_test qwerty_test meshmsg_test device_info_test security_test emote_script_test blackbox_test bingo_test hunt_test bgretire_test autoquiet_test framepush_test touchfit_test logindex_test dex_test regulars_test spam_test gnss_test sd_row_test wigle_test wardrive_test wardrive_seen_test lora_survey_test lora_msgs_test lora_json_test lora_feed_test lora_airtime_test lora_ident_test lora_enrich_test lora_channels_test lora_nodes_test lora_crypto_test lora_meshtastic_test lora_meshcore_test lora_lorawan_test lora_ham_test mesh_airtime_test mesh_tx_policy_test mesh_appearance_test mesh_primary_transport_test mesh_visit_appearance_test
 
 # Only the units under test get linked in. Pulling the whole firmware
 # would drag in TFT_eSPI, NimBLE and the UI, and a test that needs a
@@ -39,6 +39,18 @@ pusimesh_test_SRCS         := $(SRC)/pusimesh.cpp
 # The codec is #if POTS_MESH so it stays out of every shipping board.
 # The test is the one place that wants it compiled regardless of build env.
 pusimesh_test_FLAGS        := -DPOTS_MESH=1
+# PusiMesh v2: presence/identity and the sealed frame, against the independent
+# vectors in test/pusimesh_v2_vectors.h (tools/gen_pusimesh_v2_vectors.py).
+pusimesh_v2_test_SRCS      := $(SRC)/pusimesh_v2.cpp $(SRC)/meshframe_v2.cpp
+pusimesh_v2_test_FLAGS     := -DPOTS_MESH=1
+# Ф1's pure half: identity arithmetic and the linkAddr->nodeId map. No radio,
+# no NVS (both are stubbed out of an ARDUINO build).
+pusimesh_identity_test_SRCS  := $(SRC)/pusimesh_identity.cpp
+pusimesh_identity_test_FLAGS := -DPOTS_MESH=1
+# Ф6's pure half: the voice/blob wire (manifest, chunk, ack). No codec, no
+# radio -- the sealed envelope it rides in is meshframe_v2's, tested above.
+meshvoice_v2_test_SRCS       := $(SRC)/meshvoice_v2.cpp
+meshvoice_v2_test_FLAGS      := -DPOTS_MESH=1
 qwerty_test_SRCS             := $(SRC)/qwerty.cpp
 qwerty_test_FLAGS            := -DPOTS_MESH=1
 # The protocol without the cipher -- see the top of meshmsg_test.cpp.
