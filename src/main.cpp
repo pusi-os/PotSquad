@@ -355,6 +355,7 @@ static void drawCrashCard(TFT_eSPI& t) {
 #include "ui_security.h"
 #include "potsy.h"
 #include "voice.h"
+#include "ui_voice.h"
 #include "cap_touch.h"
 #if defined(TWATCH_S3)
 #define XPOWERS_CHIP_AXP2101
@@ -1183,7 +1184,7 @@ static SmallKeys smallKeysRead() {
     const uint32_t now = millis();
     const bool boot = digitalRead(CUBE_KEY_BOOT) == LOW;
     if (boot && !s_cubeBootWas) { s_cubeBootAt = now; s_cubeBootLong = false; }
-    if (boot && !s_cubeBootLong && now - s_cubeBootAt > STICK_HOLD_MS) { s_cubeBootLong = true; k.home = true; }
+    if (boot && !s_cubeBootLong && now - s_cubeBootAt > STICK_HOLD_MS) { s_cubeBootLong = true; if (!UiVoice::holding()) k.home = true; }
     s_cubeBootWas = boot;
     k.press = boot;
     const bool up = digitalRead(CUBE_KEY_UP) == LOW;
@@ -2402,6 +2403,7 @@ static void enterClear() {
     restoreFrameBuffer();   // lent to a download that did not end in a restart
     if (s_backToDesk) { s_backToDesk = false; enterDesk(); return; }
     Settings::deskActive(false);
+    UiVoice::abort();   // a clip in flight does not survive leaving the desk
     Theme::releaseClockBackdrop();   // the clock fire's heat, if the desk had one
     state = AppState::CLEAR;
     transitionStart = millis();
@@ -9325,11 +9327,13 @@ void loop() {
             // what was just sent, and flicker on its own.
             drawTwoBand([&](TFT_eSPI& t, bool advance) {
                 uiDeskTick(t, now, engine, advance);
+                UiVoice::tick(t, now);
                 Theme::drawToast(t, now);
             });
             // A fresh press only. A finger still down from the screen before
             // -- LATER on the update window opens the desk under it -- used to
             // land on BACK or the timer the moment the debounce ran out.
+            if (touchJustUp) UiVoice::release(now);
             if (touchJustDown && tp.valid && (now - lastTouch) > TOUCH_DEBOUNCE_MS) {
                 // The same edge slivers CLEAR uses, below the title bar and
                 // above the buttons: left edge back, right edge forward.
@@ -9355,6 +9359,9 @@ void loop() {
                 } else if (uiDeskHitTimer(tp.x, tp.y, tft.width(), tft.height())) {
                     lastTouch = now;
                     uiDeskTapTimer(now);
+                } else if (uiDeskHitVoice(tp.x, tp.y, tft.width(), tft.height())) {
+                    lastTouch = now;
+                    UiVoice::press(now);
                 } else if (touchJustDown && uiDeskHitClockEdge(tp.x, tp.y) != 0) {
                     // The clock's own background turns over the same way the
                     // scene's does: right fifth forward, left fifth back.

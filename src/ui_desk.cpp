@@ -110,6 +110,9 @@ void printOutlined(TFT_eSPI& t, int x, int y, const char* s, uint16_t col) {
     put();
 }
 
+// The voice button's box, filled in by timerRects (same row, same call).
+static int s_voiceX = 0, s_voiceW = 0;
+
 void timerRects(int screenW, int screenH, int& tx, int& ty, int& tw, int& th, int& bx, int& bw) {
     const Theme::ButtonBarGeom g = Theme::computeButtonBar(screenW, screenH);
     ty = g.y; th = g.h;
@@ -122,6 +125,18 @@ void timerRects(int screenW, int screenH, int& tx, int& ty, int& tw, int& th, in
     const int gap = g.x[1] - (g.x[0] + g.w[0]);
     tx += th + gap;
     tw -= th + gap;
+    // And the voice button is carved out of the timer's right end, between
+    // the timer and BACK: hold BOOT there to record (see ui_voice.h).
+    const int vw = tw * 2 / 5;
+    s_voiceX = tx + tw - vw;
+    s_voiceW = vw;
+    tw -= vw + gap;
+}
+
+void voiceRect(int screenW, int screenH, int& x, int& y, int& w, int& h) {
+    int tx, ty, tw, th, bx, bw;
+    timerRects(screenW, screenH, tx, ty, tw, th, bx, bw);
+    x = s_voiceX; y = ty; w = s_voiceW; h = th;
 }
 
 // The gear's square: the bar's height, at the bar's left edge.
@@ -760,6 +775,9 @@ void uiDeskTick(TFT_eSPI& t, uint32_t now, const DetectionEngine& eng, bool adva
     char lbl[16];
     timerLabel(lbl, sizeof lbl, now);
     Theme::drawButton(t, tx, ty, tw, tth, lbl, s_timer != Timer::IDLE);
+    int vx, vy, vw, vh;
+    voiceRect(w, h, vx, vy, vw, vh);
+    Theme::drawButton(t, vx, vy, vw, vh, Theme::tr("VOICE", "ГОЛОС"), false);
     Theme::drawButton(t, bx, ty, bw, tth, Theme::tr("BACK", "НАЗАД"), false);
     {
         int gx, gy, gs;
@@ -818,12 +836,23 @@ uint8_t uiDeskStops(int screenW, int screenH, uint32_t now, int16_t* xs, int16_t
     int tx, ty, tw, th, bx, bw;
     timerRects(screenW, screenH, tx, ty, tw, th, bx, bw);
     add(tx + tw / 2, ty + th / 2);                 // FOCUS
+    {
+        int vx, vy, vw, vh;
+        voiceRect(screenW, screenH, vx, vy, vw, vh);
+        add(vx + vw / 2, vy + vh / 2);             // VOICE
+    }
     add(bx + bw / 2, ty + th / 2);                 // BACK
     int gx, gy, gs;
     gearRect(screenW, screenH, gx, gy, gs);
     add(gx + gs / 2, gy + gs / 2);                 // the gear: settings
     if (s_plateW > 0) add(s_plateX + s_plateW - s_plateW / 10, s_plateY + s_plateH / 2);   // the clock's look
     return n;
+}
+
+bool uiDeskHitVoice(int x, int y, int screenW, int screenH) {
+    int vx, vy, vw, vh;
+    voiceRect(screenW, screenH, vx, vy, vw, vh);
+    return x >= vx && x <= vx + vw && y >= vy && y <= vy + vh;
 }
 
 bool uiDeskHitBack(int x, int y, int screenW, int screenH) {
