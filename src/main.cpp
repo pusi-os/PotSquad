@@ -354,6 +354,7 @@ static void drawCrashCard(TFT_eSPI& t) {
 #include "security.h"
 #include "ui_security.h"
 #include "potsy.h"
+#include "voice.h"
 #include "cap_touch.h"
 #if defined(TWATCH_S3)
 #define XPOWERS_CHIP_AXP2101
@@ -4328,6 +4329,9 @@ void setup() {
     // while it is still the previous life's, not this one's.
     crashReportInit();
     Serial.begin(SERIAL_BAUD);
+    // The voice engine's I2S and Opus come up once, here. It is a no-op on
+    // every board without a mic and a speaker (see voice.h).
+    Voice::begin();
 #if SQW_SPEAKER
     // POWER OFF left BOOT's pad on the RTC side for its wake, and a pad on
     // the RTC side reads nothing on the ordinary GPIO path. Hand it back
